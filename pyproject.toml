@@ -1,0 +1,29 @@
+[project]
+name = "finn"
+version = "0.1.0"
+description = "FINN: a mobile-first investing agent for Indian equities"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162.0",
+    "uvicorn[standard]>=0.32.1",
+    "pydantic>=2.10.2",
+    "python-dotenv>=1.0.1",
+    "yfinance==1.7.0",
+    "httpx>=0.28.0",
+    "beautifulsoup4>=4.12.3",
+    "lxml>=5.3.0",
+    "pandas>=2.2.3",
+    "pymupdf>=2.0",
+    "google-genai>=2.34.0,<3.0.0",
+    "ddgs>=9.16.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "pytest>=8.3.0",
+]
+
+[tool.ruff]
+line-length = 100
