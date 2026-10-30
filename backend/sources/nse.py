@@ -1,0 +1,179 @@
+"""NSE: corporate announcements and integrated-filing results (iXBRL).
+
+NSE's API needs the cookies set by its homepage, even though the homepage itself
+answers 403 to scripts (EVIDENCE E1).
+"""
+
+import re
+import time
+from datetime import date, datetime
+
+import httpx
+from bs4 import BeautifulSoup
+
+from backend.config import USER_AGENT
+
+BASE = "https://www.nseindia.com"
+PAUSE_S = 0.8  # 18 sequential calls at this pace had zero failures (EVIDENCE E2)
+
+
+class NSE:
+    def __init__(self) -> None:
+        self.client = httpx.Client(
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json,text/html"},
+            timeout=30,
+            follow_redirects=True,
+        )
+        self._warm()
+
+    def _warm(self) -> None:
+        self.client.get(BASE + "/")
+
+    def _get_json(self, path: str, params: dict):
+        for attempt in range(3):
+            r = self.client.get(BASE + path, params=params)
+            if r.status_code == 200:
+                try:
+                    return r.json()
+                except ValueError:
+                    pass
+            time.sleep(2 * (attempt + 1))
+            self._warm()
+        r.raise_for_status()
+        raise RuntimeError(f"NSE returned non-JSON for {path} {params}")
+
+    def announcements(self, symbol: str, start: date, end: date) -> list[dict]:
+        data = self._get_json(
+            "/api/corporate-announcements",
+            {
+                "index": "equities",
+                "symbol": symbol,
+                "from_date": start.strftime("%d-%m-%Y"),
+                "to_date": end.strftime("%d-%m-%Y"),
+            },
+        )
+        time.sleep(PAUSE_S)
+        return [_clean_announcement(a) for a in data]
+
+    def integrated_financials(self, symbol: str) -> list[dict]:
+        """Rows for quarterly results filed under SEBI's integrated filing format.
+
+        The older corporates-financial-results endpoint stops at Dec 2024 (EVIDENCE E6).
+        """
+        data = self._get_json(
+            "/api/integrated-filing-results",
+            {"index": "equities", "symbol": symbol, "type": "Integrated Filing- Financials"},
+        )
+        time.sleep(PAUSE_S)
+        return data.get("data", []) if isinstance(data, dict) else []
+
+    def fetch_text(self, url: str) -> str:
+        r = self.client.get(url)
+        r.raise_for_status()
+        return r.text
+
+
+def _clean_announcement(a: dict) -> dict:
+    dt = datetime.strptime(a["an_dt"], "%d-%b-%Y %H:%M:%S")
+    return {
+        "id": str(a["seq_id"]),
+        "ticker": a["symbol"],
+        "an_dt": dt.isoformat(),
+        "nse_label": (a.get("desc") or "").strip(),
+        # NSE escapes apostrophes as '' in this field
+        "text": (a.get("attchmntText") or "").replace("''", "'").strip(),
+        "pdf_url": a.get("attchmntFile") or None,
+    }
+
+
+# ---------- results from iXBRL ----------
+
+_UNIT_TO_CRORE = {
+    "actual": 1e-7, "rupees": 1e-7, "thousands": 1e-4, "lakhs": 1e-2, "lakh": 1e-2,
+    "millions": 1e-1, "million": 1e-1, "crores": 1.0, "crore": 1.0,
+}
+
+# Row labels in the P&L table of the integrated filing. First match wins.
+# "Profit before tax" also appears in the segment table, so we only read the P&L table.
+# Three layouts seen live: companies (TCS, RELIANCE), NBFCs (BAJFINANCE), banks (HDFCBANK).
+_ROWS = {
+    "revenue": ["total revenue from operations", "revenue from operations", "total interest earned"],
+    "total_income": ["total income"],
+    "other_income": ["other income"],
+    "finance_costs": ["finance costs", "interest expended"],
+    "depreciation": ["depreciation, depletion and amortisation expense", "depreciation and amortisation expense"],
+    "ppop": ["operating profit before provision and contingencies"],
+    "provisions": ["provisions other than tax and contingencies"],
+    "pbt": ["total profit before tax", "total profit (loss) from ordinary activities before tax"],
+    "pat": ["total profit (loss) for period", "net profit (loss) for the period"],
+}
+
+def _num(s: str) -> float | None:
+    s = s.strip()
+    if not s or not re.search(r"\d", s):
+        return None
+    neg = s.startswith("(") and s.endswith(")")
+    v = float(re.sub(r"[^\d.]", "", s))
+    return -v if neg else v
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip().lower()
+
+
+def parse_results_ixbrl(html: str) -> dict:
+    """Headline P&L numbers for the current quarter, converted to Rs crore.
+
+    Verified on TCS Sep 2026: revenue 73,188, PBT 18,638, PAT 13,934 crore,
+    all equal to Screener's quarterly table (EVIDENCE E6).
+    """
+    soup = BeautifulSoup(html, "lxml")
+    tables = soup.find_all("table")
+
+    unit = None
+    for t in tables:
+        for tr in t.find_all("tr"):
+            cells = [_norm(c.get_text(" ", strip=True)) for c in tr.find_all(["td", "th"])]
+            if len(cells) >= 2 and cells[0].startswith("level of rounding"):
+                unit = cells[1]
+                break
+        if unit:
+            break
+    if unit not in _UNIT_TO_CRORE:
+        raise ValueError(f"unknown rounding unit: {unit!r}")
+    factor = _UNIT_TO_CRORE[unit]
+
+    pl = None
+    for t in tables:
+        text = _norm(t.get_text(" "))
+        has_cost = "total expenses" in text or "total expenditure" in text
+        if has_cost and ("revenue from operations" in text or "interest earned" in text):
+            pl = t
+            break
+    if pl is None:
+        raise ValueError("P&L table not found")
+
+    out: dict = {"unit_in_filing": unit, "is_bank": "interest earned" in _norm(pl.get_text(" "))}
+    period_end = None
+    for tr in pl.find_all("tr"):
+        cells = [_norm(c.get_text(" ", strip=True)) for c in tr.find_all(["td", "th"])]
+        # rows look like [index, label, current quarter, year to date]
+        labelled = [(i, c) for i, c in enumerate(cells) if re.search(r"[a-z]{3}", c)]
+        if not labelled:
+            continue
+        i, label = labelled[0]
+        values = cells[i + 1:]
+        if not values:
+            continue
+        if label.startswith("date of end of reporting period"):
+            period_end = datetime.strptime(values[0], "%d-%m-%Y").date().isoformat()
+            continue
+        for key, names in _ROWS.items():
+            if key in out:
+                continue
+            if label in names:
+                v = _num(values[0])
+                if v is not None:
+                    out[key] = round(v * factor, 2)
+    out["period_end"] = period_end
+    return out

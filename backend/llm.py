@@ -1,0 +1,77 @@
+"""Single entry point for model calls. Every call is logged to llm_calls."""
+
+import os
+import time
+
+from dotenv import load_dotenv
+from google import genai
+from google.genai import errors, types
+
+from backend import db
+from backend.config import ROOT
+
+load_dotenv(ROOT / ".env")
+
+# Cheapest Gemini 3 tier for bulk text work (EVIDENCE E10). For reasoning over transcripts,
+# 3.6 Flash: on the free tier 3.8 Flash took 40 s to 300 s per call and often returned 503 (E14).
+LITE = os.getenv("FINN_LITE_MODEL", "gemini-3.1-flash-lite")
+REASON = os.getenv("FINN_REASON_MODEL", "gemini-3.6-flash")
+REASON_FALLBACK = os.getenv("FINN_REASON_FALLBACK", "gemini-3.8-flash")
+
+_client: genai.Client | None = None
+
+
+def client() -> genai.Client:
+    global _client
+    if _client is None:
+        _client = genai.Client()
+    return _client
+
+
+def generate(
+    task: str,
+    model: str,
+    contents,
+    schema=None,
+    system: str | None = None,
+    thinking: str | None = None,
+    cached_content: str | None = None,
+    retries: int = 4,
+):
+    """Returns the parsed object when `schema` is given, else text."""
+    cfg = types.GenerateContentConfig(
+        system_instruction=system,
+        response_mime_type="application/json" if schema else None,
+        response_schema=schema,
+        thinking_config=types.ThinkingConfig(thinking_level=thinking) if thinking else None,
+        cached_content=cached_content,
+    )
+    for attempt in range(retries):
+        t0 = time.time()
+        try:
+            r = client().models.generate_content(model=model, contents=contents, config=cfg)
+            _log(task, model, r.usage_metadata, t0, ok=True)
+            return r.parsed if schema else r.text
+        except errors.APIError as e:
+            _log(task, model, None, t0, ok=False)
+            if e.code in (429, 500, 503) and attempt < retries - 1:
+                time.sleep(min(60, 5 * 2**attempt))
+                continue
+            raise
+
+
+def _log(task: str, model: str, usage, t0: float, ok: bool) -> None:
+    u = usage
+    with db.session() as c:
+        c.execute(
+            "INSERT INTO llm_calls(task, model, tokens_in, tokens_out, tokens_cached, tokens_thinking,"
+            " latency_ms, ok, ts) VALUES(?,?,?,?,?,?,?,?,?)",
+            (
+                task, model,
+                getattr(u, "prompt_token_count", None),
+                getattr(u, "candidates_token_count", None),
+                getattr(u, "cached_content_token_count", None),
+                getattr(u, "thoughts_token_count", None),
+                int((time.time() - t0) * 1000), int(ok), db.now_iso(),
+            ),
+        )
