@@ -1,6 +1,8 @@
 """Download PDFs (transcripts, annual reports, filings) and extract text page by page."""
 
 import hashlib
+import io
+import zipfile
 
 import httpx
 import pymupdf
@@ -29,11 +31,18 @@ def download(url: str, client: httpx.Client | None = None) -> bytes:
     try:
         r = client.get(url, headers=headers)
         r.raise_for_status()
-        if not r.content.startswith(b"%PDF"):
+        data = r.content
+        if data.startswith(b"PK"):  # some NSE attachments are a zip holding the PDF
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                names = sorted(n for n in z.namelist() if n.lower().endswith(".pdf"))
+                if not names:
+                    raise ValueError(f"zip without a PDF: {url}")
+                data = z.read(names[0])
+        if not data.startswith(b"%PDF"):
             raise ValueError(f"not a PDF: {url} ({r.headers.get('content-type')})")
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(r.content)
-        return r.content
+        path.write_bytes(data)
+        return data
     finally:
         if own:
             client.close()

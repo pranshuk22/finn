@@ -90,6 +90,7 @@ def _clean_announcement(a: dict) -> dict:
 
 _UNIT_TO_CRORE = {
     "actual": 1e-7,
+    "actuals": 1e-7,
     "rupees": 1e-7,
     "thousands": 1e-4,
     "lakhs": 1e-2,
@@ -125,6 +126,15 @@ def _num(s: str) -> float | None:
     return -v if neg else v
 
 
+def _date(s: str) -> str | None:
+    for fmt in ("%d-%m-%Y", "%d-%b-%Y"):  # newer filings use 30-09-2026, older ones 30-Jun-2025
+        try:
+            return datetime.strptime(s, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
 def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip().lower()
 
@@ -139,14 +149,20 @@ def parse_results_ixbrl(html: str) -> dict:
     tables = soup.find_all("table")
 
     unit = None
+    currency_note = None
     for t in tables:
         for tr in t.find_all("tr"):
             cells = [_norm(c.get_text(" ", strip=True)) for c in tr.find_all(["td", "th"])]
             if len(cells) >= 2 and cells[0].startswith("level of rounding"):
                 unit = cells[1]
-                break
+            elif len(cells) >= 2 and cells[0].startswith("description of presentation currency"):
+                currency_note = cells[1]
         if unit:
             break
+    if unit is None and currency_note:
+        # Older filings (seen for TITAN and HAL, Jun 2025) say "INR (in Actuals)" instead of a rounding row.
+        m = re.search(r"\(in (\w+)\)", currency_note)
+        unit = m.group(1) if m else None
     if unit not in _UNIT_TO_CRORE:
         raise ValueError(f"unknown rounding unit: {unit!r}")
     factor = _UNIT_TO_CRORE[unit]
@@ -174,7 +190,7 @@ def parse_results_ixbrl(html: str) -> dict:
         if not values:
             continue
         if label.startswith("date of end of reporting period"):
-            period_end = datetime.strptime(values[0], "%d-%m-%Y").date().isoformat()
+            period_end = _date(values[0])
             continue
         for key, names in _ROWS.items():
             if key in out:

@@ -333,3 +333,16 @@ def cash_quality(c: sqlite3.Connection, ticker: str) -> dict:
         "leverage": de,
         "is_financial": ticker in FINANCIALS,
     }
+
+
+def scale(c: sqlite3.Connection, ticker: str, amount_cr: float) -> dict:
+    """An amount from a filing as a share of annual revenue, so 'Rs 500 crore' means something."""
+    _, sales = _series(c, ticker, "profit-loss", ["Sales", "Revenue"])
+    ttm = next((r["value"] for r in sales if r["period"] == "TTM"), None)
+    if ttm is None and _annual(sales):
+        ttm = _annual(sales)[-1]["value"]
+    return {
+        "amount_cr": amount_cr,
+        "annual_revenue_cr": ttm,
+        "pct_of_revenue": round(100 * amount_cr / ttm, 2) if ttm else None,
+    }

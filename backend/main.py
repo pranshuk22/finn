@@ -7,16 +7,34 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend import analytics as A
-from backend import db, pull
+from backend import db, enrich, pull
 from backend.config import ADHOC, ALIASES, PORTFOLIO, ROOT, resolve_ticker
 
 IST = ZoneInfo("Asia/Kolkata")
-app = FastAPI(title="FINN")
+
+
+def _no_dashes(obj):
+    """Exchange filings sometimes contain em and en dashes; FINN's UI never shows them."""
+    if isinstance(obj, str):
+        return obj.replace("\u2014", " - ").replace("\u2013", "-")
+    if isinstance(obj, list):
+        return [_no_dashes(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _no_dashes(v) for k, v in obj.items()}
+    return obj
+
+
+class CleanJSON(JSONResponse):
+    def render(self, content) -> bytes:
+        return super().render(_no_dashes(content))
+
+
+app = FastAPI(title="FINN", default_response_class=CleanJSON)
 db.init()
 
 PRIORITY_ORDER = {"needs_you": 0, "worth_knowing": 1, "routine": 2}
@@ -119,17 +137,28 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                 ],
                 "results": None,
                 "people": None,
+                "scale": None,
             }
             if cat == "results":
                 rc = A.results_card(c, ticker)
                 if rc and rc["broadcast_at"] and rc["broadcast_at"] >= (since - timedelta(days=2)).isoformat():
                     card["results"] = rc
                     card["headline"] = f"{rc['quarter']}: {A.results_headline(rc)}"
+            people: dict[tuple[str, str], dict] = {}
+            amount = None
             for f in fs:
-                if f["enrichment"]:
-                    e = json.loads(f["enrichment"])
-                    if e.get("people"):
-                        card["people"] = (card["people"] or []) + e["people"]
+                if not f["enrichment"]:
+                    continue
+                e = json.loads(f["enrichment"])
+                for p in e.get("people") or []:
+                    people.setdefault((p["name"].lower().replace(".", ""), p["change"]), p)
+                amount = amount or e.get("amount_rs_crore")
+            if people:
+                card["people"] = list(people.values())
+                own = [p for p in card["people"] if not p.get("entity") and p["change"] in ("joining", "leaving")]
+                card["headline"] = enrich.people_line(own or card["people"]) or card["headline"]
+            if amount:
+                card["scale"] = A.scale(c, ticker, amount)
             cards.append(card)
         # newest first within the same priority and category (two stable sorts)
         cards.sort(key=lambda k: k["latest_at"], reverse=True)
