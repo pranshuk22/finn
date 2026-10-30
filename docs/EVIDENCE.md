@@ -151,6 +151,44 @@ Sources: https://ai.google.dev/gemini-api/docs/models, https://ai.google.dev/gem
 - **Filing profile first.** SEBI disclosures for appointments include a brief profile of the appointee, so FINN now reads up to 6 pages of management-change filings and extracts that profile before any web search. Example: Dixon's filing for Prithvi Vachani gives his current role, Bentley University 2017, and the boAt collaboration.
 - **Zip attachments.** Two KMP filings (TRENT, PERSISTENT) attach a `.zip` holding the PDF. The downloader now unpacks it.
 
+## E19. Free tier daily limits, and the routing they forced
+
+- **Source:** the project's AI Studio rate-limit page, read by the author on 2026-10-31 around 03:30 IST.
+
+| Model | RPM | TPM | RPD | Used at the time |
+| --- | --- | --- | --- | --- |
+| gemini-3.6-flash | 5 | 250K | 20 | 21 / 20 (exhausted) |
+| gemini-3.8-flash | 5 | 250K | 20 | 5 / 20 |
+| gemini-3.1-flash-lite | 15 | 250K | 500 | 178 / 500 |
+| gemini-3.5-flash-lite | 15 | 250K | 500 | 14 / 500 |
+
+- Google's rate-limit docs: "Requests per day (RPD) quotas reset at midnight Pacific time." and "Rate limits are applied per project, not per API key."
+- **Why it matters:** the first ledger design spent 5 Flash calls per company (4 extractions and 1 assessment) plus 1 for bull and bear. At 20 a day per Flash model, that is 3 companies a day, and a reviewer pointing FINN at a new ticker could find it out of quota.
+- **Test of the cheaper option:** both Flash-Lite models, given the extraction prompt on the TCS Oct 2026 transcript, found 2 of the 3 items that 3.6 and 3.8 Flash found (operating margin band, data-centre revenue timeline) and missed the ~50 bp MHP margin dilution. All their quotes verified. Fast (1.9 s and 12.2 s) but lower recall.
+- **Decision:** the ledger is now one Flash call per company that reads all four transcripts in date order, extracts promises and judges them against later calls. First run, ASIANPAINT on 3.8 Flash (3.6 was out of quota, the fallback took over by itself): 52,831 tokens in, 4,033 out, 109 s, 13 promises, 0 dropped for unverifiable quotes. Bull and bear moved to 3.5 Flash-Lite (500 a day): 1.7 s, every point cites a fact or promise id that Python checks. So a new company costs 1 Flash call and 1 Flash-Lite call.
+- **Guard:** `backend/llm.py` counts each model's calls since Pacific midnight and skips a model at its daily limit; a 429 whose quota id contains `PerDay` marks the model exhausted for the day and moves to its sibling.
+
+## E20. Margin promises cannot be judged by our margin number alone
+
+- **Case:** Asian Paints guided "PBDIT margin 18% to 20%". Its Jun 2026 call says "PBDIT margins at 18.9%". FINN's first numeric check compared the guidance with Screener's operating margin for Sep 2026, 16.0%, and marked the promise off track.
+- **Why:** Screener's operating margin excludes other income; Asian Paints' PBDIT includes it. Companies define EBITDA, PBDIT and operating margin differently.
+- **Decision:** growth promises (revenue, profit) are still decided in Python from reported numbers. For margin promises the verdict rests on the verified quotes from later calls, and FINN's own margin is shown beside it as context, labelled "excluding other income".
+
+## E21. API speed and payload, and what that says about caching
+
+- **How:** local uvicorn, `curl` three times per endpoint, 2026-10-31 around 03:45 IST, SQLite file 3.3 MB.
+
+| Endpoint | Average time | Payload | With gzip |
+| --- | --- | --- | --- |
+| `/api/brief?hours=24` | 7 ms | 17 KB | 4.6 KB |
+| `/api/brief?hours=168` | 14 ms | 71 KB | |
+| `/api/brief?hours=720` | 24 ms | 157 KB | 29 KB |
+| `/api/research/TCS` (cached sections) | 7 ms | 17 KB | |
+| `/api/alerts/scan` (60 days, 18 tickers) | 7 ms | 5 KB | |
+
+- **Reading:** SQLite already acts as the cache: ingestion and every model output are precomputed and stored, and the API only reads. A server-side response cache (Redis or in-memory) would save single-digit milliseconds. On a phone, the network and payload size dominate, so the API compresses responses and the app keeps the last response on the device and refreshes it in the background.
+- **Where caching really matters:** model outputs, because Flash has 20 requests a day (E19). Ledgers, bull and bear, filing reads and classifications are computed once and stored; PDFs are cached on disk by URL hash.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

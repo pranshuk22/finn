@@ -10,7 +10,6 @@ import json
 import re
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from typing import Literal
 
@@ -219,7 +218,8 @@ def verify_quote(quote: str, doc: dict, page: int | None) -> int | None:
 # ---------- promise ledger ----------
 
 
-class Promise(BaseModel):
+class LedgerItem(BaseModel):
+    source: str = Field(description="The call the promise was made on, as in its header, e.g. 'Jan 2026'")
     metric: str = Field(description="Short name, e.g. 'Operating margin', 'Revenue growth', 'Capex'")
     metric_key: Literal["revenue_growth", "operating_margin", "pat_growth", "capex", "other"]
     target: str = Field(description="The target in plain words, e.g. '26% to 28%' or 'double-digit'")
@@ -228,79 +228,45 @@ class Promise(BaseModel):
     unit: Literal["percent", "rs_crore", "bps", "other"] = "other"
     timeframe: str = Field(description="As stated, e.g. 'FY27', 'next 18 to 24 months', 'long term'")
     due: str | None = Field(None, description="ISO date when the timeframe ends, or null if open-ended")
-    quote: str = Field(description="Exact words copied from the transcript, 10 to 40 words")
+    quote: str = Field(description="Exact words from the source call, 10 to 40 words")
     page: int
     speaker: str | None = None
     kind: Literal["numeric", "qualitative"]
-
-
-class PromiseList(BaseModel):
-    items: list[Promise]
-
-
-_EXTRACT_SYSTEM = """You read one earnings call transcript of an Indian listed company and list the forward-looking
-commitments that management made about the company itself.
-
-Include: guidance on revenue or growth, margins, profit, capex, capacity, debt, order book, product launches,
-and dated plans. Each must have a target or a timeframe.
-Exclude: client case studies, industry or macro commentary, anything said by an analyst, past results,
-and vague aspirations with neither a target nor a timeframe.
-
-Rules:
-- quote: copy 10 to 40 consecutive words exactly as written in the transcript. Do not paraphrase or fix typos.
-- page: the number in the [page N] marker above the quote.
-- due: resolve the timeframe to the date it ends. The Indian financial year FY27 runs from 1 April 2026 to
-  31 March 2027. 'Next year' and 'next quarter' are relative to the call date given. Use null for 'long term'
-  or anything open-ended.
-- target_low and target_high: numbers only, in the unit given. A single number goes in both.
-- Use only this transcript. Do not use anything you know about the company from elsewhere.
-- At most 10 items. Prefer the most specific ones."""
-
-
-def extract_promises(ticker: str, doc: dict) -> list[dict]:
-    res: PromiseList = llm.generate(
-        task="ledger_extract",
-        model=llm.REASON,
-        thinking="low",
-        schema=PromiseList,
-        system=_EXTRACT_SYSTEM,
-        contents=f"Company: {ticker}. Call held in {doc['period']}.\n\n{_paged(doc)}",
-    )
-    out = []
-    for p in res.items:
-        real_page = verify_quote(p.quote, doc, p.page)
-        d = p.model_dump()
-        d.update(source=doc["period"], source_url=doc["url"], verified=real_page is not None, page=real_page or p.page)
-        out.append(d)
-    return out
-
-
-class Assessment(BaseModel):
-    id: str
     status: Literal["delivered", "missed", "revised", "dropped", "pending", "unclear"]
     note: str = Field(description="At most 20 words, plain English")
-    evidence_quote: str | None = Field(None, description="Exact words from a later transcript, 10 to 40 words")
-    evidence_source: str | None = Field(None, description="Which later call, as given in its header")
+    evidence_quote: str | None = Field(None, description="Exact words from a LATER call, 10 to 40 words")
+    evidence_source: str | None = Field(None, description="Which later call, as in its header")
     evidence_page: int | None = None
 
 
-class AssessmentList(BaseModel):
-    items: list[Assessment]
+class Ledger(BaseModel):
+    items: list[LedgerItem]
 
 
-_ASSESS_SYSTEM = """You check what happened to promises an Indian company's management made on earlier earnings calls,
-using only the later call transcripts and the reported numbers given to you.
+_LEDGER_SYSTEM = """You audit an Indian listed company's management: what they promised on earnings calls, and what
+happened after. You get up to four call transcripts in date order and a table of reported numbers.
 
-Status:
+Step 1. From each call, list the forward-looking commitments management made about the company itself: guidance
+on revenue or growth, margins, profit, capex, capacity, debt, order book, launches, and dated plans. Each must have
+a target or a timeframe. Exclude client case studies, industry or macro commentary, anything said by an analyst,
+past results, and vague aspirations with neither a target nor a timeframe. At most 6 per call, the most specific.
+
+Step 2. For each one, judge what happened using only the LATER calls and the numbers:
 - delivered: a later call or the numbers show it happened as promised.
 - missed: the timeframe has passed and it did not happen, or management said it would not.
 - revised: a later call changed the target or the timeframe.
 - dropped: no later call mentions it at all.
-- pending: the timeframe has not ended and no later call contradicts it.
-- unclear: the later calls mention it but do not settle it.
+- pending: the timeframe has not ended, or it comes from the latest call.
+- unclear: later calls mention it but do not settle it.
 
-For delivered, missed and revised you must give evidence_quote: 10 to 40 words copied exactly from a later
-transcript, with evidence_source and evidence_page. Do not use anything you know from outside these texts."""
+Rules:
+- quote and evidence_quote: copy 10 to 40 consecutive words exactly as written. Do not paraphrase or fix typos.
+- page and evidence_page: the number in the [page N] marker above the quote, in that call.
+- delivered, missed and revised need evidence_quote from a later call.
+- due: the date the timeframe ends. FY27 runs from 1 April 2026 to 31 March 2027. 'Next quarter' is relative to the
+  call it was said on. Null for 'long term' or open-ended.
+- target_low and target_high: numbers only, in the unit given. A single number goes in both.
+- Use only these texts. Do not use anything you know about the company from elsewhere."""
 
 
 def _numbers_table(c, ticker: str) -> str:
@@ -350,7 +316,8 @@ def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | Non
         return {
             "status": "on_track" if latest["value"] >= low else "off_track",
             "actual": latest["value"],
-            "basis": f"Latest quarter ({latest['period']}) margin {latest['value']}%",
+            "basis": f"Latest quarter ({latest['period']}) operating margin {latest['value']}%, "
+            "excluding other income. The company may define its margin differently.",
         }
 
     label = "Revenue" if p["metric_key"] == "revenue_growth" else "Net profit"
@@ -378,26 +345,61 @@ def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | Non
 
 
 def build_ledger(ticker: str) -> dict:
+    """One reasoning call per company: the free tier allows 20 Flash requests a day (EVIDENCE E19).
+
+    Python then checks every quote, decides numeric promises from reported numbers, and spots revisions.
+    """
     t0 = time.time()
     docs = load_transcripts(ticker)
     if not docs:
         return {
             "status": "no_transcripts",
             "items": [],
-            "note": "No readable concall transcripts found on Screener for this company.",
+            "note": "No readable concall transcripts found for this company on NSE or Screener.",
         }
-
-    with ThreadPoolExecutor(max_workers=4) as ex:
-        per_doc = list(ex.map(lambda d: extract_promises(ticker, d), docs))
-    promises = [p for ps in per_doc for p in ps]
-    dropped_unverified = [p for p in promises if not p["verified"]]
-    promises = [p for p in promises if p["verified"]]
-    for i, p in enumerate(promises):
-        p["id"] = f"P{i + 1}"
-
     with db.session() as c:
         latest_q = _latest_quarter_end(c, ticker)
         numbers = _numbers_table(c, ticker)
+
+    texts = "\n\n".join(f"===== {d['period']} call =====\n{_paged(d)}" for d in docs)
+    res: Ledger = llm.generate(
+        task="ledger",
+        model=llm.REASON,
+        thinking="low",
+        schema=Ledger,
+        system=_LEDGER_SYSTEM,
+        contents=f"Company: {ticker}.\n\n{numbers}\n\nTranscripts, oldest first:\n\n{texts}",
+    )
+
+    promises, unverified = [], 0
+    for it in res.items:
+        p = it.model_dump()
+        src = _match_doc(p["source"], docs)
+        page = verify_quote(p["quote"], src, p["page"]) if src else None
+        if page is None:  # a promise we cannot find in the transcript is never shown
+            unverified += 1
+            continue
+        p.update(source=src["period"], source_url=src["url"], page=page)
+
+        a = {k: p.pop(k) for k in ("status", "note", "evidence_quote", "evidence_source", "evidence_page")}
+        if a["evidence_quote"]:
+            ev = _match_doc(a["evidence_source"], docs)
+            is_later = ev and (_period_date(ev["period"]) or date.min) > (_period_date(src["period"]) or date.min)
+            pg = verify_quote(a["evidence_quote"], ev, a["evidence_page"]) if is_later else None
+            if pg is None:
+                a["evidence_quote"] = None
+            else:
+                a.update(evidence_page=pg, evidence_source=ev["period"], evidence_url=ev["url"])
+        if a["status"] in ("delivered", "missed", "revised") and not a["evidence_quote"]:
+            a["status"] = "unclear"
+            a["note"] = "No supporting quote from a later call could be found in the transcript."
+        p["assessment"] = a
+        promises.append(p)
+
+    promises.sort(key=lambda p: _period_date(p["source"]) or date.min)
+    for i, p in enumerate(promises):
+        p["id"] = f"P{i + 1}"
+    with db.session() as c:
         for p in promises:
             p["check"] = _numeric_check(c, ticker, p, latest_q)
 
@@ -417,59 +419,25 @@ def build_ledger(ticker: str) -> dict:
             if (q["target_low"], q["target_high"]) != (p["target_low"], p["target_high"])
             and q["timeframe"].lower() == p["timeframe"].lower()
         ]
-        repeated = [q for q in later if (q["target_low"], q["target_high"]) == (p["target_low"], p["target_high"])]
         if changed:
             p["revised_by"] = changed[0]["id"]
-        p["repeated_in"] = [q["source"] for q in repeated]
-
-    # Model judgment for everything that has later calls to check against.
-    last_period = docs[-1]["period"]
-    to_assess = [p for p in promises if p["source"] != last_period]
-    assessments: dict[str, dict] = {}
-    if to_assess:
-        later_docs = docs[1:]
-        listing = "\n".join(
-            f"[{p['id']}] from {p['source']} call: {p['metric']}, target {p['target']}, "
-            f'timeframe {p["timeframe"]}. Quote: "{p["quote"]}"'
-            for p in to_assess
-        )
-        texts = "\n\n".join(f"===== {d['period']} call =====\n{_paged(d)}" for d in later_docs)
-        res: AssessmentList = llm.generate(
-            task="ledger_assess",
-            model=llm.REASON,
-            thinking="low",
-            schema=AssessmentList,
-            system=_ASSESS_SYSTEM,
-            contents=f"Company: {ticker}.\n\n{numbers}\n\nPromises:\n{listing}\n\nLater transcripts:\n{texts}",
-        )
-        for a in res.items:
-            a = a.model_dump()
-            if a["evidence_quote"]:
-                d = _match_doc(a["evidence_source"], later_docs)
-                pg = verify_quote(a["evidence_quote"], d, a["evidence_page"]) if d else None
-                if pg is None:
-                    a["evidence_quote"] = None
-                    if a["status"] in ("delivered", "missed", "revised"):
-                        a["status"] = "unclear"
-                        a["note"] = "The model's supporting quote could not be found in the transcript."
-                else:
-                    a["evidence_page"] = pg
-                    a["evidence_url"] = d["url"]
-            elif a["status"] in ("delivered", "missed", "revised"):
-                a["status"] = "unclear"
-            assessments[a["id"]] = a
+        p["repeated_in"] = [
+            q["source"] for q in later if (q["target_low"], q["target_high"]) == (p["target_low"], p["target_high"])
+        ]
 
     items = []
     for p in promises:
-        a = assessments.get(p["id"])
-        status, judged_by = "pending", "timeframe"
-        if p.get("check"):  # measurable against reported numbers: Python decides, not the model
-            status, judged_by = p["check"]["status"], "numbers"
-        elif p.get("revised_by"):
+        a = p["assessment"]
+        status, judged_by = a["status"], "model"
+        check = p.get("check")
+        # Growth is unambiguous, so Python decides it. Margin definitions differ (Asian Paints guides on PBDIT
+        # including other income, Screener's operating margin excludes it), so for margins the verdict rests on
+        # the verified quotes and our number is shown only as context (EVIDENCE E20).
+        if check and p["metric_key"] != "operating_margin":
+            status, judged_by = check["status"], "numbers"
+        elif p.get("revised_by") and status not in ("delivered", "missed"):
             status, judged_by = "revised", "later guidance"
-        elif a:
-            status, judged_by = a["status"], "model"
-        items.append({**p, "status": status, "judged_by": judged_by, "assessment": a})
+        items.append({**p, "status": status, "judged_by": judged_by})
 
     # Collapse repeats: keep the earliest statement of an unchanged target, note where it was repeated.
     seen = set()
@@ -489,9 +457,9 @@ def build_ledger(ticker: str) -> dict:
         "transcripts": [{"period": d["period"], "url": d["url"], "pages": len(d["pages"])} for d in docs],
         "items": collapsed,
         "counts": counts,
-        "unverified_dropped": len(dropped_unverified),
+        "unverified_dropped": unverified,
         "build_seconds": round(time.time() - t0, 1),
-        "models": {"extract": llm.REASON, "assess": llm.REASON},
+        "model": llm.REASON,
     }
 
 
@@ -556,8 +524,7 @@ def build_bull_bear(ticker: str) -> dict:
     listing = "\n".join(f"[{k}] {v}" for k, v in facts.items())
     res: BullBear = llm.generate(
         task="bull_bear",
-        model=llm.REASON,
-        thinking="low",
+        model=llm.SMART,
         schema=BullBear,
         system=_BB_SYSTEM,
         contents=f"Company: {ticker}\n\n{listing}",
@@ -600,8 +567,7 @@ def ask(ticker: str, question: str) -> dict:
     texts = "\n\n".join(f"===== {d['period']} call =====\n{_paged(d)}" for d in docs)
     res: Answer = llm.generate(
         task="ask",
-        model=llm.REASON,
-        thinking="low",
+        model=llm.SMART,
         schema=Answer,
         system=_ASK_SYSTEM,
         contents=f"Company: {ticker}\n\n{texts}\n\nQuestion: {question}",

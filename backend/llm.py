@@ -4,6 +4,8 @@ import os
 import re
 import threading
 import time
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from google import genai
@@ -14,23 +16,62 @@ from backend.config import ROOT
 
 load_dotenv(ROOT / ".env")
 
-# Cheapest Gemini 3 tier for bulk text work (EVIDENCE E10). For reasoning over transcripts,
-# 3.6 Flash: on the free tier 3.8 Flash took 40 s to 300 s per call and often returned 503 (E14).
+# Routing (EVIDENCE E10, E14, E19):
+# LITE   bulk work: classifying filings, reading filing PDFs, bios.
+# SMART  Flash-Lite with the higher daily quota, for bull and bear and Ask, where Python checks every reference.
+# REASON the promise ledger only: one call per company reads four transcripts and judges what happened.
 LITE = os.getenv("FINN_LITE_MODEL", "gemini-3.1-flash-lite")
+SMART = os.getenv("FINN_SMART_MODEL", "gemini-3.5-flash-lite")
 REASON = os.getenv("FINN_REASON_MODEL", "gemini-3.6-flash")
 REASON_FALLBACK = os.getenv("FINN_REASON_FALLBACK", "gemini-3.8-flash")
-# Used when a model keeps answering 503 "high demand", which happened on both Flash-Lite and 3.8 Flash.
-FALLBACK = {LITE: "gemini-3.5-flash-lite", REASON: REASON_FALLBACK}
 
-# Free tier requests per minute. 15 for 3.1 Flash-Lite is from the 429 error body (EVIDENCE E17).
-RPM = {"gemini-3.1-flash-lite": 15, "gemini-3.5-flash-lite": 15, "gemini-3.6-flash": 10, "gemini-3.8-flash": 10}
+# When a model is out of daily quota or keeps answering 503 "high demand", try its sibling.
+FALLBACK = {LITE: SMART, SMART: LITE, REASON: REASON_FALLBACK}
+
+# Free tier limits for this project, read from AI Studio on 2026-10-31 (EVIDENCE E19).
+RPM = {"gemini-3.1-flash-lite": 15, "gemini-3.5-flash-lite": 15, "gemini-3.6-flash": 5, "gemini-3.8-flash": 5}
+RPD = {"gemini-3.1-flash-lite": 500, "gemini-3.5-flash-lite": 500, "gemini-3.6-flash": 20, "gemini-3.8-flash": 20}
+PACIFIC = ZoneInfo("America/Los_Angeles")  # "RPD quotas reset at midnight Pacific time" (Google docs)
+
 _last_call: dict[str, float] = {}
+_exhausted: dict[str, str] = {}  # model -> Pacific date on which it ran out
 _rate_lock = threading.Lock()
+
+
+class BudgetExhausted(Exception):
+    """No model in the chain has daily quota left."""
+
+
+def _pacific_day() -> str:
+    return datetime.now(PACIFIC).date().isoformat()
+
+
+def _used_today(model: str) -> int:
+    start = datetime.now(PACIFIC).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
+    with db.session() as c:
+        return c.execute(
+            "SELECT COUNT(*) FROM llm_calls WHERE model=? AND ts >= ?",
+            (model, start.isoformat(timespec="seconds")),
+        ).fetchone()[0]
+
+
+def has_budget(model: str) -> bool:
+    if _exhausted.get(model) == _pacific_day():
+        return False
+    return _used_today(model) < RPD.get(model, 20)
+
+
+def budget() -> dict[str, dict]:
+    reset = datetime.now(PACIFIC).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    return {
+        m: {"used_today": _used_today(m), "per_day": RPD[m], "per_minute": RPM[m], "exhausted": not has_budget(m)}
+        for m in RPD
+    } | {"_resets_at": reset.isoformat()}
 
 
 def _wait_turn(model: str) -> None:
     """Space calls so a model never exceeds its per-minute limit, even across threads."""
-    gap = 60.0 / RPM.get(model, 10) * 1.05
+    gap = 60.0 / RPM.get(model, 5) * 1.05
     with _rate_lock:
         now = time.time()
         start = max(now, _last_call.get(model, 0) + gap)
@@ -65,16 +106,29 @@ def generate(
     schema=None,
     system: str | None = None,
     thinking: str | None = None,
-    cached_content: str | None = None,
-    retries: int = 4,
+    retries: int = 3,
+    _tried: tuple[str, ...] = (),
 ):
-    """Returns the parsed object when `schema` is given, else text."""
+    """Returns the parsed object when `schema` is given, else text.
+
+    Falls back to a sibling model when the chosen one is out of daily quota or overloaded.
+    """
+    tried = (*_tried, model)
+
+    def fallback():
+        nxt = FALLBACK.get(model)
+        if nxt and nxt not in tried:
+            return generate(task, nxt, contents, schema, system, _thinking_for(nxt, thinking), retries, tried)
+        raise BudgetExhausted(f"no model with quota left for {task} (tried {', '.join(tried)})")
+
+    if not has_budget(model):
+        return fallback()
+
     cfg = types.GenerateContentConfig(
         system_instruction=system,
         response_mime_type="application/json" if schema else None,
         response_schema=schema,
         thinking_config=types.ThinkingConfig(thinking_level=thinking) if thinking else None,
-        cached_content=cached_content,
     )
     for attempt in range(retries):
         _wait_turn(model)
@@ -85,12 +139,20 @@ def generate(
             return r.parsed if schema else r.text
         except errors.APIError as e:
             _log(task, model, None, t0, ok=False)
+            if e.code == 429 and "PerDay" in str(e):
+                _exhausted[model] = _pacific_day()
+                return fallback()
             if e.code in (429, 500, 503) and attempt < retries - 1:
                 time.sleep(min(90, _retry_after(e) or 5 * 2**attempt))
                 continue
-            if e.code in (500, 503) and model in FALLBACK:
-                return generate(task, FALLBACK[model], contents, schema, system, thinking, cached_content, retries=2)
+            if e.code in (429, 500, 503):
+                return fallback()
             raise
+
+
+def _thinking_for(model: str, thinking: str | None) -> str | None:
+    # Thinking levels are a Flash feature here; Flash-Lite calls run without one.
+    return thinking if model in (REASON, REASON_FALLBACK) else None
 
 
 def _log(task: str, model: str, usage, t0: float, ok: bool) -> None:

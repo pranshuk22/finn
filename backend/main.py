@@ -7,6 +7,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -35,6 +36,8 @@ class CleanJSON(JSONResponse):
 
 
 app = FastAPI(title="FINN", default_response_class=CleanJSON)
+# The 30-day brief is 157 KB of JSON; compressed it costs a phone a fraction of that (EVIDENCE E21).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 db.init()
 
 PRIORITY_ORDER = {"needs_you": 0, "worth_knowing": 1, "routine": 2}
