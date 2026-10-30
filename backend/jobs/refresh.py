@@ -1,8 +1,8 @@
 """Pull everything FINN needs into SQLite. Safe to re-run: existing rows are skipped or upserted.
 
-    uv run python -m backend.jobs.refresh                 # everything, last 35 days of filings
-    uv run python -m backend.jobs.refresh --only eod
-    uv run python -m backend.jobs.refresh --tickers TCS,INFY --only results
+uv run python -m backend.jobs.refresh                 # everything, last 35 days of filings
+uv run python -m backend.jobs.refresh --only eod
+uv run python -m backend.jobs.refresh --tickers TCS,INFY --only results
 """
 
 import argparse
@@ -62,8 +62,12 @@ def refresh_filings(nse: NSE, tickers: list[str], days: int) -> None:
 
     with httpx.Client(timeout=60, follow_redirects=True) as pc:
         for f in fresh:
-            if f["pdf_url"] and classify.by_label(f["nse_label"]) is None and classify.by_rules(f["text"]) is None \
-                    and classify.is_vague(f["text"]):
+            if (
+                f["pdf_url"]
+                and classify.by_label(f["nse_label"]) is None
+                and classify.by_rules(f["text"]) is None
+                and classify.is_vague(f["text"])
+            ):
                 f["peek"] = _peek(f, pc)
 
     classify.classify(fresh)
@@ -71,8 +75,22 @@ def refresh_filings(nse: NSE, tickers: list[str], days: int) -> None:
         c.executemany(
             "INSERT OR REPLACE INTO filings(id, ticker, an_dt, nse_label, text, pdf_url, category, priority,"
             " summary, classified_by, enrichment) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            [(f["id"], f["ticker"], f["an_dt"], f["nse_label"], f["text"], f["pdf_url"], f["category"],
-              f["priority"], f["summary"], f["classified_by"], None) for f in fresh],
+            [
+                (
+                    f["id"],
+                    f["ticker"],
+                    f["an_dt"],
+                    f["nse_label"],
+                    f["text"],
+                    f["pdf_url"],
+                    f["category"],
+                    f["priority"],
+                    f["summary"],
+                    f["classified_by"],
+                    None,
+                )
+                for f in fresh
+            ],
         )
         db.set_meta(c, "filings_refreshed_at", db.now_iso())
     by = {}
@@ -109,10 +127,23 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
                     "INSERT OR REPLACE INTO results(ticker, period_end, consolidated, revenue, total_income,"
                     " other_income, finance_costs, depreciation, ppop, provisions, pbt, pat, is_bank,"
                     " broadcast_at, source_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (t, p["period_end"] or qe, int(bool(cons)), p.get("revenue"), p.get("total_income"),
-                     p.get("other_income"), p.get("finance_costs"), p.get("depreciation"), p.get("ppop"),
-                     p.get("provisions"), p.get("pbt"), p.get("pat"), int(p["is_bank"]),
-                     _dt(r.get("broadcast_Date") or r.get("creation_Date")), r["ixbrl"]),
+                    (
+                        t,
+                        p["period_end"] or qe,
+                        int(bool(cons)),
+                        p.get("revenue"),
+                        p.get("total_income"),
+                        p.get("other_income"),
+                        p.get("finance_costs"),
+                        p.get("depreciation"),
+                        p.get("ppop"),
+                        p.get("provisions"),
+                        p.get("pbt"),
+                        p.get("pat"),
+                        int(p["is_bank"]),
+                        _dt(r.get("broadcast_Date") or r.get("creation_Date")),
+                        r["ixbrl"],
+                    ),
                 )
             added += 1
     log(f"results: {added} quarters added")
@@ -137,14 +168,18 @@ def refresh_screener(tickers: list[str]) -> None:
 def store_screener(ticker: str, page: dict) -> None:
     with db.session() as c:
         c.execute(
-            "INSERT OR REPLACE INTO companies(ticker, name, about, statement_mode, fetched_at) VALUES(?,?,?,?,?)",
-            (ticker, page["name"], page["about"], page["statement_mode"], db.now_iso()),
+            "INSERT OR REPLACE INTO companies(ticker, name, about, ratios, statement_mode, fetched_at)"
+            " VALUES(?,?,?,?,?,?)",
+            (ticker, page["name"], page["about"], json.dumps(page["ratios"]), page["statement_mode"], db.now_iso()),
         )
         c.execute("DELETE FROM financials WHERE ticker=?", (ticker,))
         c.executemany(
             "INSERT OR REPLACE INTO financials(ticker, statement, period, line_item, value) VALUES(?,?,?,?,?)",
-            [(ticker, st, r["period"], r["line_item"], r["value"])
-             for st, rows in page["tables"].items() for r in rows],
+            [
+                (ticker, st, r["period"], r["line_item"], r["value"])
+                for st, rows in page["tables"].items()
+                for r in rows
+            ],
         )
         docs = [("transcript", d) for d in page["transcripts"]] + [("annual_report", d) for d in page["annual_reports"]]
         for kind, d in docs:
@@ -178,8 +213,15 @@ def main() -> None:
         refresh_screener(everyone)
     with db.session() as c:
         db.set_meta(c, "refreshed_at", db.now_iso())
-        log("rows: " + json.dumps({t: c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-                                   for t in ["eod", "filings", "results", "financials", "documents", "llm_calls"]}))
+        log(
+            "rows: "
+            + json.dumps(
+                {
+                    t: c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                    for t in ["eod", "filings", "results", "financials", "documents", "llm_calls"]
+                }
+            )
+        )
 
 
 if __name__ == "__main__":

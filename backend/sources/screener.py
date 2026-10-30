@@ -71,7 +71,7 @@ def parse(html: str) -> dict:
             if not tds:
                 continue
             label = _clean_label(tds[0].get_text(" ", strip=True))
-            for period, td in zip(headers, tds[1:]):
+            for period, td in zip(headers, tds[1:], strict=False):
                 rows.append({"period": period, "line_item": label, "value": _num(td.get_text(strip=True))})
         tables[sid] = rows
 
@@ -89,8 +89,16 @@ def parse(html: str) -> dict:
         if m and a.get("href"):
             annual_reports.append({"period": m.group(1), "url": a["href"]})
 
+    ratios = {}
+    for li in soup.select("#top-ratios li"):
+        name = li.select_one(".name")
+        nums = [_num(n.get_text(strip=True)) for n in li.select(".number")]
+        if name and nums:
+            ratios[_clean_label(name.get_text(" ", strip=True))] = nums[0] if len(nums) == 1 else nums
+
     return {
         "name": name_el.get_text(strip=True) if name_el else None,
+        "ratios": ratios,
         "about": about_el.get_text(" ", strip=True) if about_el else None,
         "tables": tables,
         "transcripts": transcripts,

@@ -8,8 +8,7 @@ CACHE_DIR = DATA_DIR / "cache"
 DB_PATH = DATA_DIR / "finn.db"
 
 USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 )
 
 # ticker -> (display name, sector, size). Verified on yfinance and Screener, see EVIDENCE E9.
@@ -56,9 +55,23 @@ def resolve_ticker(raw: str) -> str:
 
 
 CATEGORIES = [
-    "results", "M&A", "fund_raise", "management_change", "litigation", "insider_trading",
-    "earnings_call", "investor_meetings", "credit_rating", "dividend", "bonus_split", "capex",
-    "press_release", "postal_ballot", "agm_egm", "pledging", "unclassified",
+    "results",
+    "M&A",
+    "fund_raise",
+    "management_change",
+    "litigation",
+    "insider_trading",
+    "earnings_call",
+    "investor_meetings",
+    "credit_rating",
+    "dividend",
+    "bonus_split",
+    "capex",
+    "press_release",
+    "postal_ballot",
+    "agm_egm",
+    "pledging",
+    "unclassified",
 ]
 
 # NSE `desc` labels that map to exactly one category. Every label here was seen in live
@@ -89,7 +102,9 @@ LABEL_MAP: dict[str, str] = {
     "Issue And Allotment of Preference Shares": "fund_raise",
     "Change in Director(s)": "management_change",
     "Change in Management": "management_change",
-    "Change in Directors/ Key Managerial Personnel/ Auditor/ Compliance Officer/ Share Transfer Agent": "management_change",
+    "Change in Directors/ Key Managerial Personnel/ Auditor/ Compliance Officer/ Share Transfer Agent": (
+        "management_change"
+    ),
     "Appointment": "management_change",
     "Appointment of Chairman": "management_change",
     "Appointment of Director": "management_change",

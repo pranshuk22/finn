@@ -3,7 +3,7 @@
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from backend.config import DB_PATH
 
@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS companies (
     ticker TEXT PRIMARY KEY,
     name TEXT,
     about TEXT,
+    ratios TEXT,                      -- JSON, Screener top ratios (market cap, P/E, ROCE...)
     statement_mode TEXT,              -- consolidated | standalone
     fetched_at TEXT
 );
@@ -117,7 +118,7 @@ def init() -> None:
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def set_meta(c: sqlite3.Connection, key: str, value) -> None:

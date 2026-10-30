@@ -89,8 +89,15 @@ def _clean_announcement(a: dict) -> dict:
 # ---------- results from iXBRL ----------
 
 _UNIT_TO_CRORE = {
-    "actual": 1e-7, "rupees": 1e-7, "thousands": 1e-4, "lakhs": 1e-2, "lakh": 1e-2,
-    "millions": 1e-1, "million": 1e-1, "crores": 1.0, "crore": 1.0,
+    "actual": 1e-7,
+    "rupees": 1e-7,
+    "thousands": 1e-4,
+    "lakhs": 1e-2,
+    "lakh": 1e-2,
+    "millions": 1e-1,
+    "million": 1e-1,
+    "crores": 1.0,
+    "crore": 1.0,
 }
 
 # Row labels in the P&L table of the integrated filing. First match wins.
@@ -107,6 +114,7 @@ _ROWS = {
     "pbt": ["total profit before tax", "total profit (loss) from ordinary activities before tax"],
     "pat": ["total profit (loss) for period", "net profit (loss) for the period"],
 }
+
 
 def _num(s: str) -> float | None:
     s = s.strip()
@@ -162,7 +170,7 @@ def parse_results_ixbrl(html: str) -> dict:
         if not labelled:
             continue
         i, label = labelled[0]
-        values = cells[i + 1:]
+        values = cells[i + 1 :]
         if not values:
             continue
         if label.startswith("date of end of reporting period"):

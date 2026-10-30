@@ -1,6 +1,7 @@
 """Single entry point for model calls. Every call is logged to llm_calls."""
 
 import os
+import threading
 import time
 
 from dotenv import load_dotenv
@@ -19,12 +20,16 @@ REASON = os.getenv("FINN_REASON_MODEL", "gemini-3.6-flash")
 REASON_FALLBACK = os.getenv("FINN_REASON_FALLBACK", "gemini-3.8-flash")
 
 _client: genai.Client | None = None
+_client_lock = threading.Lock()
 
 
 def client() -> genai.Client:
+    # One shared client. Without the lock, parallel threads each build one and the losers get
+    # garbage-collected mid-request ("Cannot send a request, as the client has been closed").
     global _client
-    if _client is None:
-        _client = genai.Client()
+    with _client_lock:
+        if _client is None:
+            _client = genai.Client()
     return _client
 
 
@@ -67,11 +72,14 @@ def _log(task: str, model: str, usage, t0: float, ok: bool) -> None:
             "INSERT INTO llm_calls(task, model, tokens_in, tokens_out, tokens_cached, tokens_thinking,"
             " latency_ms, ok, ts) VALUES(?,?,?,?,?,?,?,?,?)",
             (
-                task, model,
+                task,
+                model,
                 getattr(u, "prompt_token_count", None),
                 getattr(u, "candidates_token_count", None),
                 getattr(u, "cached_content_token_count", None),
                 getattr(u, "thoughts_token_count", None),
-                int((time.time() - t0) * 1000), int(ok), db.now_iso(),
+                int((time.time() - t0) * 1000),
+                int(ok),
+                db.now_iso(),
             ),
         )

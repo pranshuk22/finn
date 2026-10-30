@@ -11,3 +11,4 @@ data/cache/
 .pytest_cache/
 .ruff_cache/
 Problem Statment/
+data/finn.db

@@ -13,14 +13,23 @@ from backend.config import CATEGORIES, LABEL_MAP
 
 # Ordered: the first matching rule wins, so narrow patterns come before broad ones.
 _RULES: list[tuple[str, str]] = [
-    ("unclassified", r"newspaper|clipping|advertisement|publication of|esop|stock option|"
-                     r"regulation 74\s*\(5\)|trading window|loss of share|duplicate share|"
-                     r"secretarial compliance|sustainability report|brsr|investor grievance"),
-    ("earnings_call", r"transcript|recording|earnings call|conference call|con\.? call|concall|webcast|"
-                      r"call with (media|analysts)"),
+    (
+        "unclassified",
+        r"newspaper|clipping|advertisement|publication of|esop|stock option|"
+        r"regulation 74\s*\(5\)|trading window|loss of share|duplicate share|"
+        r"secretarial compliance|sustainability report|brsr|investor grievance",
+    ),
+    (
+        "earnings_call",
+        r"transcript|recording|earnings call|conference call|con\.? call|concall|webcast|"
+        r"call with (media|analysts)",
+    ),
     ("results", r"financial results|results for the (quarter|period|half|year)"),
-    ("investor_meetings", r"investor meet|analysts? meet|institutional investor|one-on-one|"
-                          r"investor conference|roadshow|\bpresentation\b"),
+    (
+        "investor_meetings",
+        r"investor meet|analysts? meet|institutional investor|one-on-one|"
+        r"investor conference|roadshow|\bpresentation\b",
+    ),
     ("postal_ballot", r"postal ballot"),
     ("agm_egm", r"annual general meeting|\bagm\b|extra-?ordinary general meeting|\begm\b"),
     ("pledging", r"pledge|encumbrance"),
@@ -28,27 +37,55 @@ _RULES: list[tuple[str, str]] = [
     ("credit_rating", r"credit rating|\brating\b"),
     ("bonus_split", r"\bbonus\b|stock split|sub-?division"),
     ("dividend", r"dividend"),
-    ("management_change", r"appoint|resign|cessation|retire|chief executive|chief financial|"
-                          r"managing director|\bceo\b|\bcfo\b|key managerial|senior management"),
-    ("litigation", r"nclt|nclat|insolvency|tribunal|\bcourt\b|penalty|show cause|order passed|"
-                   r"tax demand|litigation|arbitration|enforcement directorate|search and seizure"),
-    ("M&A", r"acqui|merger|amalgamat|demerg|joint venture|scheme of arrangement|divest|"
-            r"disinvest|sale of (stake|shares|business|undertaking)|incorporation of"),
-    ("fund_raise", r"initial public offer|\bipo\b|red herring|qualified institutions? placement|\bqip\b|"
-                   r"rights issue|preferential (issue|allotment)|debenture|\bncds?\b|commercial paper|"
-                   r"buy-?back|raising of funds|fund rais|allotment of (equity )?shares"),
-    ("capex", r"capital expenditure|\bcapex\b|capacity expansion|greenfield|brownfield|"
-              r"new (plant|facility|manufacturing)|commercial production|commissioning"),
-    ("press_release", r"press release|media release|media statement|order|contract|launch|"
-                      r"partnership|clarification|rumou?r|verification|award"),
+    (
+        "management_change",
+        r"appoint|resign|cessation|retire|chief executive|chief financial|"
+        r"managing director|\bceo\b|\bcfo\b|key managerial|senior management",
+    ),
+    (
+        "litigation",
+        r"nclt|nclat|insolvency|tribunal|\bcourt\b|penalty|show cause|order passed|"
+        r"tax demand|litigation|arbitration|enforcement directorate|search and seizure",
+    ),
+    (
+        "M&A",
+        r"acqui|merger|amalgamat|demerg|joint venture|scheme of arrangement|divest|"
+        r"disinvest|sale of (stake|shares|business|undertaking)|incorporation of",
+    ),
+    (
+        "fund_raise",
+        r"initial public offer|\bipo\b|red herring|qualified institutions? placement|\bqip\b|"
+        r"rights issue|preferential (issue|allotment)|debenture|\bncds?\b|commercial paper|"
+        r"buy-?back|raising of funds|fund rais|allotment of (equity )?shares",
+    ),
+    (
+        "capex",
+        r"capital expenditure|\bcapex\b|capacity expansion|greenfield|brownfield|"
+        r"new (plant|facility|manufacturing)|commercial production|commissioning",
+    ),
+    (
+        "press_release",
+        r"press release|media release|media statement|order|contract|launch|"
+        r"partnership|clarification|rumou?r|verification|award",
+    ),
 ]
 _RULES_RE = [(cat, re.compile(p, re.I)) for cat, p in _RULES]
 
 # Labels too generic to trust; their category comes from the text.
 AMBIGUOUS_LABELS = {
-    "General Updates", "General updates", "Updates", "Outcome of Board Meeting", "Press Release",
-    "Press Release (Revised)", "Analysts/Institutional Investor Meet/Con. Call Updates",
-    "Record Date", "Allotment of Securities", "Agreements", "Agreement", "Others", "Miscellaneous",
+    "General Updates",
+    "General updates",
+    "Updates",
+    "Outcome of Board Meeting",
+    "Press Release",
+    "Press Release (Revised)",
+    "Analysts/Institutional Investor Meet/Con. Call Updates",
+    "Record Date",
+    "Allotment of Securities",
+    "Agreements",
+    "Agreement",
+    "Others",
+    "Miscellaneous",
 }
 
 
@@ -81,16 +118,28 @@ def priority(category: str, text: str, label: str = "") -> str:
             return "worth_knowing"
         return "needs_you"
     if category == "management_change":
-        if _has(t, r"re-?appoint|designation|company secretary|compliance officer|"
-                   r"senior management personnel|independent director"):
+        if _has(
+            t,
+            r"re-?appoint|designation|company secretary|compliance officer|"
+            r"senior management personnel|independent director",
+        ):
             return "worth_knowing"
-        if _has(t, r"\bceo\b|\bcfo\b|chief executive|chief financial|managing director|chairman|"
-                   r"whole-?time director|key managerial|\bkmp\b") or label == "Change in Management":
+        if (
+            _has(
+                t,
+                r"\bceo\b|\bcfo\b|chief executive|chief financial|managing director|chairman|"
+                r"whole-?time director|key managerial|\bkmp\b",
+            )
+            or label == "Change in Management"
+        ):
             return "needs_you"
         return "worth_knowing"
     if category == "litigation":
-        if _has(t, r"insolvency|nclt|nclat|\bsebi\b|enforcement directorate|\bcbi\b|fraud|"
-                   r"search|suspension|winding up"):
+        if _has(
+            t,
+            r"insolvency|nclt|nclat|\bsebi\b|enforcement directorate|\bcbi\b|fraud|"
+            r"search|suspension|winding up",
+        ):
             return "needs_you"
         return "worth_knowing"
     if category == "credit_rating":
@@ -110,7 +159,11 @@ def priority(category: str, text: str, label: str = "") -> str:
     if category in ("M&A", "fund_raise", "capex", "bonus_split"):
         return "worth_knowing"
     if category == "press_release":
-        return "worth_knowing" if _has(t, r"order|contract|award|launch|acqui|clarification|rumou?r|verification") else "routine"
+        return (
+            "worth_knowing"
+            if _has(t, r"order|contract|award|launch|acqui|clarification|rumou?r|verification")
+            else "routine"
+        )
     return "routine"
 
 
@@ -128,6 +181,7 @@ def tidy_summary(text: str) -> str:
 
 
 # ---------- model stage ----------
+
 
 class _Item(BaseModel):
     id: str
@@ -151,8 +205,11 @@ Use only the text given. If the text is too vague to tell, choose unclassified a
 
 
 # Summaries this generic say nothing; for these we read the start of the PDF before asking the model.
-_VAGUE = re.compile(r"general updates?|disclosure under regulation 30|outcome of (the )?(board )?meeting|"
-                    r"intimation|updates?$|regulation 30", re.I)
+_VAGUE = re.compile(
+    r"general updates?|disclosure under regulation 30|outcome of (the )?(board )?meeting|"
+    r"intimation|updates?$|regulation 30",
+    re.I,
+)
 
 
 def is_vague(text: str) -> bool:
@@ -162,7 +219,7 @@ def is_vague(text: str) -> bool:
 def by_model(filings: list[dict], batch_size: int = 20) -> dict[str, _Item]:
     out: dict[str, _Item] = {}
     for i in range(0, len(filings), batch_size):
-        chunk = filings[i:i + batch_size]
+        chunk = filings[i : i + batch_size]
         lines = []
         for f in chunk:
             line = f"[{f['id']}] {f['ticker']} | label: {f['nse_label']} | {f['text']}"
@@ -170,7 +227,11 @@ def by_model(filings: list[dict], batch_size: int = 20) -> dict[str, _Item]:
                 line += f"\n    first page of the filing: {f['peek']}"
             lines.append(line)
         res: _Batch = llm.generate(
-            task="classify", model=llm.LITE, contents="\n".join(lines), schema=_Batch, system=_SYSTEM,
+            task="classify",
+            model=llm.LITE,
+            contents="\n".join(lines),
+            schema=_Batch,
+            system=_SYSTEM,
         )
         for it in res.items:
             out[it.id] = it
@@ -189,16 +250,24 @@ def classify(filings: list[dict], use_model: bool = True) -> list[dict]:
         if cat is None:
             pending.append(f)
             continue
-        f.update(category=cat, classified_by=how, summary=tidy_summary(f["text"]),
-                 priority=priority(cat, f["text"], f["nse_label"]))
+        f.update(
+            category=cat,
+            classified_by=how,
+            summary=tidy_summary(f["text"]),
+            priority=priority(cat, f["text"], f["nse_label"]),
+        )
 
     if pending and use_model:
         results = by_model(pending)
         for f in pending:
             it = results.get(f["id"])
             if it is None:
-                f.update(category="unclassified", classified_by="fallback",
-                         summary=tidy_summary(f["text"]), priority="routine")
+                f.update(
+                    category="unclassified",
+                    classified_by="fallback",
+                    summary=tidy_summary(f["text"]),
+                    priority="routine",
+                )
                 continue
             p = priority(it.category, f["text"] + " " + f.get("peek", ""), f["nse_label"])
             if it.material and p == "routine":
@@ -208,6 +277,7 @@ def classify(filings: list[dict], use_model: bool = True) -> list[dict]:
             f.update(category=it.category, classified_by="model", summary=it.one_line, priority=p)
     else:
         for f in pending:
-            f.update(category="unclassified", classified_by="fallback",
-                     summary=tidy_summary(f["text"]), priority="routine")
+            f.update(
+                category="unclassified", classified_by="fallback", summary=tidy_summary(f["text"]), priority="routine"
+            )
     return filings
