@@ -189,6 +189,21 @@ Sources: https://ai.google.dev/gemini-api/docs/models, https://ai.google.dev/gem
 - **Reading:** SQLite already acts as the cache: ingestion and every model output are precomputed and stored, and the API only reads. A server-side response cache (Redis or in-memory) would save single-digit milliseconds. On a phone, the network and payload size dominate, so the API compresses responses and the app keeps the last response on the device and refreshes it in the background.
 - **Where caching really matters:** model outputs, because Flash has 20 requests a day (E19). Ledgers, bull and bear, filing reads and classifications are computed once and stored; PDFs are cached on disk by URL hash.
 
+## E22. Hosting: Render free versus AWS Lightsail
+
+Checked 2026-10-31 against https://render.com/docs/free, https://render.com/docs/regions, https://aws.amazon.com/lightsail/pricing/ and https://aws.amazon.com/awscredits/.
+
+- **Render free:** "spins down a Free web service that goes 15 minutes without receiving any inbound traffic"; waking takes about one minute. "Free web services cannot" attach a persistent disk, and local file changes are lost on redeploy, restart or spin-down. Only web services, Postgres and Key Value can be free, so no free cron job or worker. Regions: Oregon, Ohio, Virginia, Frankfurt, Singapore; no India.
+- **AWS Lightsail:** Linux with public IPv4 at $5/month (0.5 GB RAM, 20 GB SSD) or $7/month (1 GB, 40 GB). Mumbai (ap-south-1) has the same prices with half the data transfer allowance. Disk persists.
+- **AWS credits:** apply "only to the specific Services designated by your AWS contracting entity" and expire on a date shown with the code. The terms page does not mention Lightsail, so eligibility has to be checked in the billing console.
+- **What FINN needs:** an always-on process for scheduled refresh, a disk that keeps SQLite (ledgers built by reviewers, refreshed filings), and ideally an Indian IP close to NSE. Render free meets none of the three.
+
+## E23. Alert thresholds matter, and research works on a ticker FINN never saw
+
+- **Alert replay** (`analytics.eod_scan` over stored EOD data for the 18 portfolio stocks, last 60 sessions, 2026-10-31): price ±3% or volume 2x the 20-day average fires 119 alerts, about 2 per trading day. At ±4% or 2.5x it fires 51. At ±5% or 3x it fires 25. The defaults change the alert load by almost 5x, which is why the alerts screen shows the replay count next to the sliders.
+- **Unseen ticker:** `GET /api/research/TITAN`, with TITAN not in any list and not in the database, returned 200 in 5.6 s: Screener tables, NSE results (Q1 FY27 revenue 21,356 crore, YoY +29.3% after the parser fix in E15's HAL note), trajectory, cash quality and four transcript links. `ZOMATO` resolves to `ETERNAL`; a made-up symbol returns 404 with "Check the NSE symbol".
+- **Older iXBRL format:** Jun 2025 filings for TITAN and HAL state the unit as "INR (in Actuals)" in the currency row and dates as `30-Jun-2025`. The parser now reads both, which filled in their YoY comparisons.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

@@ -1,222 +1,140 @@
 # FINN build plan
 
-Written Sat 31 Oct 2026, 01:47 IST. Deadline Sun 1 Nov 2026. That leaves about 46 hours, including sleep.
+First written Sat 31 Oct 2026, 01:47 IST. Updated Sat 31 Oct, 04:20 IST. Deadline Sun 1 Nov 2026.
 
-Starting point: README, pyproject.toml and requirements.txt. No code, no git repo, `uv` not installed ([E12](docs/EVIDENCE.md#e12-local-toolchain)).
-
-The brief's own words decide the trade-offs: "Thin-but-working beats broad-but-broken" and "A demo that doesn't run is the worst outcome." So the plan is ordered to have a deployed, working thin slice by Saturday night, and spends Sunday on depth and polish.
+The brief decides the trade-offs: "Thin-but-working beats broad-but-broken" and "A demo that doesn't run is the worst outcome." So: deploy early, keep the backend honest, spend the remaining time on the frontend, and cut scope before cutting quality.
 
 ## Ground rules
 
-- No em dashes or en dashes anywhere: UI copy, code, comments, docs, commits. Run `grep -rn $'—\|–' .` before every commit.
-- Commits: short title (under 50 characters), one or two crisp lines of body if needed. No co-author trailers.
+- No em dashes or en dashes anywhere: UI copy, code, comments, docs, commits. The API also replaces any that arrive inside exchange filings. Check before every commit: `grep -rn $'—\|–' --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=data .`
+- Commits: short title, one or two crisp lines of body. No co-author trailers.
 - Every number in the README or UI that is not live data comes from `docs/EVIDENCE.md` or the telemetry table.
-- Models never do arithmetic. Python computes every percentage, ratio, and unit conversion.
-- If a step overruns its time box by 50%, cut its P1 parts and move on.
+- Models never do arithmetic. Python computes every percentage, ratio and unit conversion.
+- Flash has 20 requests a day (E19). Never run a model in a loop without checking `llm.budget()` first, and never rebuild a stored ledger without a reason.
 
-## Scope
+## Done
 
-**P0: must ship.** Without these there is no submission.
+| Area | What exists | Evidence |
+| --- | --- | --- |
+| Setup | uv project, git repo, `.env` with Gemini key, all three model families reachable | E10, E12 |
+| Ingestion | NSE filings (cookie warm-up, 0.8 s pacing), yfinance EOD with the NaN-close filter, NSE integrated-filing iXBRL results, Screener tables, ratios and document links. `python -m backend.jobs.refresh` | E1, E2, E6, E7, E9 |
+| Results parser | Companies, NBFCs and banks; old and new iXBRL formats; lakh, crore and actual units. Matches Screener for 20 of 22 on revenue | E6, E15, E23 |
+| Classifier | Label map (94 labels seen live), ordered text rules, Flash-Lite in batches of 20; priority rules in code | E3 |
+| Filing reader | Flash-Lite reads vague and management filings, 5 per call: one-liner, people, amounts, subsidiary flag. `python -m backend.enrich` | E17, E18 |
+| Bios | Filing profile first, then career search; confident only if a source names the company; zip attachments handled | E5, E18 |
+| Alerts | Price and volume scan with replay over 60 sessions; rules stored | E23 |
+| Research | Snapshot, trajectory, cash quality, results card; works on unseen tickers (TITAN, 5.6 s) and aliases | E23 |
+| Promise ledger | One Flash call per company; every quote verified; growth judged in Python; margins rest on quotes; revisions detected in Python. Built for TCS and ASIANPAINT | E14, E16, E19, E20 |
+| Bull and bear | Flash-Lite over numbered facts; points without a valid id dropped. Built for ASIANPAINT | E19 |
+| Model layer | Per-minute spacing, daily budget per model, fallback chain, telemetry in `llm_calls` | E17, E19 |
+| API | `/api/brief`, `/api/alerts/rules`, `/api/alerts/scan`, `/api/research/{t}`, `/api/research/{t}/ledger`, `/api/research/{t}/ask`, `/api/companies`, `/api/meta`; gzip; dash-free JSON | E21 |
+| Tests | Results parser (TCS, HDFCBANK), quote check (ligature, page break, wrong page, invented quote, changed number). 7 passing | |
+| Hosting research | Lightsail Mumbai over Render free | E22 |
 
-1. Ingest: NSE filings, EOD prices, results iXBRL, Screener financials and transcript links.
-2. Classifier: label map, then rules, then Flash-Lite.
-3. Brief screen: windowed digest, three priority groups, collapsed routine line, "caught up" state.
-4. Results card with QoQ and YoY, parsed not generated.
-5. Threshold alerts with sliders (price ±X%, volume Y times 20-day average).
-6. Research brief for any ticker: snapshot, trajectory, cash quality, promise ledger.
-7. "Dig in" from a push card opens research at the right section.
-8. Deployed URL that works on a phone, backed by a committed SQLite snapshot.
+## Left, in order
 
-**P1: should ship.** Each one is independent, so they can drop without breaking anything.
+Owner in brackets. Time is my estimate, not a measurement.
 
-9. Management change card with background and sources.
-10. Alert backtest preview: "these settings would have fired N alerts in 60 days".
-11. Bull and bear.
-12. Ask bar with cited answers and quote verification.
-13. Telemetry: per-call token and latency log, totals in README.
+### 1. Deploy probe [you, then me] about 30 min, blocked on the instance
 
-**P2: only if time is left.**
+The biggest unknown: does NSE answer a datacenter IP? Test before building anything on top.
 
-14. New transcript updates the promise ledger and pushes a card.
-15. Order and capex size as a share of revenue.
-16. Web push notifications.
+- You: Lightsail, Mumbai, Ubuntu 24.04, $7 plan (1 GB). Attach a static IP, open ports 80 and 443. Check in Billing that the credits cover Lightsail and note their expiry. Send me the SSH key path and the IP.
+- Me: from the instance, call the NSE announcements and integrated-filing endpoints, Screener, a BSE transcript PDF and yfinance. Record results as E24.
+- If NSE blocks it: refresh runs on your Mac and the database is copied to the server on a schedule. The app does not change.
+
+### 2. Scheduled refresh inside the server [me] about 45 min
+
+- Filings every 30 minutes from 09:00 to 20:00 IST, then classify and read new filings.
+- EOD prices once after 16:30 IST on trading days.
+- Results whenever a results filing arrives for a ticker.
+- One lock so two refreshes never overlap; the brief shows the last refresh time.
+
+### 3. Prebuild demo ledgers [me] mostly waiting on quota
+
+- Budget today: 3.8 Flash about 19 calls; 3.6 Flash resets at 12:30 IST (midnight Pacific).
+- Each company costs 1 Flash call (ledger) and 1 Flash-Lite call (bull and bear).
+- Order: HAL, PIDILITIND, BAJFINANCE (ad-hoc), then portfolio names with fresh results in the brief: RELIANCE, INFY, HDFCBANK, LT, DIXON, TRENT, POLYCAB. Rebuild TCS once on the new single-call format.
+- Keep at least 8 Flash calls a day unused for reviewers who try a new ticker.
+- Read one full ledger against its PDFs by hand and record the error count in EVIDENCE.
+
+### 4. Paths built but not run end to end [me] about 1 h
+
+- Ask: run 3 questions on TCS, including one the transcripts cannot answer; check refusals and citations.
+- Ledger build through the API in the background thread, and the `jobs` status the UI will poll.
+- Results card when a quarter's iXBRL is missing: fall back to Screener for QoQ and YoY, labelled.
+- A ledger for a bank (HDFCBANK) and an NBFC (BAJFINANCE).
+- What the brief shows when the window has no filings, and when NSE is unreachable.
+
+### 5. Classifier eval [me, then you] about 45 min plus 10 min of yours
+
+- 60 October filings, picked so every stage is represented. I label them from the filing text; you spot-check at least 15.
+- Accuracy per stage (label, rules, model) and for priority. Saved as `eval/filings_labelled.json`, results as E25 and in the README.
+
+### 6. Tests for the judgment code [me] about 30 min
+
+- Brief grouping and ordering, `priority` rules, `management_priority`, numeric checks for growth, `scale`.
+
+### 7. Frontend [me] about 6 to 8 h, waiting on your design reference
+
+Screens, in build order:
+
+1. **Brief.** Window chips (24h, 3d, 7d, 30d). "Needs you", then "Worth knowing", then price and volume moves, then one line "N routine filings" that expands. Each card: ticker, category, headline, the data block (results table with QoQ and YoY, people with bios and sources, amount as share of revenue), and two actions: Done and Dig in. Done is stored on the device. Empty state: "You're caught up", with the last refresh time.
+2. **Research.** Search with alias resolution. Sections: snapshot, results, promise ledger, trajectory, cash quality, bull and bear. Every quote opens a bottom sheet with the page and a link to the PDF. Ledger shows status chips and who judged it (numbers, quotes, or timeframe). "Build ledger" for a new ticker, with progress while it runs.
+3. **Alerts.** Two sliders and category toggles; the replay count updates as you drag.
+4. **Ask.** A bar at the bottom of Research; answers with citations, or a plain "the transcripts do not cover this".
+
+Across all screens: loading, empty and error states; tabular numbers; touch targets at least 44 px; no horizontal scroll at 360 px; last response shown instantly from the device and refreshed in the background; installable PWA. Dig in from a results card opens Research at the ledger.
+
+Design tokens (colours, type scale, radius, spacing) come from your reference, into `frontend/src/styles/tokens.css`.
+
+### 8. Full deploy [me] about 1 h, after 1 and 7
+
+- systemd service for uvicorn; Caddy for HTTPS (try an sslip.io hostname first; buy a cheap domain if Let's Encrypt refuses it).
+- `.env` on the server only; database snapshot copied up; refresh scheduler on.
+- Smoke test on a real phone over mobile data, not Wi-Fi. Install to home screen.
+
+### 9. Submission [me, then you] Sunday
+
+- README: live link, measured telemetry totals for a full run, classifier eval numbers, remove *(planned)* from what got built and keep it on what did not.
+- Export the Claude Code sessions into `build-history/`.
+- Draft the covering email: what was built, key decisions and trade-offs, what was left out, what is next. The README sections map onto it.
+- Final dash check, tests, lint.
+- You: create the GitHub repo (public or private until submission is your call) and approve the push.
+- You: send to `assessment@enam.com`, subject `ENAM - IIT screening - 2027`, with the deployed link, repo link, build history and writeup.
 
 ## Schedule
 
-| Block | When (IST) | Work | Done when |
-| --- | --- | --- | --- |
-| 0 | Sat 02:00 to 02:30 | Setup | Repo initialised, first commit pushed |
-| 1 | Sat 09:00 to 12:00 | Ingestion | Four ingest scripts fill SQLite for all 18 tickers |
-| 2 | Sat 12:00 to 14:30 | Classifier and results parser | Labelled eval passes; TCS and one bank parse correctly |
-| 3 | Sat 14:30 to 16:00 | API | `/brief`, `/alerts`, `/research/{ticker}` return real data |
-| 4 | Sat 16:00 to 21:00 | Frontend thin slice | Brief, alerts and research screens work on a phone |
-| 5 | Sat 21:00 to 23:00 | Deploy | Public URL opens on a phone |
-| 6 | Sun 09:00 to 13:00 | Promise ledger | Ledger renders for TCS and ASIANPAINT with verified quotes |
-| 7 | Sun 13:00 to 16:00 | P1 features | As many of 9 to 13 as fit |
-| 8 | Sun 16:00 to 19:00 | Design pass | Matches the reference design; tested at 390 px |
-| 9 | Sun 19:00 to 21:00 | Refresh snapshot, final checks, submit | Email sent |
+| When (IST) | Work |
+| --- | --- |
+| Sat 04:30 to 06:00 | 4 (untested paths), 6 (tests), ledgers on remaining 3.8 Flash quota |
+| As soon as the instance exists | 1 (deploy probe), then 2 (scheduler) |
+| Sat 12:30 | Flash quota resets: rest of 3 (ledgers) |
+| Sat, once the design arrives | 7 (frontend), the long block |
+| Sat evening | 5 (eval, with your spot-check), 8 (full deploy) |
+| Sun morning | Polish frontend from your feedback, refresh snapshot |
+| Sun afternoon | 9 (submission) |
 
-The promise ledger is the hero feature but sits on Sunday morning on purpose: it depends on transcripts and the research endpoint from Saturday, and Saturday must end with something deployed.
+**Checkpoint, Sat 23:00:** a phone can open the deployed link, see the brief, change thresholds, and open research with a ledger. If not, Sunday morning goes to that, not to polish.
 
-## Steps
+## Cut order if time runs short
 
-### Block 0. Setup
-
-- Install `uv` (`brew install uv`). `git init`, `.gitignore` (`.env`, `.venv`, `node_modules`, `__pycache__`, `*.db-wal`).
-- Fix dependencies from [E11](docs/EVIDENCE.md#e11-package-versions-on-pypi-2026-10-31): replace `duckduckgo-search` with `ddgs`. Pin `yfinance==1.7.0`, which is the version tested.
-- `.env.example` with `GEMINI_API_KEY`.
-- Create the Gemini key in AI Studio and **write down the free tier RPM and RPD shown there** in EVIDENCE.md. They are not printed on the docs page ([E10](docs/EVIDENCE.md#e10-gemini-model-availability-and-free-tier-checked-against-google-docs)).
-- Run one call each to `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite` and `gemini-3.8-flash` to confirm the key can reach them.
-- Create the GitHub repo and push.
-
-### Block 1. Ingestion
-
-Layout:
-
-```text
-backend/
-  config.py           tickers, aliases, category map
-  db.py               SQLite schema and helpers
-  sources/
-    nse.py            session with cookie warm-up, announcements, integrated filings
-    eod.py            yfinance download, NaN-close filter, 20-day average volume
-    screener.py       quarterly and annual tables, transcript and AR links
-    pdf.py            download with correct Referer, PyMuPDF text per page
-  jobs/refresh.py     runs all of the above, idempotent
-```
-
-Tables:
-
-- `filings(id, ticker, an_dt, nse_label, text, pdf_url, category, priority, summary, classified_by)`
-- `eod(ticker, date, close, volume)`; moves and multiples are computed at query time.
-- `results(ticker, period_end, consolidated, revenue, ebitda, pbt, pat, unit, source_url)`
-- `financials(ticker, statement, period, line_item, value)`, from Screener.
-- `documents(ticker, kind, period, url, pages_json)`; transcripts and annual report text, page by page.
-- `llm_calls(id, task, model, tokens_in, tokens_out, cached_tokens, latency_ms, ts)`
-
-Checks:
-
-- NSE: use one `httpx.Client`, hit the homepage first, sleep 0.8 s between symbols ([E2](docs/EVIDENCE.md#e2-filing-volume-for-the-18-stock-portfolio-october-2026) did 18 calls with zero failures at this pace).
-- EOD: drop rows where close is NaN ([E9](docs/EVIDENCE.md#e9-yfinance-works-with-one-data-quality-trap)). Download 90 days so the 20-day average and the 60-day backtest both have data.
-- Screener: consolidated page first, standalone if the consolidated table is empty.
-- Transcripts: last 4 per ticker, BSE links get `Referer: https://www.bseindia.com/` ([E8](docs/EVIDENCE.md#e8-concall-transcripts-are-text-pdfs-of-manageable-size)).
-- Annual report: download the latest one only, keep page text, and pull out pages that mention "segment" and "Management Discussion" for the snapshot. Do not send 300 pages to a model.
-
-Commit after each source works.
-
-### Block 2. Classifier and results parser
-
-**Classifier.**
-
-1. Label map: NSE `desc` to category, for the labels that map one-to-one.
-2. Text rules on `attchmntText` for the ambiguous labels (`General Updates`, `Updates`, `Outcome of Board Meeting`, `Press Release`, `Analysts/Institutional Investor Meet/Con. Call Updates`).
-3. Flash-Lite for whatever is left, with structured output: `{category, priority, one_line}`. Batch 20 filings per call to cut overhead.
-
-**Classifier eval** (this is the evidence for the routing claim):
-
-- Hand-label 60 October filings, picked so that every stage gets some. Save as `eval/filings_labelled.json`.
-- Measure accuracy per stage, and for the model stage run both `gemini-3.1-flash-lite` and `gemini-3.5-flash-lite`. Pick the cheaper one unless it is more than 5 points worse.
-- Write the numbers into EVIDENCE.md as E14. Replace the "23% need a model" figure if tuned rules change it.
-
-**Results parser.**
-
-- From the integrated-filing iXBRL ([E6](docs/EVIDENCE.md#e6-quarterly-results-numbers-are-available-as-structured-data)): Revenue from operations, Other income, Finance costs, Depreciation, PBT, PAT. Anchor on the P&L table, not the first match, because "Profit before tax" also appears in the segment table.
-- Convert lakh to crore in Python. EBITDA = PBT + finance costs + depreciation - other income, shown with a "derived" tag.
-- QoQ and YoY need the previous quarter and the same quarter last year: take those from Screener's quarterly table and check the current quarter against it. If they disagree by more than 1%, show the iXBRL number and a "check" marker.
-- Banks (HDFCBANK, ICICIBANK, BAJFINANCE): the iXBRL uses a different format. Show what parses (total income, PBT, PAT) and print "EBITDA is not meaningful for banks" instead of a number.
-- Tests: TCS Sep 2026 revenue must equal 73,188 crore. One bank must parse without crashing.
-
-### Block 3. API
-
-- `GET /api/brief?window=24h` returns groups (needs_you, worth_knowing, routine_count, routine_items), data freshness, and alert hits.
-- `GET /api/alerts/rules`, `PUT /api/alerts/rules`
-- `GET /api/alerts/backtest?price_pct=3&vol_mult=2&days=60` (P1)
-- `GET /api/research/{ticker}` returns cached sections at once and builds the missing ones. Resolve aliases first.
-- `POST /api/research/{ticker}/ask` (P1)
-- `GET /api/meta` returns data as-of times and the telemetry totals.
-
-The API never calls a source synchronously for the brief. Only research for an uncached ticker does live work, and the UI shows progress per section while it runs.
-
-### Block 4. Frontend thin slice
-
-Stack: Vite, React, Tailwind, shadcn/ui, `vite-plugin-pwa`. One codebase, served by FastAPI in production.
-
-Screens:
-
-1. **Brief.** Window chips. "Needs you" cards, then "Worth knowing", then one line "N routine filings" that expands. Each card: ticker, category, one line on why it matters, the data block (results table, bio), and two actions: **Done** and **Dig in**. Done hides the card for this window, stored locally. Empty state: "You're caught up" with the time of the last refresh.
-2. **Alerts.** Two sliders and category toggles. Hits listed below. Backtest count next to the sliders (P1).
-3. **Research.** Search with alias resolution. Sections as a vertical scroll with a sticky section index. Every model-written line has a citation chip that opens the quote in a bottom sheet.
-
-Navigation: bottom tab bar (Brief, Alerts, Research). "Dig in" passes `?section=` so research opens at the right place.
-
-Every screen has a loading state, an empty state and an error state. Test at 390 px wide in Chrome device mode and on a real phone.
-
-### Block 5. Deploy
-
-- One service: FastAPI serves the API and the built frontend.
-- Commit `data/finn.db` as the snapshot. On boot, if live refresh fails, serve the snapshot and show "Data as of ...".
-- Test from the deployed host whether NSE answers. This is an open question in EVIDENCE.md. If NSE blocks it, keep refresh local and redeploy the snapshot.
-- Host candidates: Render, Railway, Fly. Choose by testing, and record what happened in EVIDENCE.md.
-
-**Saturday night checkpoint:** a phone can open the URL, see the brief, change thresholds, and open research for a portfolio ticker. If this is not true by 23:00, Sunday morning goes to fixing it, not to the ledger.
-
-### Block 6. Promise ledger
-
-1. **Extract** with `gemini-3.8-flash` from each of the last 4 transcripts, structured output, one item per promise: `{metric, target_low, target_high, unit, timeframe, quote, page, speaker}`. Only explicit forward-looking statements by management. Analyst questions are context, not promises.
-2. **Verify quotes** in Python: normalise whitespace and case, check the quote is a substring of that page's text. Drop items that fail and count them in telemetry.
-3. **Match outcomes:**
-   - Numeric promise whose timeframe has ended: compare in Python with Screener numbers and set Delivered or Missed.
-   - Timeframe not ended: Pending.
-   - Same metric guided again later with a different target: Revised, show both quotes.
-   - Never mentioned in any later transcript: Dropped. Use the model to check mentions, since wording changes, and require a quote if it says the promise was revisited.
-   - Qualitative: model judgment with the supporting later quote, tagged "model judgment".
-4. **Cache** the transcripts with 3.8 Flash context caching, which is free on this model ([E10](docs/EVIDENCE.md#e10-gemini-model-availability-and-free-tier-checked-against-google-docs)), so Ask reuses them.
-5. **Test** on TCS and ASIANPAINT. Read every ledger row against the PDF by hand for one company and write down the error count in EVIDENCE.md.
-
-### Block 7. P1 features
-
-Do them in this order, each in its own commit, each easy to drop:
-
-- **Management bio:** Flash-Lite extracts `{name, role, joining_or_leaving}` from the filing PDF. Then `ddgs` with `"{name}" {company} {role}`, top 5 results, and Flash-Lite condenses them into 3 lines with links. Prefer the company website when sources disagree ([E5](docs/EVIDENCE.md#e5-person-search-is-ambiguous-so-bios-need-disambiguation)). Demo cases from October: LT, BAJAJ-AUTO, TATACONSUM ([E4](docs/EVIDENCE.md#e4-management-change-filings-do-not-name-the-person-in-the-summary)).
-- **Backtest preview:** pure SQL over `eod`, cheap and very visible.
-- **Bull and bear:** 3.8 Flash over the computed sections and the ledger. At most 3 points a side, each with a citation.
-- **Ask:** cached transcripts plus the annual report pages already extracted. Same quote check as the ledger.
-- **Telemetry:** wrap the model client once so every call lands in `llm_calls`.
-
-### Block 8. Design pass
-
-The reference design from Pinterest is still to come. When it arrives:
-
-- Pull out tokens: colours (light and dark), type scale, radius, spacing, elevation. Put them in `frontend/src/styles/tokens.css` and in Tailwind config.
-- Map the reference's components to ours: card, chip, bottom sheet, tab bar, slider, table.
-- Keep numbers in `tabular-nums`, positive and negative deltas in colours that hold up in both themes, and touch targets of at least 44 px.
-- Check for horizontal scroll at 360 px and 390 px.
-- Remove every placeholder and lorem line. Read every UI string aloud once.
-
-### Block 9. Ship
-
-- Run `jobs/refresh.py` and commit the new snapshot.
-- Fill the README: deployed link, measured telemetry totals, classifier eval numbers, and remove the *(planned)* tags that are now built, or keep them if not.
-- Export the Claude Code sessions into `build-history/`.
-- Dash check: `grep -rn $'—\|–' --exclude-dir=node_modules --exclude-dir=.venv .` must return nothing.
-- Open the deployed URL on a phone over mobile data, not Wi-Fi, and click through the demo path below.
-- Email `assessment@enam.com`, subject `ENAM - IIT screening - 2027`, with: deployed link, repo link, build history, and the writeup (what was built, key decisions and trade-offs, what was left out, what is next). The README's sections map one to one onto that writeup.
-
-## Demo path (what a reviewer should see in 2 minutes)
-
-1. Open the brief. A short list, with Polycab's NCLAT insolvency update and Reliance's Jio Platforms IPO near the top, and a "N routine filings" line at the bottom. These are real October filings ([E3](docs/EVIDENCE.md#e3-exchange-labels-alone-are-not-enough-to-classify)).
-2. Tap a results card. Headline table with QoQ and YoY.
-3. Tap "Dig in". Research opens at the promise ledger for that company.
-4. Tap a citation. The exact transcript quote with its page.
-5. Alerts: drag the volume slider and watch the count change.
-6. Research: type a ticker that is not in the portfolio, for example PIDILITIND.
+Last added, first cut: Ask UI, per-category overrides, bull and bear UI, alert replay UI (keep the sliders), bios (keep name and role). Never cut: the brief, results card, promise ledger, deploy.
 
 ## Risks
 
 | Risk | Likelihood | Mitigation |
 | --- | --- | --- |
-| NSE blocks the cloud host | Unknown, test in Block 5 | Snapshot plus local refresh |
-| Free tier rate limits hit during ledger build | Medium | Batch calls, cache results in SQLite, build demo tickers ahead of time |
-| iXBRL format differs for banks | Known | Partial card with a clear note |
-| Ledger quality is poor on some companies | Medium | Quote check drops unsupported rows; show "N promises could not be verified" instead of hiding it |
-| Time | High | P1 and P2 drop in order; Saturday night checkpoint |
+| NSE blocks the Lightsail IP | Unknown until step 1 | Refresh on your Mac, copy the database up |
+| Flash daily quota runs out during review | Medium | 1 call per ledger, stored ledgers, fallback to the other Flash model, clear message when both are out |
+| Free tier 503s ("high demand") | Seen on 3.1 Flash-Lite and 3.8 Flash | Retries, then sibling model; nothing in the brief depends on a live model call |
+| Design arrives late | Medium | Build components on neutral tokens, then swap the tokens |
+| Ledger quality varies by company | Medium | Quote check drops unsupported rows; show how many were dropped; hand-check one ledger |
+| Credits do not cover Lightsail | Unknown | $7 for the month on the card, or fall back to Render paid |
+
+## Decisions waiting on you
+
+1. Create the Lightsail instance and confirm the credits cover it.
+2. The design reference.
+3. GitHub: repo name, public or private until submission, and approval to push.
+4. Spot-check of the classifier labels (step 5).
