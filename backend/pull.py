@@ -584,9 +584,10 @@ _CAGR_AS_TOTAL = re.compile(
 def _yearly(text: str) -> str:
     """Flash-Lite kept writing "grew 23% over 5 years" for a 23% CAGR even when told not to (2026-10-31).
     A CAGR is a yearly rate, so the wording is fixed in code."""
-    return _CAGR_AS_TOTAL.sub(
+    text = _CAGR_AS_TOTAL.sub(
         lambda m: f"{m.group(1)} {m.group(3)}% a year over {m.group(4) or ''}{m.group(5)} years", text
     )
+    return re.sub(r"(\d) percent\b", r"\1%", text)  # one style for percentages
 
 
 def build_bull_bear(ticker: str) -> dict:

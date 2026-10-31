@@ -200,6 +200,11 @@ function BriefCardView({ card, onOpen, onDone }: { card: BriefCard; onOpen: () =
         <span className="font-bold tracking-[0.02em] text-ink">{card.ticker}</span>
         <span className="h-[3px] w-[3px] rounded-full bg-muted" />
         <span>{card.category_label}</span>
+        {card.alert && (
+          <span className="rounded-full border border-needs/60 px-1.5 text-[11px] font-semibold text-needs" title="A category you asked to be alerted about">
+            Alert
+          </span>
+        )}
         <span className="tabular ml-auto">{when(card.latest_at)}</span>
       </div>
       <h3 className="mt-2 mb-3 text-[17px] leading-snug font-semibold tracking-[-0.01em]">{card.headline}</h3>
