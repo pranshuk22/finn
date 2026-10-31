@@ -28,8 +28,8 @@
   --worth-knowing: var(--accent-text);
 
   /* type */
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-serif: "Source Serif 4", Georgia, serif; /* transcript quotes */
+  --font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif; /* titles and transcript quotes */
   --fs-xs: 12px;
   --fs-sm: 13px;
   --fs-base: 15px;
@@ -41,9 +41,9 @@
   --tracking-tight: -0.02em;
 
   /* shape and space */
-  --radius-sm: 8px;
-  --radius: 14px;
-  --radius-lg: 20px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 12px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;

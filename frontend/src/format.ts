@@ -79,3 +79,8 @@ const LIGATURES: Record<string, string> = { "\ufb00": "ff", "\ufb01": "fi", "\uf
 export function plain(text: string): string {
   return text.replace(/[\ufb00-\ufb04\u01af]/g, (c) => LIGATURES[c] ?? c);
 }
+
+/** ISO date "2026-06-30" -> "30 Jun 2026" */
+export function dayMonthYear(iso: string): string {
+  return new Date(`${iso}T00:00:00+05:30`).toLocaleDateString("en-IN", { timeZone: IST, day: "numeric", month: "short", year: "numeric" });
+}

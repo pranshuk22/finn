@@ -1,15 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useStored } from "../api";
-import { Button, Card, Chip, ErrorState, ExtLink, Header, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, Sparkline, StaleNote } from "../components/ui";
+import { Card, ErrorState, ExtLink, Header, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
 import { ago, inr, scaleLine, when } from "../format";
 import { navigate } from "../router";
 import type { Brief, BriefCard, Move, Person } from "../types";
 
 const WINDOWS = [
-  { hours: 24, label: "24h" },
-  { hours: 72, label: "3d" },
-  { hours: 168, label: "7d" },
-  { hours: 720, label: "30d" },
+  { value: 24, label: "24 hours" },
+  { value: 72, label: "3 days" },
+  { value: 168, label: "7 days" },
+  { value: 720, label: "30 days" },
 ];
 
 const SORTED_BY: Record<string, string> = {
@@ -18,6 +18,10 @@ const SORTED_BY: Record<string, string> = {
   model: "Sorted by Flash-Lite",
 };
 
+function today(): string {
+  return new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" });
+}
+
 export function BriefScreen() {
   const [hours, setHours] = useStored("window", 24);
   const [done, setDone] = useStored<string[]>("done", []);
@@ -25,6 +29,13 @@ export function BriefScreen() {
   const [open, setOpen] = useState<BriefCard | null>(null);
   const [showDone, setShowDone] = useState(false);
   const [showRoutine, setShowRoutine] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const doneSet = useMemo(() => new Set(done), [done]);
   const b = q.data;
@@ -32,120 +43,104 @@ export function BriefScreen() {
   const left = cards.filter((c) => !doneSet.has(c.id));
   const finished = cards.filter((c) => doneSet.has(c.id));
 
-  const markDone = (id: string) => setDone([...done.filter((x) => x !== id), id].slice(-500));
-  const undo = (id: string) => setDone(done.filter((x) => x !== id));
+  const markDone = (id: string) => {
+    setDone([...done.filter((x) => x !== id), id].slice(-500));
+    setToast(id);
+  };
+  const undo = (id: string) => {
+    setDone(done.filter((x) => x !== id));
+    setToast(null);
+  };
 
   return (
     <>
       <Header
-        eyebrow="FINN"
-        title="Your brief"
+        eyebrow={today()}
+        title="Brief"
         sub={
           b ? (
             <span>
               {left.length === 0 ? "Nothing left to read" : `${left.length} to read`}
               {finished.length > 0 && `, ${finished.length} done`}
-              {b.freshness.filings_refreshed_at && ` · Filings checked ${ago(b.freshness.filings_refreshed_at)}`}
+              {b.freshness.filings_refreshed_at && <span> · checked {ago(b.freshness.filings_refreshed_at)}</span>}
             </span>
           ) : null
         }
       />
 
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Time window">
-        {WINDOWS.map((w) => (
-          <Chip key={w.hours} on={hours === w.hours} onClick={() => setHours(w.hours)}>
-            {w.label}
-          </Chip>
-        ))}
-      </div>
+      <Segmented label="Time window" options={WINDOWS} value={hours} onChange={setHours} />
 
       {cards.length > 0 && (
-        <div className="mx-4 mt-4 h-1 overflow-hidden rounded-full bg-card" aria-hidden>
-          <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${(finished.length / cards.length) * 100}%` }} />
+        <div className="mx-4 mt-4 flex items-center gap-3" aria-hidden>
+          <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-card">
+            <div className="h-full rounded-full bg-accent-ink transition-[width] duration-300" style={{ width: `${(finished.length / cards.length) * 100}%` }} />
+          </div>
+          <span className="tabular text-[12px] text-muted">
+            {finished.length}/{cards.length}
+          </span>
         </div>
       )}
 
-      <div className="mt-4">
+      <div className="mt-2">
         <StaleNote savedAt={q.savedAt} onRetry={q.reload} />
-        {!b && q.loading && <Skeleton lines={4} />}
-        {!b && q.error && <ErrorState message={q.error.message} onRetry={q.reload} />}
+        {!b && q.loading && (
+          <div className="mt-4">
+            <Skeleton lines={4} />
+          </div>
+        )}
+        {!b && q.error && (
+          <div className="mt-4">
+            <ErrorState message={q.error.message} onRetry={q.reload} />
+          </div>
+        )}
 
         {b && (
           <>
             {left.length === 0 && (
-              <Card className="py-8 text-center">
-                <p className="text-lg font-semibold">You're caught up</p>
-                <p className="mt-1 text-[13px] text-muted">
+              <div className="mx-4 mt-10 text-center">
+                <p className="font-serif text-[22px] font-semibold">You're caught up</p>
+                <p className="mx-auto mt-2 max-w-[300px] text-[14px] text-muted">
                   {cards.length === 0
-                    ? `No filings that need you in the last ${WINDOWS.find((w) => w.hours === hours)?.label ?? `${hours}h`}.`
-                    : "Everything in this window is marked done."}{" "}
-                  {b.freshness.filings_refreshed_at && `Last checked ${when(b.freshness.filings_refreshed_at)}.`}
+                    ? `Nothing in the last ${WINDOWS.find((w) => w.value === hours)?.label ?? `${hours} hours`} needs your attention.`
+                    : "Everything in this window is marked done."}
+                  {b.freshness.filings_refreshed_at && ` Last checked ${when(b.freshness.filings_refreshed_at)}.`}
                 </p>
-              </Card>
+              </div>
             )}
 
-            <Group title="Needs you" dot="needs" cards={b.needs_you.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
-            <Group title="Worth knowing" dot="worth" cards={b.worth_knowing.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
+            <Group title="Needs you" cards={b.needs_you.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
+            <Group title="Worth knowing" cards={b.worth_knowing.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
 
             <Moves moves={b.moves} />
 
-            {finished.length > 0 && (
-              <>
+            {b.routine.count > 0 && (
+              <section>
                 <SectionTitle
+                  count={b.routine.count}
                   right={
-                    <button type="button" className="h-9 text-[13px] font-semibold tracking-normal text-accent-ink normal-case" onClick={() => setShowDone(!showDone)}>
-                      {showDone ? "Hide" : "Show"}
+                    <button type="button" className="h-9 text-[14px] text-accent-ink" onClick={() => setShowRoutine(!showRoutine)} aria-expanded={showRoutine}>
+                      {showRoutine ? "Hide" : "Show"}
                     </button>
                   }
                 >
-                  Done ({finished.length})
+                  Routine
                 </SectionTitle>
-                {showDone &&
-                  finished.map((c) => (
-                    <div key={c.id} className="mx-4 flex items-center justify-between gap-3 border-b border-line py-3">
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted">
-                          {c.ticker} · {c.category_label}
-                        </p>
-                        <p className="truncate text-[14px]">{c.headline}</p>
-                      </div>
-                      <button type="button" onClick={() => undo(c.id)} className="h-11 shrink-0 text-[13px] font-semibold text-accent-ink">
-                        Undo
-                      </button>
-                    </div>
-                  ))}
-              </>
-            )}
-
-            {b.routine.count > 0 && (
-              <div className="mt-6 px-4">
-                <button
-                  type="button"
-                  onClick={() => setShowRoutine(!showRoutine)}
-                  aria-expanded={showRoutine}
-                  className="flex min-h-11 w-full flex-col items-center justify-center py-2 text-[13px] text-muted"
-                >
-                  <span>
-                    {b.routine.count} routine filings <span className="text-accent-ink">{showRoutine ? "Hide" : "Show"}</span>
-                  </span>
-                  <span className="text-xs">
-                    {Object.entries(b.routine.by_category)
-                      .sort((x, y) => y[1] - x[1])
-                      .slice(0, 3)
-                      .map(([k, n]) => `${n} ${k.toLowerCase()}`)
-                      .join(", ")}
-                  </span>
-                </button>
+                <p className="-mt-2 px-4 text-[13px] text-muted">
+                  {Object.entries(b.routine.by_category)
+                    .sort((x, y) => y[1] - x[1])
+                    .map(([k, n]) => `${n} ${k.toLowerCase()}`)
+                    .join(", ")}
+                </p>
                 {showRoutine && (
-                  <ul className="animate-fade">
+                  <ul className="animate-fade mx-4 mt-2">
                     {b.routine.items.map((r) => (
-                      <li key={r.id} className="border-b border-line py-3 last:border-0">
-                        <p className="text-xs text-muted">
-                          {r.ticker} · {r.category_label} · {when(r.at)}
+                      <li key={r.id} className="border-t border-line py-3">
+                        <p className="text-[12px] text-muted">
+                          <span className="font-semibold text-ink">{r.ticker}</span> · {r.category_label} · {when(r.at)}
                         </p>
                         <p className="mt-0.5 text-[14px]">{r.summary}</p>
                         {r.pdf_url && (
-                          <p className="mt-1 text-xs">
+                          <p className="mt-1 text-[13px]">
                             <ExtLink href={r.pdf_url}>Filing</ExtLink>
                           </p>
                         )}
@@ -153,38 +148,59 @@ export function BriefScreen() {
                     ))}
                   </ul>
                 )}
-              </div>
+              </section>
             )}
+
+            {finished.length > 0 && (
+              <section>
+                <SectionTitle
+                  count={finished.length}
+                  right={
+                    <button type="button" className="h-9 text-[14px] text-accent-ink" onClick={() => setShowDone(!showDone)} aria-expanded={showDone}>
+                      {showDone ? "Hide" : "Show"}
+                    </button>
+                  }
+                >
+                  Done
+                </SectionTitle>
+                {showDone && (
+                  <ul className="mx-4">
+                    {finished.map((c) => (
+                      <li key={c.id} className="flex items-center justify-between gap-3 border-t border-line py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-[12px] text-muted">
+                            <span className="font-semibold text-ink">{c.ticker}</span> · {c.category_label}
+                          </p>
+                          <p className="truncate text-[14px] text-muted">{c.headline}</p>
+                        </div>
+                        <button type="button" onClick={() => undo(c.id)} className="h-11 shrink-0 text-[14px] text-accent-ink">
+                          Restore
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+            <div className="h-6" />
           </>
         )}
       </div>
 
-      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? `${open.ticker} · ${open.category_label}` : ""}>
+      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? `${open.ticker}, ${open.category_label.toLowerCase()}` : ""}>
         {open && <Sources card={open} />}
       </Sheet>
+
+      {toast && <Toast message="Marked done" action="Undo" onAction={() => undo(toast)} />}
     </>
   );
 }
 
-function Group({
-  title,
-  dot,
-  cards,
-  onOpen,
-  onDone,
-}: {
-  title: string;
-  dot: "needs" | "worth";
-  cards: BriefCard[];
-  onOpen: (c: BriefCard) => void;
-  onDone: (id: string) => void;
-}) {
+function Group({ title, cards, onOpen, onDone }: { title: string; cards: BriefCard[]; onOpen: (c: BriefCard) => void; onDone: (id: string) => void }) {
   if (cards.length === 0) return null;
   return (
     <section>
-      <SectionTitle dot={dot}>
-        {title} ({cards.length})
-      </SectionTitle>
+      <SectionTitle count={cards.length}>{title}</SectionTitle>
       {cards.map((c) => (
         <BriefCardView key={c.id} card={c} onOpen={() => onOpen(c)} onDone={() => onDone(c.id)} />
       ))}
@@ -195,63 +211,65 @@ function Group({
 function BriefCardView({ card, onOpen, onDone }: { card: BriefCard; onOpen: () => void; onDone: () => void }) {
   const dig = `/research/${card.ticker}${card.results ? "#ledger" : ""}`;
   return (
-    <article className="mx-4 mb-3 rounded-card bg-card p-4">
-      <div className="flex items-center gap-2 text-xs text-muted">
-        <span className="font-bold tracking-[0.02em] text-ink">{card.ticker}</span>
-        <span className="h-[3px] w-[3px] rounded-full bg-muted" />
+    <Card className="pb-0">
+      <div className="flex items-center gap-1.5 text-[13px] text-muted">
+        <span className="font-semibold text-ink">{card.ticker}</span>
+        <span>·</span>
         <span>{card.category_label}</span>
-        {card.alert && (
-          <span className="rounded-full border border-needs/60 px-1.5 text-[11px] font-semibold text-needs" title="A category you asked to be alerted about">
+        {card.alert && card.priority !== "needs_you" && (
+          <span className="ml-1 inline-flex items-center gap-1 text-needs" title="A category you asked to be alerted about">
+            <Icon.bell />
             Alert
           </span>
         )}
-        <span className="tabular ml-auto">{when(card.latest_at)}</span>
+        <span className="tabular ml-auto whitespace-nowrap">{when(card.latest_at)}</span>
       </div>
-      <h3 className="mt-2 mb-3 text-[17px] leading-snug font-semibold tracking-[-0.01em]">{card.headline}</h3>
+      <h3 className="mt-1.5 mb-3 text-[17px] leading-snug font-semibold">{card.headline}</h3>
 
       {card.results && <ResultsTable r={card.results} />}
-      {!card.results && card.people && <People people={card.people} />}
-      {card.scale && <p className="mt-2 text-[13px] text-muted">{scaleLine(card.scale.amount_cr, card.scale.pct_of_revenue)}</p>}
+      {!card.results && card.people && <People people={card.people} named={card.people.length === 1} />}
+      {card.scale && <p className="mt-2 text-[14px] text-muted">{scaleLine(card.scale.amount_cr, card.scale.pct_of_revenue)}</p>}
 
-      <button type="button" onClick={onOpen} className="mt-2 h-9 text-[13px] text-accent-ink">
-        {card.filings.length === 1 ? "1 filing" : `${card.filings.length} filings`}, see sources
-      </button>
-
-      <div className="mt-2 flex gap-2">
-        <Button kind="ghost" onClick={onDone} className="flex-1">
+      <div className="mt-3 flex items-center border-t border-line">
+        <TextAction onClick={onOpen} icon={<Icon.doc />}>
+          {card.filings.length === 1 ? "1 filing" : `${card.filings.length} filings`}
+        </TextAction>
+        <span className="flex-1" />
+        <TextAction onClick={onDone} icon={<Icon.check />}>
           Done
-        </Button>
-        <Button onClick={() => navigate(dig)} className="flex-1">
-          Dig in
-        </Button>
+        </TextAction>
+        <span className="w-5" />
+        <TextAction onClick={() => navigate(dig)} strong>
+          Research
+          <Icon.arrow />
+        </TextAction>
       </div>
-    </article>
+    </Card>
   );
 }
 
-function People({ people }: { people: Person[] }) {
+function People({ people, named }: { people: Person[]; named: boolean }) {
   return (
     <ul className="space-y-3">
       {people.slice(0, 3).map((p) => (
         <li key={`${p.name}-${p.change}`}>
-          <p>
+          <p className={`text-[15px] ${named ? "sr-only" : ""}`}>
             <span className="font-semibold">{p.name}</span>
             <span className="text-muted">
               {" "}
-              {p.change === "joining" ? "joins" : p.change === "leaving" ? "leaves" : p.change}
+              {p.change === "joining" ? "joins as" : p.change === "leaving" ? "leaves as" : `${p.change},`} {p.role}
+              {p.entity && ` at ${p.entity}`}
             </span>
           </p>
-          <p className="text-[13px] text-accent-ink">
-            {p.role}
-            {p.entity && <span className="text-muted"> at {p.entity}</span>}
-          </p>
           {p.bio?.confident && p.bio.lines.length > 0 ? (
-            <div className="mt-1 text-[13px] text-muted">
+            <div className={`border-l-2 border-line pl-3 text-[14px] text-muted ${named ? "" : "mt-1.5"}`}>
               {p.bio.lines.slice(0, 3).map((l) => (
-                <p key={l}>{l}</p>
+                <p key={l} className="mt-0.5">
+                  {l}
+                </p>
               ))}
               {p.bio.sources.length > 0 && (
-                <p className="mt-1 text-xs">
+                <p className="mt-1 text-[12px]">
                   {p.bio.sources.slice(0, 2).map((s, i) => (
                     <span key={s.url}>
                       {i > 0 && " · "}
@@ -262,9 +280,9 @@ function People({ people }: { people: Person[] }) {
               )}
             </div>
           ) : p.profile_from_filing ? (
-            <p className="mt-1 text-[13px] text-muted">{p.profile_from_filing}</p>
+            <p className="mt-1.5 border-l-2 border-line pl-3 text-[14px] text-muted">{p.profile_from_filing}</p>
           ) : (
-            p.senior && <p className="mt-1 text-xs text-muted">No profile we could verify against this company.</p>
+            p.senior && <p className="mt-1 text-[13px] text-muted">No profile we could verify against this company.</p>
           )}
         </li>
       ))}
@@ -276,14 +294,14 @@ function Sources({ card }: { card: BriefCard }) {
   return (
     <ul>
       {card.filings.map((f) => (
-        <li key={f.id} className="border-b border-line py-3 last:border-0">
-          <p className="text-xs text-muted">{when(f.at)}</p>
-          <p className="mt-1 text-[14px]">{f.summary}</p>
-          <p className="mt-1 text-xs text-muted">
+        <li key={f.id} className="border-t border-line py-3 first:border-0 first:pt-0">
+          <p className="text-[12px] text-muted">{when(f.at)}</p>
+          <p className="mt-1 text-[15px]">{f.summary}</p>
+          <p className="mt-1 text-[12px] text-muted">
             NSE label: {f.label || "none"}. {SORTED_BY[f.classified_by] ?? f.classified_by}.
           </p>
           {f.pdf_url && (
-            <p className="mt-1 text-[13px]">
+            <p className="mt-1.5 text-[14px]">
               <ExtLink href={f.pdf_url}>Open the filing</ExtLink>
             </p>
           )}
@@ -297,27 +315,21 @@ function Moves({ moves }: { moves: Move[] }) {
   if (moves.length === 0) return null;
   return (
     <section>
-      <SectionTitle>Price and volume ({moves.length})</SectionTitle>
-      <ul className="mx-4">
+      <SectionTitle count={moves.length}>Price and volume</SectionTitle>
+      <ul className="mx-4 overflow-hidden rounded-[12px] bg-card">
         {moves.map((m) => (
-          <li key={`${m.ticker}-${m.date}`}>
-            <button
-              type="button"
-              onClick={() => navigate(`/research/${m.ticker}`)}
-              className="grid min-h-14 w-full grid-cols-[1fr_72px_92px] items-center gap-3 border-b border-line py-2.5 text-left"
-            >
+          <li key={`${m.ticker}-${m.date}`} className="border-t border-line first:border-0">
+            <button type="button" onClick={() => navigate(`/research/${m.ticker}`)} className="grid min-h-14 w-full grid-cols-[1fr_72px_92px] items-center gap-3 px-4 py-2.5 text-left">
               <span className="min-w-0">
-                <span className="block font-bold">{m.ticker}</span>
-                <span className="tabular block truncate text-xs text-muted">
+                <span className="block text-[15px] font-semibold">{m.ticker}</span>
+                <span className="tabular block truncate text-[12px] text-muted">
                   Rs {inr(m.close, 0)} · {when(`${m.date}T15:30:00`).replace(/ 15:30$/, "")}
                 </span>
               </span>
               <Sparkline values={m.spark} />
               <span className="text-right">
-                <Pct value={m.move_pct} className="block font-semibold" />
-                <span className={`tabular block text-xs ${m.reasons.includes("volume") ? "text-ink" : "text-muted"}`}>
-                  {m.vol_mult.toFixed(1)}x volume
-                </span>
+                <Pct value={m.move_pct} className="block text-[15px] font-semibold" />
+                <span className={`tabular block text-[12px] ${m.reasons.includes("volume") ? "text-ink" : "text-muted"}`}>{m.vol_mult.toFixed(1)}x volume</span>
               </span>
             </button>
           </li>

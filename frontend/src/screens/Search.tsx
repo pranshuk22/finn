@@ -17,7 +17,7 @@ export function Search() {
 
   return (
     <>
-      <Header eyebrow="Research" title="Any NSE company" sub="Numbers from filings, promises from earnings calls, every claim with its source." />
+      <Header eyebrow="Any NSE company" title="Research" sub="Numbers from filings, promises from earnings calls, every claim with its source." />
       <form
         className="px-4"
         onSubmit={(e) => {
@@ -36,7 +36,7 @@ export function Search() {
           autoCapitalize="characters"
           autoComplete="off"
           enterKeyHint="search"
-          className="h-12 w-full rounded-[14px] border border-line bg-card px-4 text-[16px] text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+          className="h-12 w-full rounded-[10px] border border-line bg-card px-4 text-[16px] text-ink placeholder:text-muted focus:border-accent focus:outline-none"
         />
       </form>
 
@@ -78,7 +78,7 @@ function Row({ ticker, name, onClick }: { ticker: string; name: string; onClick:
   return (
     <li>
       <button type="button" onClick={onClick} className="flex min-h-12 w-full items-center gap-3 border-b border-line py-2 text-left">
-        <span className="w-28 shrink-0 font-bold">{ticker}</span>
+        <span className="w-28 shrink-0 font-semibold">{ticker}</span>
         <span className="min-w-0 truncate text-[14px] text-muted">{name}</span>
       </button>
     </li>

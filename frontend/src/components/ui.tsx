@@ -2,48 +2,105 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { ago, inr, signedPct, tone } from "../format";
 import type { ResultsCard } from "../types";
 
+// ---------- layout ----------
+
 export function Header({ eyebrow, title, sub, right }: { eyebrow?: string; title: string; sub?: ReactNode; right?: ReactNode }) {
   return (
-    <header className="px-4 pt-[calc(16px+env(safe-area-inset-top))] pb-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {eyebrow && <p className="text-xs font-semibold tracking-[0.12em] text-muted uppercase">{eyebrow}</p>}
-          <h1 className="mt-1 text-[30px] leading-tight font-semibold tracking-[-0.02em]">{title}</h1>
-        </div>
+    <header className="px-4 pt-[calc(20px+env(safe-area-inset-top))] pb-4">
+      {eyebrow && <p className="text-[13px] text-muted">{eyebrow}</p>}
+      <div className="mt-0.5 flex items-end justify-between gap-3">
+        <h1 className="font-serif text-[32px] leading-tight font-semibold tracking-[-0.01em]">{title}</h1>
         {right}
       </div>
-      {sub && <div className="mt-1 text-[13px] text-muted">{sub}</div>}
+      {sub && <div className="mt-1.5 text-[14px] text-muted">{sub}</div>}
     </header>
   );
 }
 
-export function SectionTitle({ children, dot, right, id }: { children: ReactNode; dot?: "needs" | "worth"; right?: ReactNode; id?: string }) {
+export function SectionTitle({ children, count, right, id }: { children: ReactNode; count?: number; right?: ReactNode; id?: string }) {
   return (
-    <h2 id={id} className="mt-6 mb-3 flex scroll-mt-20 items-center gap-2 px-4 text-[13px] font-semibold tracking-[0.08em] text-muted uppercase">
-      {dot && <span className={`h-2 w-2 rounded-full ${dot === "needs" ? "bg-needs" : "bg-worth"}`} />}
-      <span className="flex-1">{children}</span>
+    <div id={id} className="mt-8 mb-3 flex scroll-mt-24 items-baseline gap-2 px-4">
+      <h2 className="text-[17px] font-semibold">{children}</h2>
+      {count != null && <span className="tabular text-[15px] text-muted">{count}</span>}
+      <span className="flex-1" />
       {right}
-    </h2>
+    </div>
   );
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`mx-4 mb-3 rounded-card bg-card p-4 ${className}`}>{children}</div>;
+  return <div className={`mx-4 mb-2.5 rounded-[12px] bg-card p-4 ${className}`}>{children}</div>;
 }
 
-export function Chip({ on, onClick, children, label }: { on?: boolean; onClick?: () => void; children: ReactNode; label?: string }) {
+// ---------- controls ----------
+
+/** iOS-style segmented control: one container, the selected segment raised. */
+export function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  label: string;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      aria-label={label}
-      className={`h-9 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors ${
-        on ? "border-accent bg-accent font-semibold text-on-accent" : "border-line text-muted"
-      }`}
-    >
-      {children}
-    </button>
+    <div role="radiogroup" aria-label={label} className="mx-4 grid rounded-[10px] bg-card p-[3px]" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <button
+            key={String(o.value)}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(o.value)}
+            className={`h-9 rounded-[8px] text-[14px] transition-colors ${on ? "bg-sheet font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,.25)]" : "text-muted"}`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Text tabs with an underline, for filters and section navigation. */
+export function Tabs<T extends string>({
+  items,
+  value,
+  onChange,
+  label,
+  className = "",
+}: {
+  items: { value: T; label: string; count?: number }[];
+  value: T;
+  onChange: (v: T) => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div role="tablist" aria-label={label} className={`no-scrollbar flex gap-5 overflow-x-auto border-b border-line px-4 ${className}`}>
+      {items.map((t) => {
+        const on = t.value === value;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(t.value)}
+            className={`relative h-11 shrink-0 text-[14px] whitespace-nowrap ${on ? "font-semibold text-ink" : "text-muted"}`}
+          >
+            {t.label}
+            {t.count != null && <span className="tabular ml-1.5 text-muted">{t.count}</span>}
+            {on && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-accent-ink" />}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -67,7 +124,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`h-11 rounded-[14px] px-4 font-semibold transition-opacity disabled:opacity-50 ${
+      className={`h-11 rounded-[10px] px-4 text-[15px] font-semibold transition-opacity disabled:opacity-40 ${
         kind === "primary" ? "bg-accent text-on-accent" : "border border-line text-ink"
       } ${className}`}
     >
@@ -75,6 +132,33 @@ export function Button({
     </button>
   );
 }
+
+/** A quiet action inside a card: icon and label, full 44 px tap height. */
+export function TextAction({ children, onClick, icon, strong }: { children: ReactNode; onClick: () => void; icon?: ReactNode; strong?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} className={`flex h-11 items-center gap-1.5 text-[14px] ${strong ? "font-semibold text-accent-ink" : "text-muted"}`}>
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={() => onChange(!on)}
+      className={`relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors ${on ? "bg-accent" : "bg-line"}`}
+    >
+      <span className={`absolute top-[3px] h-6 w-6 rounded-full bg-ink shadow transition-[left] ${on ? "left-[23px]" : "left-[3px]"}`} />
+    </button>
+  );
+}
+
+// ---------- data ----------
 
 export function Pct({ value, digits = 1, className = "" }: { value: number | null | undefined; digits?: number; className?: string }) {
   const t = tone(value);
@@ -92,10 +176,11 @@ export function Sparkline({ values, width = 72, height = 24 }: { values: number[
   const pts = values
     .map((v, i) => `${((i * width) / (values.length - 1)).toFixed(1)},${(height - ((v - lo) / (hi - lo || 1)) * height).toFixed(1)}`)
     .join(" ");
-  const up = values[values.length - 1] >= values[0];
+  // Neutral on purpose: the day's move is coloured next to it; a 30-day trend in red beside "+5.2%" reads as a contradiction.
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
-      <polyline points={pts} fill="none" stroke={up ? "var(--up)" : "var(--down)"} strokeWidth="1.5" strokeLinejoin="round" />
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} overflow="visible" aria-hidden>
+      <polyline points={pts} fill="none" stroke="var(--text-muted)" strokeWidth="1.25" strokeLinejoin="round" />
+      <circle cx={width} cy={pts.split(" ").pop()!.split(",")[1]} r="2" fill="var(--text)" />
     </svg>
   );
 }
@@ -103,52 +188,52 @@ export function Sparkline({ values, width = 72, height = 24 }: { values: number[
 export function ResultsTable({ r }: { r: ResultsCard }) {
   return (
     <div>
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-[14px]">
         <thead>
-          <tr className="text-muted">
-            <th className="border-b border-line py-1.5 text-left font-medium">{r.unit}</th>
-            <th className="border-b border-line py-1.5 text-right font-medium">{r.quarter}</th>
-            <th className="border-b border-line py-1.5 text-right font-medium">QoQ</th>
-            <th className="border-b border-line py-1.5 text-right font-medium">YoY</th>
+          <tr className="text-[12px] text-muted">
+            <th className="pb-1.5 text-left font-normal">{r.unit}</th>
+            <th className="pb-1.5 text-right font-normal">{r.quarter}</th>
+            <th className="pb-1.5 text-right font-normal">QoQ</th>
+            <th className="pb-1.5 text-right font-normal">YoY</th>
           </tr>
         </thead>
         <tbody>
           {r.rows.map((row) => (
-            <tr key={row.label} className="border-b border-line last:border-0">
-              <td className="py-2">
+            <tr key={row.label} className="border-t border-line">
+              <td className="py-[7px]">
                 {row.label}
-                {row.derived && <span className="ml-1 text-muted" title="Computed from the filed lines">*</span>}
+                {row.derived && <sup className="ml-0.5 text-muted">*</sup>}
               </td>
-              <td className="tabular py-2 text-right">{inr(row.value)}</td>
-              <td className="py-2 text-right">{r.has_prev ? <Pct value={row.qoq} /> : <span className="text-muted">n/a</span>}</td>
-              <td className="py-2 text-right">{r.has_year_ago ? <Pct value={row.yoy} /> : <span className="text-muted">n/a</span>}</td>
+              <td className="tabular py-[7px] text-right">{inr(row.value)}</td>
+              <td className="py-[7px] text-right">{r.has_prev ? <Pct value={row.qoq} /> : <span className="text-muted">n/a</span>}</td>
+              <td className="py-[7px] text-right">{r.has_year_ago ? <Pct value={row.yoy} /> : <span className="text-muted">n/a</span>}</td>
             </tr>
           ))}
         </tbody>
       </table>
       {r.rows.some((x) => x.check) && (
-        <p className="mt-2 text-xs text-muted">
+        <p className="mt-2 text-[12px] text-muted">
           {r.rows
             .filter((x) => x.check)
             .map((x) => `${x.label} differs from Screener (${inr(x.check!.screener)}) by ${x.check!.diff_pct}%.`)
             .join(" ")}
         </p>
       )}
-      <p className="mt-2 text-xs text-muted">
+      <p className="mt-2 text-[12px] leading-relaxed text-muted">
         {r.consolidated ? "Consolidated" : "Standalone"}
-        {r.rows.some((x) => x.derived) && (r.is_bank ? ". * PPOP computed from the filed lines" : ". * EBITDA = PBT + finance costs + depreciation - other income")}
+        {r.rows.some((x) => x.derived) && (r.is_bank ? ". *PPOP computed from the filed lines" : ". *EBITDA = PBT + finance costs + depreciation - other income")}
         {r.source_url && (
           <>
             {". "}
-            <a href={r.source_url} target="_blank" rel="noreferrer" className="text-accent-ink underline underline-offset-2">
-              NSE filing
-            </a>
+            <ExtLink href={r.source_url}>NSE filing</ExtLink>
           </>
         )}
       </p>
     </div>
   );
 }
+
+// ---------- overlays and states ----------
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -168,17 +253,17 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" aria-label="Close" className="animate-fade absolute inset-0 bg-black/50" onClick={onClose} />
+      <button type="button" aria-label="Close" className="animate-fade absolute inset-0 bg-black/55" onClick={onClose} />
       <div
         ref={panel}
         tabIndex={-1}
-        className="animate-sheet relative max-h-[88dvh] w-full max-w-[480px] overflow-y-auto rounded-t-[24px] bg-sheet px-4 pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] outline-none"
+        className="animate-sheet relative max-h-[88dvh] w-full max-w-[480px] overflow-y-auto rounded-t-[16px] bg-sheet px-4 pt-2 pb-[calc(24px+env(safe-area-inset-bottom))] outline-none"
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} className="-mr-2 h-11 px-2 text-[13px] text-muted">
-            Close
+        <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-line" />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-serif text-[20px] font-semibold">{title}</h2>
+          <button type="button" onClick={onClose} className="-mr-2 h-11 px-2 text-[15px] text-accent-ink">
+            Done
           </button>
         </div>
         {children}
@@ -187,11 +272,28 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   );
 }
 
+export function Toast({ message, action, onAction }: { message: string; action?: string; onAction?: () => void }) {
+  return (
+    <div
+      role="status"
+      className="animate-fade fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-[448px] items-center justify-between gap-3 rounded-[10px] bg-ink px-4 py-2 text-[14px] text-on-accent shadow-lg"
+      style={{ width: "calc(100% - 32px)" }}
+    >
+      <span>{message}</span>
+      {action && (
+        <button type="button" onClick={onAction} className="h-9 font-semibold">
+          {action}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Skeleton({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="space-y-3 px-4" aria-label="Loading" role="status">
+    <div className="space-y-2.5 px-4" aria-label="Loading" role="status">
       {Array.from({ length: lines }, (_, i) => (
-        <div key={i} className="skeleton h-28 rounded-card" />
+        <div key={i} className="skeleton h-32 rounded-[12px]" />
       ))}
     </div>
   );
@@ -199,7 +301,7 @@ export function Skeleton({ lines = 3 }: { lines?: number }) {
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="mx-4 rounded-card border border-line p-5 text-center">
+    <div className="mx-4 rounded-[12px] border border-line p-5 text-center">
       <p className="text-ink">{message}</p>
       {onRetry && (
         <Button kind="ghost" onClick={onRetry} className="mt-4">
@@ -213,7 +315,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 export function StaleNote({ savedAt, onRetry }: { savedAt: number | null; onRetry: () => void }) {
   if (!savedAt) return null;
   return (
-    <div className="mx-4 mb-3 flex items-center justify-between gap-3 rounded-[14px] border border-line px-3 py-2 text-[13px] text-muted">
+    <div className="mx-4 mb-3 flex items-center justify-between gap-3 border-b border-line pb-2 text-[13px] text-muted">
       <span>Offline. Showing the copy saved {ago(savedAt)}.</span>
       <button type="button" onClick={onRetry} className="h-9 shrink-0 font-semibold text-accent-ink">
         Retry
@@ -224,8 +326,52 @@ export function StaleNote({ savedAt, onRetry }: { savedAt: number | null; onRetr
 
 export function ExtLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="text-accent-ink underline decoration-line underline-offset-2">
+    <a href={href} target="_blank" rel="noreferrer" className="text-accent-ink underline decoration-line underline-offset-[3px]">
       {children}
     </a>
   );
 }
+
+// ---------- icons (16 px, stroke) ----------
+
+const ip = {
+  width: 16,
+  height: 16,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
+};
+
+export const Icon = {
+  check: () => (
+    <svg {...ip}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </svg>
+  ),
+  arrow: () => (
+    <svg {...ip}>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  ),
+  doc: () => (
+    <svg {...ip}>
+      <path d="M7 3h7l5 5v13H7z" />
+      <path d="M14 3v5h5" />
+    </svg>
+  ),
+  bell: () => (
+    <svg {...ip} width={13} height={13}>
+      <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
+      <path d="M10 20.5a2 2 0 0 0 4 0" />
+    </svg>
+  ),
+  chevron: () => (
+    <svg {...ip}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  ),
+};

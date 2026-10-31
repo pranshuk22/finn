@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
 import { LedgerBuilder, LedgerView } from "../components/Ledger";
-import { Card, ErrorState, ExtLink, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, StaleNote } from "../components/ui";
-import { crore, inr, plain, when } from "../format";
+import { Card, ErrorState, ExtLink, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, StaleNote, Tabs, Icon } from "../components/ui";
+import { crore, dayMonthYear, inr, plain, when } from "../format";
 import { navigate } from "../router";
 import type { Answer, Research, Trajectory } from "../types";
 
@@ -59,18 +59,18 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   return (
     <div className="pb-20">
       <TopBar ticker={r.ticker} />
-      <header className="px-4 pb-2">
-        <p className="text-xs font-semibold tracking-[0.12em] text-muted uppercase">
-          {r.ticker}
+      <header className="px-4 pb-4">
+        <p className="text-[13px] text-muted">
+          <span className="font-semibold text-ink">{r.ticker}</span>
           {r.resolved_from && ` · was ${r.resolved_from}`}
           {r.in_portfolio && " · In your portfolio"}
         </p>
-        <h1 className="mt-1 text-[28px] leading-tight font-semibold tracking-[-0.02em]">{s.name}</h1>
-        {price != null && <p className="tabular mt-1 text-[22px] font-semibold">Rs {inr(price, 2)}</p>}
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
-          {stats.map(([k, v]) => (
-            <div key={k}>
-              <dt className="text-xs text-muted">{k}</dt>
+        <h1 className="mt-1 font-serif text-[28px] leading-tight font-semibold">{s.name}</h1>
+        {price != null && <p className="tabular mt-1 text-[24px] font-semibold">Rs {inr(price, 2)}</p>}
+        <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-[12px] bg-card">
+          {stats.map(([k, v], i) => (
+            <div key={k} className={`px-4 py-2.5 ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line" : ""}`}>
+              <dt className="text-[12px] text-muted">{k}</dt>
               <dd className="tabular m-0 text-[15px] font-medium">{v}</dd>
             </div>
           ))}
@@ -78,22 +78,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
         {s.about && <About text={s.about} />}
       </header>
 
-      <nav className="no-scrollbar sticky top-0 z-20 flex gap-2 overflow-x-auto border-b border-line bg-base/95 px-4 py-2 backdrop-blur" aria-label="Sections">
-        {SECTIONS.map((x) => (
-          <a
-            key={x.id}
-            href={`#${x.id}`}
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById(x.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-              history.replaceState(null, "", `#${x.id}`);
-            }}
-            className="flex h-9 shrink-0 items-center rounded-full border border-line px-3.5 text-[13px] text-muted"
-          >
-            {x.label}
-          </a>
-        ))}
-      </nav>
+      <SectionNav />
 
       <StaleNote savedAt={q.savedAt} onRetry={q.reload} />
 
@@ -101,7 +86,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
       {r.results ? (
         <Card>
           <p className="mb-3 text-[13px] text-muted">
-            {r.results.quarter}, quarter ended {r.results.period_end}
+            {r.results.quarter}, quarter ended {dayMonthYear(r.results.period_end)}
             {r.results.broadcast_at && `. Filed ${when(r.results.broadcast_at)}`}
           </p>
           <ResultsTable r={r.results} />
@@ -139,7 +124,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
             <BullBearList title="Bull case" tone="up" points={r.bull_bear.bull} />
             <div className="my-4 border-t border-line" />
             <BullBearList title="Bear case" tone="down" points={r.bull_bear.bear} />
-            <p className="mt-4 text-xs text-muted">Written by Flash-Lite from the numbered facts shown under each point; points citing no valid fact are removed.</p>
+            <p className="mt-4 text-[12px] text-muted">Written by Flash-Lite from the numbered facts shown under each point; points citing no valid fact are removed.</p>
           </Card>
         </>
       )}
@@ -155,7 +140,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
             <ExtLink href={d.url}>PDF</ExtLink>
           </li>
         ))}
-        <li className="py-3 text-xs text-muted">{s.source}. Quarterly results from NSE integrated filings.</li>
+        <li className="py-3 text-[12px] text-muted">{s.source}. Quarterly results from NSE integrated filings.</li>
       </ul>
 
       <AskBar ticker={r.ticker} hasTranscripts={r.documents.some((d) => d.kind === "transcript")} />
@@ -163,10 +148,43 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   );
 }
 
+function SectionNav() {
+  const [active, setActive] = useState("results");
+  useEffect(() => {
+    const els = SECTIONS.map((x) => document.getElementById(x.id)).filter((e): e is HTMLElement => !!e);
+    const io = new IntersectionObserver(
+      (entries) => {
+        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (top) setActive(top.target.id);
+      },
+      { rootMargin: "-90px 0px -60% 0px" },
+    );
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div className="sticky top-0 z-20 bg-base/95 backdrop-blur">
+      <Tabs
+        label="Sections"
+        value={active}
+        items={SECTIONS.map((x) => ({ value: x.id, label: x.label }))}
+        onChange={(id) => {
+          setActive(id);
+          document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+          history.replaceState(null, "", `#${id}`);
+        }}
+      />
+    </div>
+  );
+}
+
 function TopBar({ ticker }: { ticker: string }) {
   return (
     <div className="flex items-center justify-between px-2 pt-[calc(8px+env(safe-area-inset-top))]">
-      <button type="button" onClick={() => (history.length > 1 ? history.back() : navigate("/research"))} className="h-11 px-2 text-[14px] text-muted">
+      <button type="button" onClick={() => (history.length > 1 ? history.back() : navigate("/research"))} className="flex h-11 items-center gap-1 px-2 text-[15px] text-accent-ink">
+        <span className="rotate-180">
+          <Icon.chevron />
+        </span>
         Back
       </button>
       <span className="sr-only">{ticker}</span>
@@ -215,7 +233,7 @@ function Growth({ growth }: { growth: Trajectory["growth"] }) {
       {growth["Margin %"]?.change_pts_5y != null && (
         <tfoot>
           <tr>
-            <td colSpan={4} className="pt-2 text-xs text-muted">
+            <td colSpan={4} className="pt-2 text-[12px] text-muted">
               Margin moved {growth["Margin %"].change_pts_5y! > 0 ? "up" : "down"} {Math.abs(growth["Margin %"].change_pts_5y!)} points over five years.
             </td>
           </tr>
@@ -290,12 +308,15 @@ function WorkingCapital({ wc }: { wc: Record<string, { period: string; value: nu
 function BullBearList({ title, tone, points }: { title: string; tone: "up" | "down"; points: { text: string; refs: { id: string; fact: string }[] }[] }) {
   return (
     <div>
-      <h3 className={`mb-2 text-[13px] font-semibold tracking-[0.08em] uppercase ${tone === "up" ? "text-up" : "text-down"}`}>{title}</h3>
+      <h3 className="mb-2 flex items-center gap-2 text-[15px] font-semibold">
+        <span className={`h-2 w-2 rounded-[2px] ${tone === "up" ? "bg-up" : "bg-down"}`} />
+        {title}
+      </h3>
       <ul className="space-y-3">
         {points.map((p) => (
           <li key={p.text}>
             <p className="text-[14px]">{p.text}</p>
-            <p className="mt-1 text-xs text-muted">{p.refs.map((f) => f.fact).join(" · ")}</p>
+            <p className="mt-1 text-[12px] text-muted">{p.refs.map((f) => f.fact).join(" · ")}</p>
           </li>
         ))}
       </ul>
@@ -344,9 +365,9 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
           placeholder={`Ask ${ticker}'s earnings calls`}
           maxLength={500}
           enterKeyHint="send"
-          className="h-11 min-w-0 flex-1 rounded-[14px] border border-line bg-card px-3 text-[16px] text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+          className="h-11 min-w-0 flex-1 rounded-[10px] border border-line bg-card px-3 text-[16px] text-ink placeholder:text-muted focus:border-accent focus:outline-none"
         />
-        <button type="submit" disabled={busy || text.trim().length < 3} className="h-11 shrink-0 rounded-[14px] bg-accent px-4 font-semibold text-on-accent disabled:opacity-50">
+        <button type="submit" disabled={busy || text.trim().length < 3} className="h-11 shrink-0 rounded-[10px] bg-accent px-4 font-semibold text-on-accent disabled:opacity-50">
           Ask
         </button>
       </form>
@@ -358,18 +379,18 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
             {answer.err && <p className="text-[14px] text-down">{answer.err}</p>}
             {answer.a && (
               <>
-                {!answer.a.covered && <p className="text-xs font-semibold tracking-[0.08em] text-needs uppercase">Not covered by the calls</p>}
+                {!answer.a.covered && <p className="text-[13px] font-semibold text-needs">Not covered by the calls</p>}
                 <p className="text-[15px]">{plain(answer.a.answer)}</p>
                 {answer.a.citations.map((c) => (
-                  <figure key={`${c.source}-${c.page}-${c.quote.slice(0, 20)}`} className="m-0 rounded-[14px] bg-base p-4">
-                    <blockquote className="m-0 font-serif text-[16px] leading-relaxed">"{plain(c.quote)}"</blockquote>
-                    <figcaption className="mt-2 text-xs text-muted">
+                  <figure key={`${c.source}-${c.page}-${c.quote.slice(0, 20)}`} className="m-0 border-l-2 border-accent pl-4">
+                    <blockquote className="m-0 font-serif text-[17px] leading-relaxed">{plain(c.quote)}</blockquote>
+                    <figcaption className="mt-2 text-[12px] text-muted">
                       {c.source} call, page {c.page} · <ExtLink href={`${c.url}#page=${c.page}`}>Open PDF</ExtLink>
                     </figcaption>
                   </figure>
                 ))}
                 {!!answer.a.unverified_dropped && (
-                  <p className="text-xs text-muted">
+                  <p className="text-[12px] text-muted">
                     {answer.a.unverified_dropped} quote{answer.a.unverified_dropped > 1 ? "s" : ""} could not be found in the PDF and{" "}
                     {answer.a.unverified_dropped > 1 ? "were" : "was"} removed.
                   </p>

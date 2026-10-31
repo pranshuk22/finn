@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { ago, monthYear, plain } from "../format";
 import type { Ledger, LedgerItem } from "../types";
-import { Button, Chip, ExtLink, Sheet } from "./ui";
+import { Button, ExtLink, Icon, Sheet, Tabs } from "./ui";
 
 export const STATUS: Record<string, { label: string; color: string }> = {
   delivered: { label: "Delivered", color: "var(--up)" },
@@ -26,8 +26,8 @@ const JUDGED: Record<string, string> = {
 export function StatusChip({ status }: { status: string }) {
   const s = STATUS[status] ?? { label: status, color: "var(--text-muted)" };
   return (
-    <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-line px-2 text-xs font-semibold" style={{ color: s.color }}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-semibold" style={{ color: s.color }}>
+      <span className="h-2 w-2 rounded-[2px]" style={{ background: s.color }} />
       {s.label}
     </span>
   );
@@ -53,41 +53,39 @@ export function LedgerView({ ledger }: { ledger: Ledger }) {
 
   return (
     <div>
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
-        <Chip on={!filter} onClick={() => setFilter(null)}>
-          All {ledger.items.length}
-        </Chip>
-        {statuses.map((s) => (
-          <Chip key={s} on={filter === s} onClick={() => setFilter(filter === s ? null : s)}>
-            {STATUS[s]?.label ?? s} {ledger.counts[s]}
-          </Chip>
-        ))}
-      </div>
+      <Tabs
+        label="Filter promises"
+        value={filter ?? "all"}
+        onChange={(v) => setFilter(v === "all" ? null : v)}
+        items={[{ value: "all", label: "All", count: ledger.items.length }, ...statuses.map((s) => ({ value: s, label: STATUS[s]?.label ?? s, count: ledger.counts[s] }))]}
+      />
 
-      <ul className="mt-3">
+      <ul className="mx-4 mt-3 overflow-hidden rounded-[12px] bg-card">
         {items.map((it) => (
-          <li key={it.id} className="mx-4 mb-2">
-            <button type="button" onClick={() => setOpen(it)} className="w-full rounded-card bg-card p-4 text-left">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold">{it.metric}</p>
-                  <p className="tabular mt-0.5 text-[14px] text-ink">{it.target}</p>
+          <li key={it.id} className="border-t border-line first:border-0">
+            <button type="button" onClick={() => setOpen(it)} className="flex w-full items-start gap-3 px-4 py-3.5 text-left">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-[15px] font-semibold">{it.metric}</p>
+                  <StatusChip status={it.status} />
                 </div>
-                <StatusChip status={it.status} />
+                <p className="tabular mt-0.5 text-[15px]">{it.target}</p>
+                <p className="mt-1.5 text-[13px] text-muted">
+                  {it.judged_by === "numbers" && it.check ? it.check.basis : it.assessment.note}
+                </p>
+                <p className="mt-1.5 text-[12px] text-muted">
+                  {it.source} call · {it.due ? `due ${monthYear(it.due)}` : it.timeframe || "no date given"} · {JUDGED[it.judged_by] ?? it.judged_by}
+                </p>
               </div>
-              <p className="mt-2 text-[13px] text-muted">
-                Said on the {it.source} call · {it.due ? `due ${monthYear(it.due)}` : it.timeframe || "no date given"}
-              </p>
-              <p className="mt-1 text-[13px] text-muted">
-                {it.judged_by === "numbers" && it.check ? it.check.basis : it.assessment.note}
-              </p>
-              <p className="mt-2 text-xs text-accent-ink">{JUDGED[it.judged_by] ?? it.judged_by} · see the quotes</p>
+              <span className="mt-1 text-faint">
+                <Icon.chevron />
+              </span>
             </button>
           </li>
         ))}
       </ul>
 
-      <p className="mx-4 mt-3 text-xs text-muted">
+      <p className="mx-4 mt-3 text-[12px] leading-relaxed text-muted">
         From {calls.length} earnings calls ({calls[0]} to {calls[calls.length - 1]}). Every quote was found in the transcript PDF
         {ledger.unverified_dropped > 0
           ? `; ${ledger.unverified_dropped} that could not be found were dropped.`
@@ -104,8 +102,8 @@ export function LedgerView({ ledger }: { ledger: Ledger }) {
 
 function Quote({ text, who, source, page, url }: { text: string; who?: string | null; source: string; page: number | null | undefined; url?: string | null }) {
   return (
-    <figure className="m-0 rounded-[14px] bg-base p-4">
-      <blockquote className="m-0 font-serif text-[16px] leading-relaxed text-ink">"{plain(text)}"</blockquote>
+    <figure className="m-0 border-l-2 border-accent pl-4">
+      <blockquote className="m-0 font-serif text-[17px] leading-relaxed text-ink">{plain(text)}</blockquote>
       <figcaption className="mt-2 text-xs text-muted">
         {who && `${who}, `}
         {source} call{page ? `, page ${page}` : ""}
@@ -134,15 +132,15 @@ function ItemDetail({ it }: { it: LedgerItem }) {
       </p>
 
       <section>
-        <h3 className="mb-2 text-[13px] font-semibold tracking-[0.08em] text-muted uppercase">What they said</h3>
+        <h3 className="mb-3 text-[13px] text-muted">What they said</h3>
         <Quote text={it.quote} who={it.speaker} source={it.source} page={it.page} url={it.source_url} />
         {it.repeated_in.length > 0 && <p className="mt-2 text-xs text-muted">Repeated on the {it.repeated_in.join(", ")} calls.</p>}
       </section>
 
       <section>
-        <h3 className="mb-2 text-[13px] font-semibold tracking-[0.08em] text-muted uppercase">What happened</h3>
+        <h3 className="mb-3 text-[13px] text-muted">What happened</h3>
         {it.check && (
-          <div className="mb-3 rounded-[14px] border border-line p-3 text-[14px]">
+          <div className="mb-3 rounded-[10px] bg-base p-3 text-[14px]">
             <p>
               <span className="text-muted">Reported numbers: </span>
               {it.check.basis}
@@ -241,7 +239,7 @@ export function LedgerBuilder({ ticker, onBuilt }: { ticker: string; onBuilt: ()
   };
 
   return (
-    <div className="mx-4 rounded-card bg-card p-4">
+    <div className="mx-4 rounded-[12px] bg-card p-4">
       {state === "running" ? (
         <>
           <p className="font-semibold">Reading the last four earnings calls</p>
@@ -249,7 +247,7 @@ export function LedgerBuilder({ ticker, onBuilt }: { ticker: string; onBuilt: ()
             Finding every target management set, then checking each against later calls and reported numbers. Most companies take 16 to
             63 seconds; when the model is busy it has taken up to 7 minutes. {elapsed > 0 && `${elapsed} s so far.`}
           </p>
-          <div className="mt-3 h-1 overflow-hidden rounded-full bg-base">
+          <div className="mt-3 h-[3px] overflow-hidden rounded-full bg-base">
             <div className="h-full rounded-full bg-accent transition-[width] duration-1000" style={{ width: `${Math.min(95, (elapsed / 60) * 100)}%` }} />
           </div>
         </>

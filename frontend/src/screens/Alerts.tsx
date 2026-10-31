@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
-import { Button, Card, Chip, ErrorState, Header, Pct, SectionTitle, Skeleton } from "../components/ui";
+import { Button, Card, ErrorState, Header, Pct, SectionTitle, Skeleton, Switch } from "../components/ui";
 import { when } from "../format";
 import type { AlertRules, Scan } from "../types";
 
@@ -64,7 +64,7 @@ export function Alerts() {
 
   return (
     <>
-      <Header eyebrow="Alerts" title="What counts as unusual" sub="Tune it on real data: FINN replays your thresholds over the last 60 trading sessions." />
+      <Header eyebrow="What counts as unusual" title="Alerts" sub="Tune it on real data: FINN replays your thresholds over the last 60 trading sessions." />
       {!rules && saved.loading && <Skeleton lines={2} />}
       {!rules && saved.error && <ErrorState message={saved.error.message} onRetry={saved.reload} />}
 
@@ -72,7 +72,7 @@ export function Alerts() {
         <>
           <Card>
             <div className="text-center">
-              <p className="tabular text-[44px] leading-none font-semibold" aria-live="polite">
+              <p className="tabular font-serif text-[48px] leading-none font-semibold" aria-live="polite">
                 {scan ? scan.count : "..."}
               </p>
               <p className="mt-2 text-[13px] text-muted">
@@ -109,9 +109,9 @@ export function Alerts() {
               <ul className="mx-4">
                 {top.map(([t, n]) => (
                   <li key={t} className="flex min-h-11 items-center gap-3 border-b border-line py-2">
-                    <span className="w-28 font-bold">{t}</span>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-card">
-                      <span className="block h-full rounded-full bg-accent" style={{ width: `${(n / top[0][1]) * 100}%` }} />
+                    <span className="w-28 font-semibold">{t}</span>
+                    <span className="h-1 flex-1 overflow-hidden rounded-full bg-card">
+                      <span className="block h-full rounded-full bg-accent-ink" style={{ width: `${(n / top[0][1]) * 100}%` }} />
                     </span>
                     <span className="tabular w-8 text-right text-[14px]">{n}</span>
                   </li>
@@ -139,18 +139,23 @@ export function Alerts() {
             </>
           )}
 
-          <SectionTitle>Always tell me about</SectionTitle>
-          <div className="flex flex-wrap gap-2 px-4">
+          <SectionTitle>Always flag these filings</SectionTitle>
+          <ul className="mx-4 overflow-hidden rounded-[12px] bg-card">
             {CATEGORIES.map(([k, label]) => {
               const on = rules.categories.includes(k);
               return (
-                <Chip key={k} on={on} onClick={() => update({ categories: on ? rules.categories.filter((c) => c !== k) : [...rules.categories, k] })}>
-                  {label}
-                </Chip>
+                <li key={k} className="flex min-h-12 items-center justify-between gap-3 border-t border-line px-4 first:border-0">
+                  <span className="text-[15px]">{label}</span>
+                  <Switch
+                    label={label}
+                    on={on}
+                    onChange={(v) => update({ categories: v ? [...rules.categories, k] : rules.categories.filter((c) => c !== k) })}
+                  />
+                </li>
               );
             })}
-          </div>
-          <p className="mx-4 mt-2 text-xs text-muted">Filings in these categories are flagged as alerts in your brief, whatever their priority.</p>
+          </ul>
+          <p className="mx-4 mt-2 text-[13px] text-muted">Filings in these categories are marked in your brief even when FINN ranks them below Needs you.</p>
 
           <div className="mx-4 mt-6 mb-4">
             <Button onClick={save} disabled={!dirty || status === "saving"} className="w-full">
