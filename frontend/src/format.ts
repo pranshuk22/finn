@@ -96,3 +96,14 @@ export function plain(text: string): string {
 export function dayMonthYear(iso: string): string {
   return new Date(`${iso}T00:00:00+05:30`).toLocaleDateString("en-IN", { timeZone: IST, day: "numeric", month: "short", year: "numeric" });
 }
+
+/** A promise target as said; a bare number gets its unit ("100000" in Rs crore reads "Rs 1,00,000 crore"). */
+export function target(text: string, unit: string): string {
+  const t = text.trim();
+  if (!/^[\d.,]+$/.test(t)) return t;
+  const n = Number(t.replace(/,/g, ""));
+  if (unit === "rs_crore") return `Rs ${inr(n)} crore`;
+  if (unit === "percent") return `${t}%`;
+  if (unit === "bps") return `${t} bps`;
+  return t;
+}

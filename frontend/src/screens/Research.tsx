@@ -1,17 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
-import { LedgerBuilder, LedgerView } from "../components/Ledger";
+import { GuidanceView, LedgerBuilder, LedgerView } from "../components/Ledger";
 import { Card, ErrorState, ExtLink, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, StaleNote, Tabs, Icon } from "../components/ui";
 import { crore, dayMonthYear, inr, plain, when } from "../format";
 import { navigate } from "../router";
-import type { Answer, Research, Trajectory } from "../types";
+import type { Answer, BalanceSheet, Research, Segments, Trajectory } from "../types";
 
+// In the order of the research brief: business, financials, trajectory, balance sheet, cash, narrative, guidance, cases.
 const SECTIONS = [
+  { id: "business", label: "Business" },
   { id: "results", label: "Results" },
-  { id: "ledger", label: "Promises" },
   { id: "trajectory", label: "Trajectory" },
+  { id: "balance", label: "Balance sheet" },
   { id: "cash", label: "Cash" },
+  { id: "ledger", label: "Narrative vs numbers" },
+  { id: "guidance", label: "Guidance" },
   { id: "bullbear", label: "Bull and bear" },
   { id: "sources", label: "Sources" },
 ];
@@ -47,6 +51,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   const s = r.snapshot;
   const price = s.ratios["Current Price"] as number | undefined;
   const hl = s.ratios["High / Low"] as number[] | undefined;
+  const lastBs = r.balance_sheet?.years[r.balance_sheet.years.length - 1];
   const stats: [string, string][] = [
     ["Market cap", s.ratios["Market Cap"] != null ? crore(s.ratios["Market Cap"] as number) : "n/a"],
     ["P/E", s.ratios["Stock P/E"] != null ? `${s.ratios["Stock P/E"]}` : "n/a"],
@@ -54,6 +59,8 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
     ["52w range", hl ? `${inr(hl[1])} to ${inr(hl[0])}` : "n/a"],
     ["TTM revenue", crore(s.ttm.revenue)],
     [s.ttm.margin_label, s.ttm.margin_pct != null ? `${s.ttm.margin_pct}%` : "n/a"],
+    ["TTM net profit", crore(s.ttm.net_profit)],
+    s.is_financial ? ["Price to book", pToB(price, s.ratios["Book Value"] as number | undefined)] : ["Debt to equity", `${lastBs?.debt_to_equity ?? "n/a"}`],
   ];
 
   return (
@@ -82,6 +89,9 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
 
       <StaleNote savedAt={q.savedAt} offline={q.error?.status === 0} onRetry={q.reload} />
 
+      <SectionTitle id="business">Business</SectionTitle>
+      <Business seg={r.segments} />
+
       <SectionTitle id="results">Latest results</SectionTitle>
       {r.results ? (
         <Card>
@@ -95,9 +105,6 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
         <p className="mx-4 text-[14px] text-muted">No quarterly results found in NSE's integrated filings for this company.</p>
       )}
 
-      <SectionTitle id="ledger">Promise ledger</SectionTitle>
-      {r.ledger ? <LedgerView ledger={r.ledger} /> : <LedgerBuilder ticker={r.ticker} onBuilt={q.reload} />}
-
       {r.trajectory && (
         <>
           <SectionTitle id="trajectory">Trajectory</SectionTitle>
@@ -110,11 +117,29 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
         </>
       )}
 
+      {r.balance_sheet && r.balance_sheet.years.length > 0 && (
+        <>
+          <SectionTitle id="balance">Balance sheet</SectionTitle>
+          <Balance bs={r.balance_sheet} wc={r.cash_quality?.working_capital ?? {}} />
+        </>
+      )}
+
       {r.cash_quality && (
         <>
           <SectionTitle id="cash">Cash quality</SectionTitle>
           <Cash r={r} />
         </>
+      )}
+
+      <SectionTitle id="ledger">Narrative vs numbers</SectionTitle>
+      <p className="mx-4 -mt-1 mb-3 text-[13px] text-muted">What management promised on past calls, checked against what was reported since.</p>
+      {r.ledger ? <LedgerView ledger={r.ledger} hide={["pending"]} /> : <LedgerBuilder ticker={r.ticker} onBuilt={q.reload} />}
+
+      <SectionTitle id="guidance">Guidance</SectionTitle>
+      {r.ledger ? (
+        <GuidanceView ledger={r.ledger} />
+      ) : (
+        <p className="mx-4 text-[14px] text-muted">Read from the same calls as the ledger. Build the ledger above to see it.</p>
       )}
 
       {r.bull_bear && (
@@ -149,7 +174,13 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
 }
 
 function SectionNav() {
-  const [active, setActive] = useState("results");
+  const [active, setActive] = useState("business");
+  const bar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const tab = bar.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    const list = tab?.parentElement;
+    if (tab && list) list.scrollTo({ left: tab.offsetLeft - 16, behavior: "smooth" });
+  }, [active]);
   useEffect(() => {
     const els = SECTIONS.map((x) => document.getElementById(x.id)).filter((e): e is HTMLElement => !!e);
     const io = new IntersectionObserver(
@@ -163,7 +194,7 @@ function SectionNav() {
     return () => io.disconnect();
   }, []);
   return (
-    <div className="sticky top-0 z-20 bg-base/95 backdrop-blur">
+    <div ref={bar} className="sticky top-0 z-20 bg-base/95 backdrop-blur">
       <Tabs
         label="Sections"
         value={active}
@@ -234,7 +265,9 @@ function Growth({ growth }: { growth: Trajectory["growth"] }) {
         <tfoot>
           <tr>
             <td colSpan={4} className="pt-2 text-[12px] text-muted">
-              Margin moved {growth["Margin %"].change_pts_5y! > 0 ? "up" : "down"} {Math.abs(growth["Margin %"].change_pts_5y!)} points over five years.
+              {growth["Margin %"].change_pts_5y === 0
+                ? "Margin is where it was five years ago."
+                : `Margin moved ${growth["Margin %"].change_pts_5y! > 0 ? "up" : "down"} ${Math.abs(growth["Margin %"].change_pts_5y!)} points over five years.`}
             </td>
           </tr>
         </tfoot>
@@ -253,7 +286,6 @@ function Cash({ r }: { r: Research }) {
       </p>
     );
   }
-  const lev = cq.leverage[cq.leverage.length - 1];
   return (
     <Card className="space-y-7">
       {cq.cfo_to_ebitda_3y != null && (
@@ -264,12 +296,126 @@ function Cash({ r }: { r: Research }) {
       )}
       <Bars title="Operating cash flow, Rs crore" points={cq.years.map((y) => ({ period: y.period, value: y.cfo }))} format={(v) => inr(v)} />
       <Bars title="Free cash flow, Rs crore" points={cq.years.map((y) => ({ period: y.period, value: y.fcf }))} format={(v) => inr(v)} />
-      {lev && (
+    </Card>
+  );
+}
+
+function pToB(price: number | undefined, book: number | undefined): string {
+  return price != null && book ? `${(price / book).toFixed(1)}x` : "n/a";
+}
+
+function Business({ seg }: { seg: Segments | null }) {
+  if (!seg) return <p className="mx-4 text-[14px] text-muted">No segment table in the latest results filing.</p>;
+  const source = seg.source_url && (
+    <>
+      From the segment table of the {seg.quarter} results filing (<ExtLink href={seg.source_url}>NSE</ExtLink>).
+    </>
+  );
+  if (seg.items.length === 0) {
+    return (
+      <Card>
+        <p className="text-[15px]">
+          Reports one business segment: <span className="font-semibold">{seg.single ?? "not named"}</span>.
+        </p>
+        <p className="mt-2 text-[12px] text-muted">{source}</p>
+      </Card>
+    );
+  }
+  const top = Math.max(...seg.items.map((i) => i.share_pct ?? 0));
+  return (
+    <Card>
+      <table className="w-full border-collapse text-[13px]">
+        <thead>
+          <tr className="text-muted">
+            <th className="border-b border-line py-1.5 text-left font-medium">{seg.quarter}</th>
+            <th className="border-b border-line py-1.5 text-right font-medium">Mix</th>
+            <th className="border-b border-line py-1.5 text-right font-medium">Margin</th>
+            <th className="border-b border-line py-1.5 text-right font-medium">YoY</th>
+          </tr>
+        </thead>
+        <tbody>
+          {seg.items.map((i) => (
+            <tr key={i.name} className="border-b border-line last:border-0">
+              <td className="py-2 pr-2">
+                <span className="block">{i.name}</span>
+                <span className="mt-1 block h-1 rounded-full bg-line">
+                  <span className="block h-1 rounded-full bg-accent" style={{ width: `${top ? (100 * (i.share_pct ?? 0)) / top : 0}%` }} />
+                </span>
+              </td>
+              <td className="tabular py-2 text-right align-top">
+                {i.share_pct != null ? `${i.share_pct}%` : "n/a"}
+                {i.share_change_pts != null && Math.abs(i.share_change_pts) >= 1 && (
+                  <span className="block text-[11px] text-muted">
+                    {i.share_change_pts > 0 ? "+" : ""}
+                    {i.share_change_pts} pts
+                  </span>
+                )}
+              </td>
+              <td className="tabular py-2 text-right align-top">{i.margin_pct != null ? `${i.margin_pct}%` : "n/a"}</td>
+              <td className="py-2 text-right align-top">
+                <Pct value={i.yoy} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-[12px] leading-relaxed text-muted">
+        Mix is each segment's share of segment revenue; pts is the change from a year ago. Margin is segment profit before interest and
+        tax over segment revenue. YoY is blank where the segment was renamed or is new. {source}
+      </p>
+    </Card>
+  );
+}
+
+const MIX: [keyof BalanceSheet["years"][number]["mix"], string][] = [
+  ["deposits", "Deposits"],
+  ["debt", "Borrowings"],
+  ["equity", "Equity"],
+  ["other", "Other liabilities"],
+];
+
+function Balance({ bs, wc }: { bs: BalanceSheet; wc: Record<string, { period: string; value: number | null }[]> }) {
+  const y = bs.years[bs.years.length - 1];
+  const first = bs.years[0];
+  const stats: [string, string][] = [
+    ["Borrowings", `Rs ${inr(y.debt)} cr`],
+    ["Debt to equity", `${y.debt_to_equity ?? "n/a"}`],
+    bs.interest_coverage
+      ? ["Interest coverage", `${bs.interest_coverage.value}x (${bs.interest_coverage.period})`]
+      : ["Interest coverage", bs.is_financial ? "not used for lenders" : "n/a"],
+    ["Capital work in progress", y.cwip != null ? `Rs ${inr(y.cwip)} cr` : "n/a"],
+  ];
+  return (
+    <Card className="space-y-6">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+        {stats.map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-[12px] text-muted">{k}</dt>
+            <dd className="tabular m-0 text-[15px] font-medium">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <div>
+        <p className="mb-2 text-[13px] text-muted">How the balance sheet is funded, {y.period}</p>
+        <ul className="space-y-1.5 text-[13px]">
+          {MIX.filter(([k]) => y.mix[k] != null).map(([k, label]) => (
+            <li key={k} className="flex items-center gap-3">
+              <span className="w-32 shrink-0">{label}</span>
+              <span className="h-1.5 flex-1 rounded-full bg-line">
+                <span className="block h-1.5 rounded-full bg-accent" style={{ width: `${y.mix[k]}%` }} />
+              </span>
+              <span className="tabular w-12 text-right">{y.mix[k]}%</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {first !== y && first.debt_to_equity != null && y.debt_to_equity != null && (
         <p className="text-[13px] text-muted">
-          Debt to equity {lev.debt_to_equity ?? "n/a"} in {lev.period} (debt Rs {inr(lev.debt)} crore).
+          Debt to equity went from {first.debt_to_equity} in {first.period} to {y.debt_to_equity} in {y.period}.
         </p>
       )}
-      <WorkingCapital wc={cq.working_capital} />
+      {!bs.is_financial && <WorkingCapital wc={wc} />}
+      <p className="text-[12px] text-muted">Annual balance sheets from Screener; the latest column may be a half year.</p>
     </Card>
   );
 }

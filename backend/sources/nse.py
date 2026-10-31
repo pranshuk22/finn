@@ -200,4 +200,59 @@ def parse_results_ixbrl(html: str) -> dict:
                 if v is not None:
                     out[key] = round(v * factor, 2)
     out["period_end"] = period_end
+    out["segments"] = _segments(soup, tables, factor)
     return out
+
+
+def _segments(soup, tables, factor: float) -> dict | None:
+    """The segment table of the same filing: revenue and profit before interest and tax per segment, this quarter.
+
+    Single-segment companies say so in the filing's general table ("Segment Reporting: Single segment") and
+    leave the segment table empty. Checked on Sep 2026 filings: for LT, segment revenue less inter-segment revenue
+    equals revenue from operations in the P&L (78,749.94 crore). RELIANCE's segment table totals 3,62,268 crore
+    against 3,32,861 in its P&L, so a segment's share is always taken of segment revenue, never of headline revenue.
+    """
+    general = {}
+    for t in tables[:3]:
+        for tr in t.find_all("tr"):
+            cells = [c.get_text(" ", strip=True) for c in tr.find_all(["td", "th"])]
+            if len(cells) >= 2:
+                general[_norm(cells[0])] = cells[1]
+    if _norm(general.get("segment reporting", "")) == "single segment":
+        return {"single": general.get("description of single segment") or None, "items": []}
+
+    table = next(
+        (
+            t
+            for t in tables
+            if "segment revenue" in _norm(t.get_text(" ")) and "segment result" in _norm(t.get_text(" "))
+        ),
+        None,
+    )
+    if table is None:
+        return None
+    part, revenue, result = None, {}, {}
+    for tr in table.find_all("tr"):
+        cells = [c.get_text(" ", strip=True) for c in tr.find_all(["td", "th"])]
+        if len(cells) < 2:
+            continue
+        head = _norm(cells[1])
+        if head.startswith("segment revenue"):
+            part = revenue
+        elif head.startswith("segment result"):
+            part = result
+        elif head.startswith("(segment asset") or head.startswith("segment asset"):
+            break
+        # segment rows are numbered; totals, "Add:" and "Less:" adjustments are not segments
+        elif (
+            part is not None
+            and cells[0].strip().isdigit()
+            and len(cells) >= 3
+            and not re.match(r"(add|less)\s*:", head)
+        ):
+            v = _num(cells[2])
+            if v is not None:
+                part[cells[1].strip()] = round(v * factor, 2)
+    if not revenue:
+        return None
+    return {"single": None, "items": [{"name": n, "revenue": v, "result": result.get(n)} for n, v in revenue.items()]}

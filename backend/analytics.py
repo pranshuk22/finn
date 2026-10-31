@@ -395,6 +395,138 @@ def cash_quality(c: sqlite3.Connection, ticker: str) -> dict:
     }
 
 
+def segment_history(c: sqlite3.Connection, ticker: str) -> dict[str, list[dict]]:
+    """Each segment's revenue and result by quarter, oldest first, as filed. Used to check segment-level promises."""
+    out: dict[str, list[dict]] = {}
+    for r in c.execute(
+        "SELECT period_end, segments FROM results WHERE ticker=? AND segments IS NOT NULL ORDER BY period_end",
+        (ticker,),
+    ):
+        for i in json.loads(r["segments"]).get("items") or []:
+            if i["revenue"] or i["result"]:
+                out.setdefault(i["name"], []).append(
+                    {"quarter": quarter_label(r["period_end"]), "revenue": i["revenue"], "result": i["result"]}
+                )
+    return out
+
+
+def balance_sheet(c: sqlite3.Connection, ticker: str) -> dict:
+    """How the company is funded and whether it can carry its debt, by financial year (Screener's annual sheets).
+
+    Interest coverage = (profit before tax + interest) / interest, i.e. operating profit available per rupee of
+    interest. It needs a full year of P&L, so a half-year balance sheet column (e.g. "Sep 2026") has none. It is
+    left out for lenders, whose interest is the cost of their product. Funding mix is each source's share of total
+    liabilities; for banks deposits are a source of their own.
+    """
+    get = lambda st, names: {r["period"]: r["value"] for r in _annual(_series(c, ticker, st, names)[1])}  # noqa: E731
+    debt, cap, res = (
+        get("balance-sheet", ["Borrowings", "Borrowing"]),
+        get("balance-sheet", ["Equity Capital"]),
+        get("balance-sheet", ["Reserves"]),
+    )
+    other, total = get("balance-sheet", ["Other Liabilities"]), get("balance-sheet", ["Total Liabilities"])
+    deposits = get("balance-sheet", ["Deposits"])
+    lender = ticker in FINANCIALS
+    cwip, pbt, interest = (
+        get("balance-sheet", ["CWIP"]),
+        get("profit-loss", ["Profit before tax"]),
+        get("profit-loss", ["Interest"]),
+    )
+    years = []
+    for y in [p for p in debt if p in total][-5:]:
+        equity = (cap.get(y) or 0) + (res.get(y) or 0)
+        tot = total[y]
+        years.append(
+            {
+                "period": y,
+                "debt": debt[y],
+                "equity": equity,
+                "other_liabilities": other.get(y),
+                "total": tot,
+                "debt_to_equity": round(debt[y] / equity, 2) if equity else None,
+                "interest_coverage": round((pbt[y] + interest[y]) / interest[y], 1)
+                if not lender and pbt.get(y) is not None and interest.get(y)
+                else None,
+                "mix": {
+                    k: round(100 * v / tot, 1) if tot and v is not None else None
+                    for k, v in (
+                        ("deposits", deposits.get(y)),
+                        ("debt", debt[y]),
+                        ("equity", equity),
+                        ("other", other.get(y)),
+                    )
+                    if k != "deposits" or y in deposits
+                },
+                "cwip": cwip.get(y),
+            }
+        )
+    covered = [y for y in years if y["interest_coverage"] is not None]
+    return {
+        "years": years,
+        "interest_coverage": {"period": covered[-1]["period"], "value": covered[-1]["interest_coverage"]}
+        if covered
+        else None,
+        "is_financial": lender,
+    }
+
+
+def segments(c: sqlite3.Connection, ticker: str) -> dict | None:
+    """Revenue mix and segment margins for the latest quarter, from the segment table in the same exchange filing.
+
+    Shares are of total segment revenue as filed (before inter-segment eliminations), because some companies'
+    segment totals do not tie to headline revenue (see sources.nse._segments). Margin is segment result (profit
+    before interest and tax) / segment revenue. Growth is against the same quarter a year earlier, matched by name.
+    """
+    cur = c.execute(
+        "SELECT period_end, segments, source_url FROM results WHERE ticker=? AND segments IS NOT NULL"
+        " ORDER BY period_end DESC LIMIT 1",
+        (ticker,),
+    ).fetchone()
+    if not cur:
+        return None
+    seg = json.loads(cur["segments"])
+    out = {
+        "quarter": quarter_label(cur["period_end"]),
+        "period_end": cur["period_end"],
+        "source_url": cur["source_url"],
+        "single": seg.get("single"),
+        "items": [],
+    }
+    items = seg.get("items") or []
+    if not items:
+        return out
+    ya = c.execute(
+        "SELECT segments FROM results WHERE ticker=? AND period_end=?",
+        (ticker, _quarter_back(date.fromisoformat(cur["period_end"]), 4)),
+    ).fetchone()
+    before = {i["name"]: i for i in (json.loads(ya["segments"]).get("items") or [])} if ya and ya["segments"] else {}
+
+    def shares(rows):
+        total = sum(i["revenue"] for i in rows if i["revenue"] and i["revenue"] > 0)
+        return {i["name"]: 100 * i["revenue"] / total for i in rows if total and i["revenue"] is not None}
+
+    now_share, old_share = shares(items), shares(list(before.values()))
+    for i in items:
+        rev, res, b = i["revenue"], i["result"], before.get(i["name"])
+        if not rev and not res:  # e.g. HDFCBANK's "Unallocated" row: no revenue, no result
+            continue
+        out["items"].append(
+            {
+                "name": i["name"],
+                "revenue": rev,
+                "result": res,
+                "share_pct": round(now_share[i["name"]], 1) if i["name"] in now_share else None,
+                "margin_pct": round(100 * res / rev, 1) if res is not None and rev and rev > 0 else None,
+                "yoy": pct(rev, b["revenue"]) if b else None,
+                "share_change_pts": round(now_share[i["name"]] - old_share[i["name"]], 1)
+                if i["name"] in now_share and i["name"] in old_share
+                else None,
+            }
+        )
+    out["items"].sort(key=lambda i: -(i["revenue"] or 0))
+    return out
+
+
 def scale(c: sqlite3.Connection, ticker: str, amount_cr: float) -> dict:
     """An amount from a filing as a share of annual revenue and of market cap, so 'Rs 500 crore' means something.
     Market cap matters for fund raises and acquisitions: it is roughly the dilution or the bet's size."""

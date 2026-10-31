@@ -249,7 +249,8 @@ happened after. You get up to four call transcripts in date order and a table of
 Step 1. From each call, list the forward-looking commitments management made about the company itself: guidance
 on revenue or growth, margins, profit, capex, capacity, debt, order book, launches, and dated plans. Each must have
 a target or a timeframe. Exclude client case studies, industry or macro commentary, anything said by an analyst,
-past results, and vague aspirations with neither a target nor a timeframe. At most 6 per call, the most specific.
+past results, and vague aspirations with neither a target nor a timeframe. At most 6 per call, the most specific;
+when the company reports several segments, cover each segment's guidance, not only the group's.
 
 Step 2. For each one, judge what happened using only the LATER calls and the numbers:
 - delivered: a later call or the numbers show it happened as promised.
@@ -282,6 +283,13 @@ def _numbers_table(c, ticker: str) -> str:
         a = tr["annual"].get(label) or []
         if a:
             lines.append(f"Annual {label}: " + ", ".join(f"{r['period']} {r['value']}" for r in a))
+    seg = A.segment_history(c, ticker)
+    if seg:
+        lines.append(
+            "Segment revenue / segment result (profit before interest and tax) by quarter, from the results filings:"
+        )
+        for name, qs in seg.items():
+            lines.append(f"{name}: " + ", ".join(f"{q['quarter']} {q['revenue']} / {q['result']}" for q in qs))
     if rc_rows:
         lines.append(f"Latest reported quarter ends {rc_rows[-1]['period_end']}.")
     return "\n".join(lines)
@@ -516,6 +524,9 @@ class BullBear(BaseModel):
 _BB_SYSTEM = """You write the tightest bull case and bear case for a stock, for a professional investor.
 Use only the numbered facts and promises given. Every point must cite at least one id from them.
 At most 3 points each side. No adjectives like 'strong' or 'robust' unless a number backs them.
+When segment facts are given, at least one point on each side rests on a segment: a group total can hide a business
+that is shrinking or carrying the rest.
+Prefer a point that sets a promise against a number that confirms or contradicts it over a point about either alone.
 Do not use anything you know about the company from elsewhere."""
 
 
@@ -561,6 +572,16 @@ def _facts(c, ticker: str, ledger: dict | None) -> dict[str, str]:
     if cq["leverage"]:
         lv = cq["leverage"][-1]
         facts[f"F{len(facts) + 1}"] = f"Debt to equity in {lv['period']}: {_n(lv['debt_to_equity'])}"
+    seg = A.segments(c, ticker)
+    for i in (seg or {}).get("items", []):
+        parts = [f"{_n(i['share_pct'])}% of segment revenue"]
+        if i["margin_pct"] is not None:
+            parts.append(f"segment margin {_n(i['margin_pct'])}%")
+        if i["yoy"] is not None:
+            parts.append(f"revenue YoY {_n(i['yoy'])}%")
+        if i["share_change_pts"] is not None:
+            parts.append(f"share change from a year ago {_n(i['share_change_pts'])} points")
+        facts[f"F{len(facts) + 1}"] = f"{seg['quarter']} segment {i['name']}: " + ", ".join(parts)
     rc = A.results_card(c, ticker)
     if rc:
         for r in rc["rows"]:
@@ -570,10 +591,17 @@ def _facts(c, ticker: str, ledger: dict | None) -> dict[str, str]:
     if ledger:
         for it in ledger.get("items", []):
             facts[it["id"]] = (
-                f"Promise ({it['source']} call): {it['metric']} {it['target']} by {it['timeframe']}. "
-                f"Status: {it['status']}"
+                f"Promise ({it['source']} call): {it['metric']}, {it['target']}{_when(it)}. Status: {it['status']}"
             )
     return facts
+
+
+def _when(it: dict) -> str:
+    """ ", by March" or ", next month"; nothing when the target already says it ("ready by March" + "by March")."""
+    tf = (it.get("timeframe") or "").strip()
+    if not tf or tf.lower() in it["target"].lower():
+        return ""
+    return f", {tf}" if re.match(r"(by|in|within|over|during|next|this)\b", tf, re.I) else f", by {tf}"
 
 
 _CAGR_AS_TOTAL = re.compile(

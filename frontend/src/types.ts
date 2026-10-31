@@ -190,6 +190,7 @@ export interface LedgerItem {
   metric: string;
   metric_key: string;
   target: string;
+  unit: string; // percent | rs_crore | bps | other
   timeframe: string | null;
   due: string | null;
   quote: string;
@@ -229,6 +230,40 @@ export interface BullBear {
   built_at: string;
 }
 
+export interface Segment {
+  name: string;
+  revenue: number | null;
+  result: number | null;
+  share_pct: number | null;
+  margin_pct: number | null;
+  yoy: number | null;
+  share_change_pts: number | null;
+}
+
+export interface Segments {
+  quarter: string;
+  period_end: string;
+  source_url: string | null;
+  single: string | null;
+  items: Segment[];
+}
+
+export interface BalanceSheet {
+  years: {
+    period: string;
+    debt: number | null;
+    equity: number | null;
+    other_liabilities: number | null;
+    total: number | null;
+    debt_to_equity: number | null;
+    interest_coverage: number | null;
+    mix: Partial<Record<"deposits" | "debt" | "equity" | "other", number | null>>;
+    cwip: number | null;
+  }[];
+  interest_coverage: { period: string; value: number } | null;
+  is_financial: boolean;
+}
+
 export interface Research {
   ticker: string;
   resolved_from: string | null;
@@ -236,7 +271,9 @@ export interface Research {
   snapshot: Snapshot;
   results: ResultsCard | null;
   trajectory: Trajectory | null;
+  segments: Segments | null;
   cash_quality: CashQuality | null;
+  balance_sheet: BalanceSheet | null;
   documents: { kind: string; period: string; url: string; loaded: number }[];
   ledger: Ledger | null;
   bull_bear: BullBear | null;

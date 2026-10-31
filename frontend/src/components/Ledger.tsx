@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
-import { ago, monthYear, plain } from "../format";
+import { ago, monthYear, plain, target } from "../format";
 import type { Ledger, LedgerItem } from "../types";
 import { Button, ExtLink, Icon, Sheet, Tabs } from "./ui";
 
@@ -37,7 +37,8 @@ function pdfAt(url: string, page: number | null | undefined) {
   return page ? `${url}#page=${page}` : url;
 }
 
-export function LedgerView({ ledger }: { ledger: Ledger }) {
+/** Promises whose outcome can already be read against reported numbers or later calls. Pending ones are Guidance. */
+export function LedgerView({ ledger, hide = [] }: { ledger: Ledger; hide?: string[] }) {
   const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState<LedgerItem | null>(null);
 
@@ -45,11 +46,16 @@ export function LedgerView({ ledger }: { ledger: Ledger }) {
     return <p className="mx-4 text-[14px] text-muted">{ledger.note ?? "No ledger could be built for this company."}</p>;
   }
 
-  const statuses = ORDER.filter((s) => ledger.counts[s]);
-  const items = [...ledger.items]
+  const shown = ledger.items.filter((i) => !hide.includes(i.status));
+  const statuses = ORDER.filter((s) => !hide.includes(s) && ledger.counts[s]);
+  const items = [...shown]
     .filter((i) => !filter || i.status === filter)
     .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   const calls = ledger.transcripts.map((t) => t.period);
+
+  if (shown.length === 0) {
+    return <p className="mx-4 text-[14px] text-muted">No promise from these calls has come due yet. What is still open is under Guidance.</p>;
+  }
 
   return (
     <div>
@@ -57,7 +63,7 @@ export function LedgerView({ ledger }: { ledger: Ledger }) {
         label="Filter promises"
         value={filter ?? "all"}
         onChange={(v) => setFilter(v === "all" ? null : v)}
-        items={[{ value: "all", label: "All", count: ledger.items.length }, ...statuses.map((s) => ({ value: s, label: STATUS[s]?.label ?? s, count: ledger.counts[s] }))]}
+        items={[{ value: "all", label: "All", count: shown.length }, ...statuses.map((s) => ({ value: s, label: STATUS[s]?.label ?? s, count: ledger.counts[s] }))]}
       />
 
       <ul className="mx-4 mt-3 overflow-hidden rounded-[12px] bg-card">
@@ -69,7 +75,7 @@ export function LedgerView({ ledger }: { ledger: Ledger }) {
                   <p className="text-[15px] font-semibold">{it.metric}</p>
                   <StatusChip status={it.status} />
                 </div>
-                <p className="tabular mt-0.5 text-[15px]">{it.target}</p>
+                <p className="tabular mt-0.5 text-[15px]">{target(it.target, it.unit)}</p>
                 <p className="mt-1.5 text-[13px] text-muted">
                   {it.judged_by === "numbers" && it.check ? it.check.basis : it.assessment.note}
                 </p>
@@ -100,6 +106,58 @@ export function LedgerView({ ledger }: { ledger: Ledger }) {
   );
 }
 
+const HEADLINE: [string, string][] = [
+  ["revenue_growth", "Revenue growth"],
+  ["operating_margin", "Margins"],
+  ["capex", "Capex"],
+  ["other", "Other targets"],
+];
+
+/** What management has put a number on and is still open: pending or on track, grouped by headline metric. */
+export function GuidanceView({ ledger }: { ledger: Ledger }) {
+  const [open, setOpen] = useState<LedgerItem | null>(null);
+  if (ledger.status !== "ok") return null;
+  const live = ledger.items.filter((i) => i.status === "pending" || i.status === "on_track");
+  if (live.length === 0) {
+    return <p className="mx-4 text-[14px] text-muted">No open numeric guidance in the last {ledger.transcripts.length} calls.</p>;
+  }
+  const newest = (a: LedgerItem, b: LedgerItem) => (b.due ?? "").localeCompare(a.due ?? "");
+  return (
+    <div className="space-y-3">
+      {HEADLINE.map(([key, title]) => {
+        const items = live.filter((i) => (HEADLINE.some(([k]) => k === i.metric_key) ? i.metric_key : "other") === key).sort(newest);
+        if (items.length === 0) return null;
+        return (
+          <div key={key} className="mx-4 overflow-hidden rounded-[12px] bg-card">
+            <p className="px-4 pt-3 text-[12px] font-semibold tracking-wide text-muted uppercase">{title}</p>
+            <ul>
+              {items.map((it) => (
+                <li key={it.id} className="border-t border-line first:border-0">
+                  <button type="button" onClick={() => setOpen(it)} className="flex w-full items-start gap-3 px-4 py-3 text-left">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14px] text-muted">{it.metric}</p>
+                      <p className="tabular text-[15px] font-semibold">{target(it.target, it.unit)}</p>
+                      <p className="mt-1 text-[12px] text-muted">
+                        {it.speaker ? `${it.speaker}, ` : ""}
+                        {it.source} call · {it.due ? `by ${monthYear(it.due)}` : it.timeframe || "no date given"}
+                      </p>
+                    </div>
+                    {it.status === "on_track" && <StatusChip status="on_track" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+      <p className="mx-4 text-[12px] text-muted">Only targets management put a number on, each tied to its quote in the transcript. Tap one to read it.</p>
+      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? open.metric : ""}>
+        {open && <ItemDetail it={open} />}
+      </Sheet>
+    </div>
+  );
+}
+
 function Quote({ text, who, source, page, url }: { text: string; who?: string | null; source: string; page: number | null | undefined; url?: string | null }) {
   return (
     <figure className="m-0 border-l-2 border-accent pl-4">
@@ -123,7 +181,7 @@ function ItemDetail({ it }: { it: LedgerItem }) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="tabular text-[17px] font-semibold">{it.target}</p>
+        <p className="tabular text-[17px] font-semibold">{target(it.target, it.unit)}</p>
         <StatusChip status={it.status} />
       </div>
       <p className="-mt-3 text-[13px] text-muted">

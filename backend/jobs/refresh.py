@@ -126,7 +126,7 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
                 c.execute(
                     "INSERT OR REPLACE INTO results(ticker, period_end, consolidated, revenue, total_income,"
                     " other_income, finance_costs, depreciation, ppop, provisions, pbt, pat, is_bank,"
-                    " broadcast_at, source_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    " broadcast_at, source_url, segments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         t,
                         p["period_end"] or qe,
@@ -143,6 +143,7 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
                         int(p["is_bank"]),
                         _dt(r.get("broadcast_Date") or r.get("creation_Date")),
                         r["ixbrl"],
+                        json.dumps(p["segments"]) if p.get("segments") else None,
                     ),
                 )
             added += 1

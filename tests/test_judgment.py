@@ -66,3 +66,13 @@ def test_people_headline_leads_with_the_senior_change():
     assert _people_headline([p("Prithvi Vachani", "Executive Director", "joining")]) == (
         "Prithvi Vachani joins as Executive Director"
     )
+
+
+def test_promise_timeframe_is_not_said_twice():
+    from backend.pull import _when
+
+    assert _when({"target": "ready by March", "timeframe": "by March"}) == ""
+    assert _when({"target": "start up in next month", "timeframe": "next month"}) == ""
+    assert _when({"target": "2x EBITDA", "timeframe": "FY29"}) == ", by FY29"
+    assert _when({"target": "40 GWh", "timeframe": "within three years"}) == ", within three years"
+    assert _when({"target": "40 GWh", "timeframe": None}) == ""

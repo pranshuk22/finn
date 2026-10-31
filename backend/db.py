@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS results (
     is_bank INTEGER NOT NULL DEFAULT 0,
     broadcast_at TEXT,
     source_url TEXT,
+    segments TEXT,                    -- JSON from the same filing: {single, items: [{name, revenue, result}]}
     PRIMARY KEY (ticker, period_end, consolidated)
 );
 
@@ -112,9 +113,16 @@ def session():
         conn.close()
 
 
+# Columns added after a table was first created: CREATE TABLE IF NOT EXISTS leaves old tables as they were.
+_ADDED = [("results", "segments", "TEXT")]
+
+
 def init() -> None:
     with session() as c:
         c.executescript(SCHEMA)
+        for table, col, kind in _ADDED:
+            if col not in {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {kind}")
 
 
 def now_iso() -> str:

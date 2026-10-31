@@ -327,6 +327,28 @@ One bug found on the way: the move context first kept the two latest filings, so
 - Reload brings the Brief back.
 - `src/api.test.ts` covers the build check and what Reload clears; frontend tests 25 pass.
 
+## E30. The research brief, section by section, and segment data from the results filing
+
+**Checked against the brief's eight research items.** Before this change: business snapshot (description only, no segments), balance sheet (one line inside Cash quality), guidance and narrative vs numbers (merged in one ledger list). Now each has its own section, in the brief's order.
+
+**Segments are in the primary source we already parse.** The NSE integrated filing carries a segment table: revenue and profit before interest and tax per segment, for the quarter and year to date. `sources.nse._segments` reads the quarter column; single-segment companies are named from the filing's general table.
+- Backfill (`backend.jobs.segments`): 111 of 111 stored quarters, 0 failures, locally and on the server. 15 of 23 companies report several segments; 8 report one (e.g. DIXON "Electronic Goods", TRENT "Retail").
+- LT Q2 FY27: segment revenue 79,615.57 less inter-segment 865.63 equals revenue from operations 78,749.94 (test `test_segments_tie_to_revenue_and_skip_adjustments`).
+- RELIANCE's segment table totals 3,62,268 crore against 3,32,861 in its P&L, so mix is always a share of segment revenue, never of headline revenue. The page says so.
+- Hand check, RELIANCE O2C revenue: 1,60,558 (Q2 FY26 filing) to 2,31,601 (Q2 FY27) = +44.2%, as shown.
+- ASIANPAINT's Jun 2026 filing itself contains a broken character ("D\ufffdcor"); its other three filings read "Décor". Left as filed.
+
+**Balance sheet** (`analytics.balance_sheet`): interest coverage = (PBT + interest) / interest from the latest full year (Screener's latest balance-sheet column can be a half year, e.g. Sep 2026). Not shown for lenders. Funding mix includes deposits for banks: HDFCBANK Sep 2026 deposits 64.3%, borrowings 11.5%, equity 11.7%, other 12.5%. DIXON coverage 15.7x, TCS 54.4x, RELIANCE 5.6x (Mar 2026).
+
+**Guidance** is the ledger's open items (pending or on track) grouped by the metric key the ledger already records (revenue_growth, operating_margin, capex, other). No new model call. Bare-number targets get their unit ("100000" in Rs crore reads "Rs 1,00,000 crore").
+
+**Reliance looked thin** (owner's review, 31 Oct). Measured: 8 promises from 138 transcript pages, the lowest yield of any company, and bull and bear used only consolidated facts. Changes:
+- Segment revenue and result by quarter are now in the ledger's numbers table, and the prompt asks for each segment's guidance. The Reliance ledger rebuild was refused by the API for quota on both Flash models (our counter showed 14 of 20 used); nothing was overwritten. To rerun after the 12:30 IST reset.
+- Segment facts are now in bull and bear's numbered facts, and the prompt asks for one segment point each side when there are segments. Rebuilt for all 12 companies with a ledger (backup kept on the server). RELIANCE now: bull "O2C revenue +44.2% YoY, share +6.8 points"; bear "Retail revenue +1.3% YoY while losing 5.8 points of share".
+- Fixed promise facts that repeated the timeframe ("ready by March by by March"); test `test_promise_timeframe_is_not_said_twice`.
+
+Tests: backend 36, frontend 27, all passing.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

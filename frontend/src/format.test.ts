@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ago, bps, dayMonthYear, inr, plain, scaleLine, signedPct, tone, when } from "./format";
+import { ago, bps, dayMonthYear, inr, plain, scaleLine, signedPct, target, tone, when } from "./format";
 
 describe("inr", () => {
   it("groups digits the Indian way", () => {
@@ -75,5 +75,16 @@ describe("bps", () => {
     expect(bps(-110)).toBe("-110 bps");
     expect(bps(40)).toBe("+40 bps");
     expect(bps(null)).toBe("n/a");
+  });
+});
+
+describe("target", () => {
+  it("gives a bare number its unit", () => {
+    expect(target("100000", "rs_crore")).toBe("Rs 1,00,000 crore");
+    expect(target("17,500", "rs_crore")).toBe("Rs 17,500 crore");
+    expect(target("6,000", "other")).toBe("6,000");
+  });
+  it("leaves a target with words as said", () => {
+    expect(target("INR 6,000 crores to INR 7,000 crores", "rs_crore")).toBe("INR 6,000 crores to INR 7,000 crores");
   });
 });

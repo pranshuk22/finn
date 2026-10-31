@@ -60,13 +60,16 @@ The defaults are a starting opinion, not a rule. Today you choose which categori
 
 Search any NSE ticker. FINN builds a brief from primary sources only: exchange filings, Screener's standardised financials (taken from the companies' audited statements), and concall transcripts. Reading the annual report itself is *(planned)*; links to it are shown. No news, no broker notes, and the model is told not to use what it already knows about the company.
 
-| Section | What it answers | Source |
+| Section (in the order of the challenge brief) | What it answers | Source |
 | --- | --- | --- |
-| Snapshot | What the company does, headline numbers and ratios now. | Screener tables |
+| Business | What the company does; revenue mix by segment, segment margin, growth and share shift from a year ago. | NSE results filing (segment table), Screener description |
+| Financial snapshot | Market cap, P/E, ROCE or ROE, TTM revenue, margin and net profit, debt to equity (price to book for lenders), latest quarter with QoQ and YoY. | Screener tables, NSE results filing |
 | Trajectory | What is growing and what is compressing over 5 years. | Screener tables, computed in Python |
-| Cash quality | Do profits turn into cash? CFO to EBITDA, working-capital days, debt to equity. | Screener tables, computed in Python |
-| **Promise ledger** | What management guided in the last four concalls, and what actually happened. | Transcripts and Screener quarterly numbers |
-| Bull and bear | The tightest case each way, every point cited. | Everything above |
+| Balance sheet | Borrowings, debt to equity, interest coverage, funding mix (deposits for banks), capital work in progress, working-capital days. | Screener tables, computed in Python |
+| Cash quality | Do profits turn into cash? CFO to operating profit, operating and free cash flow. | Screener tables, computed in Python |
+| **Narrative vs numbers** | The promise ledger: what management promised on past calls, and what happened. | Transcripts, reported numbers incl. segments |
+| Guidance | Open numeric targets from the same calls, grouped into revenue growth, margins, capex and other. | Transcripts |
+| Bull and bear | The tightest case each way, every point cited; a segment point on each side when there are segments. | Everything above |
 | Ask | Follow-up questions, answered only from the last four transcripts, with page citations. | Transcripts |
 
 **The promise ledger is the centre of Pull.** One model call reads the last four transcripts in date order. For each guidance statement ("we expect 8 to 10% volume growth this year") it records the metric, the target, the timeframe, the exact quote and the page, and then what happened on later calls. Python then checks everything:
@@ -216,7 +219,7 @@ No `uv`? `python -m venv .venv && source .venv/bin/activate && pip install -r re
 - Push the promise ledger into the brief: when a new transcript lands, FINN tells you which promises changed status.
 - Real phone notifications for threshold alerts.
 - A labelled evaluation set for the classifier that grows with every filing a user re-ranks.
-- Read the annual report for the snapshot and for Ask (segment mix, related-party transactions, auditor remarks).
+- Read the annual report for the snapshot and for Ask (related-party transactions, auditor remarks).
 - Per-category priority overrides in the app.
 
 ## Build history
