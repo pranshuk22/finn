@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ScreenBoundary } from "./components/ScreenBoundary";
 import { navigate, useRoute } from "./router";
 import { useSettings } from "./settings";
 import { Alerts } from "./screens/Alerts";
@@ -13,11 +14,13 @@ export function App() {
   return (
     <div className="flex min-h-dvh flex-col">
       <main className="flex-1 pb-[calc(72px+env(safe-area-inset-bottom))]">
-        {route.name === "brief" && <BriefScreen />}
-        {route.name === "search" && <Search />}
-        {route.name === "research" && <ResearchScreen key={route.ticker} ticker={route.ticker} section={route.section} />}
-        {route.name === "alerts" && <Alerts />}
-        {route.name === "settings" && <SettingsScreen />}
+        <ScreenBoundary key={route.name === "research" ? `research/${route.ticker}` : route.name}>
+          {route.name === "brief" && <BriefScreen />}
+          {route.name === "search" && <Search />}
+          {route.name === "research" && <ResearchScreen key={route.ticker} ticker={route.ticker} section={route.section} />}
+          {route.name === "alerts" && <Alerts />}
+          {route.name === "settings" && <SettingsScreen />}
+        </ScreenBoundary>
       </main>
       <TabBar active={route.name === "search" ? "research" : route.name} />
     </div>

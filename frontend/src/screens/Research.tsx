@@ -80,7 +80,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
 
       <SectionNav />
 
-      <StaleNote savedAt={q.savedAt} onRetry={q.reload} />
+      <StaleNote savedAt={q.savedAt} offline={q.error?.status === 0} onRetry={q.reload} />
 
       <SectionTitle id="results">Latest results</SectionTitle>
       {r.results ? (

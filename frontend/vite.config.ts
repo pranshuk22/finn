@@ -4,6 +4,8 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Tags responses saved on the device, so a new build never renders a copy shaped for an older one (src/api.ts).
+  define: { __BUILD__: JSON.stringify(Date.now().toString(36)) },
   plugins: [
     react(),
     tailwindcss(),

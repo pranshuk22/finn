@@ -70,7 +70,7 @@ export function BriefScreen() {
       {b && <Hero b={b} done={doneSet} finished={finished.length} total={cards.length} />}
 
       <div className="mt-2">
-        <StaleNote savedAt={q.savedAt} onRetry={q.reload} />
+        <StaleNote savedAt={q.savedAt} offline={q.error?.status === 0} onRetry={q.reload} />
         {!b && q.loading && (
           <div className="mt-4">
             <Skeleton lines={4} />

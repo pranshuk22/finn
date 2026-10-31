@@ -338,11 +338,13 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-export function StaleNote({ savedAt, onRetry }: { savedAt: number | null; onRetry: () => void }) {
+export function StaleNote({ savedAt, offline, onRetry }: { savedAt: number | null; offline: boolean; onRetry: () => void }) {
   if (!savedAt) return null;
   return (
     <div className="mx-4 mb-3 flex items-center justify-between gap-3 border-b border-line pb-2 text-[13px] text-muted">
-      <span>Offline. Showing the copy saved {ago(savedAt)}.</span>
+      <span>
+        {offline ? "Offline." : "Could not refresh."} Showing the copy saved {ago(savedAt)}.
+      </span>
       <button type="button" onClick={onRetry} className="h-9 shrink-0 font-semibold text-accent-ink">
         Retry
       </button>

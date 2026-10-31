@@ -302,6 +302,31 @@ Strict: category 51/60, priority 47/60. One label was wrong, not FINN: an HDFC B
 
 One bug found on the way: the move context first kept the two latest filings, so Trent's results (16:08) were hidden behind four Chairman-change filings (16:32). It now keeps one per category, most important first.
 
+## E29. Blank Brief after a deploy: an old saved copy crashed the new code
+
+**Report** (31 Oct, 19:49 IST, phone test): the Brief showed a blank page; another screen said "Offline".
+
+**What the logs showed:**
+- Server and proxy were healthy: every endpoint the app calls returned 200 through Vercel in under 0.6 s, and the API log had no errors.
+- Vercel's request log for the phone (Android, Chrome 150) between 19:46 and 19:49 IST had nine app opens (`/sw.js` checks) and no `/api/` request at all. The app failed on the phone before asking the network.
+
+**Cause, reproduced on production** (headless Chrome in phone emulation: seed the saved 7-day brief from before E28, reload):
+- The app renders the saved copy first, then fetches. Moves saved before E28 have no `filed` field, and the new code read `m.filed.length`.
+- The render threw `TypeError: Cannot read properties of undefined (reading 'length')` and React unmounted the page (`#root` empty).
+- The fetch runs in an effect, which never ran, so the app could not heal itself.
+- The "Offline" note was also wrong: it showed for any failed refresh, not only a failed network.
+
+**Fix** (`api.ts`, `components/ScreenBoundary.tsx`, `vite.config.ts`):
+1. Each saved response is tagged with the build that wrote it (`__BUILD__`, set at build time). A new build ignores older copies, so a deploy never renders an old shape.
+2. Each screen sits in an error boundary. A render failure shows "This screen could not be shown" and a Reload button that clears saved responses (not settings or done cards).
+3. The note says "Offline." only when the network failed (status 0), and "Could not refresh." otherwise.
+
+**Verified on production after deploy:**
+- The same old copy now renders the fresh 7-day brief ("15 filings need you ...").
+- Forcing the crash (the old copy tagged with the current build) shows the recovery screen with the tab bar intact.
+- Reload brings the Brief back.
+- `src/api.test.ts` covers the build check and what Reload clears; frontend tests 25 pass.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

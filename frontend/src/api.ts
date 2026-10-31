@@ -2,26 +2,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 // Every GET is cached on the device. The screen renders the saved copy at once, then replaces it when the
 // network answers. If the network fails, the saved copy stays and the screen says how old it is.
+// A copy is only used by the build that saved it: after a deploy the response shape may have changed, and
+// rendering an old shape with new code can crash the screen before it ever asks the network.
+
+declare const __BUILD__: string;
 
 const PREFIX = "finn:";
 
 interface Saved<T> {
   at: number;
+  build: string;
   data: T;
 }
 
-function readSaved<T>(key: string): Saved<T> | null {
+export function readSaved<T>(key: string): Saved<T> | null {
   try {
     const raw = localStorage.getItem(PREFIX + key);
-    return raw ? (JSON.parse(raw) as Saved<T>) : null;
+    const saved = raw ? (JSON.parse(raw) as Saved<T>) : null;
+    return saved?.build === __BUILD__ ? saved : null;
   } catch {
     return null;
   }
 }
 
-function writeSaved<T>(key: string, data: T): void {
+export function writeSaved<T>(key: string, data: T): void {
   try {
-    localStorage.setItem(PREFIX + key, JSON.stringify({ at: Date.now(), data }));
+    localStorage.setItem(PREFIX + key, JSON.stringify({ at: Date.now(), build: __BUILD__, data }));
   } catch {
     // storage full or blocked: the app still works, it just cannot show this offline
   }
@@ -100,6 +106,16 @@ export function useQuery<T>(path: string | null): Query<T> {
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
   return { ...state, reload };
+}
+
+/** Drop every saved response (not settings or done cards). Used when a screen fails to render. */
+export function clearSaved(): void {
+  try {
+    const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+    for (const k of keys) if (k?.startsWith(PREFIX + "/api/")) localStorage.removeItem(k);
+  } catch {
+    // storage blocked: nothing was saved either
+  }
 }
 
 // Small per-device state that is not worth a server round trip: which brief cards are done.
