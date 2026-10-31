@@ -154,42 +154,6 @@ export function PriceChart({ price }: { price: PriceStory }) {
   );
 }
 
-const OUTCOME: { key: string; label: string; statuses: string[]; color: string }[] = [
-  { key: "kept", label: "Kept or on track", statuses: ["delivered", "on_track"], color: "var(--viz-up)" },
-  { key: "missed", label: "Missed or off track", statuses: ["missed", "off_track"], color: "var(--viz-down)" },
-  { key: "changed", label: "Revised or not mentioned again", statuses: ["revised", "dropped"], color: "var(--needs-you)" },
-  { key: "unclear", label: "Unclear", statuses: ["unclear"], color: "var(--text-faint)" },
-];
-
-/** Management's record on promises that can be judged: one headline, one thin segmented bar, a legend. */
-export function TrackRecord({ items }: { items: LedgerItem[] }) {
-  const judged = items.filter((i) => i.status !== "pending");
-  if (judged.length === 0) return null;
-  const parts = OUTCOME.map((o) => ({ ...o, n: judged.filter((i) => o.statuses.includes(i.status)).length })).filter((o) => o.n);
-  const kept = parts.find((p) => p.key === "kept")?.n ?? 0;
-  return (
-    <div className="mx-4 mb-3 rounded-[12px] bg-card p-4">
-      <p className="text-[15px]">
-        <span className="text-[24px] font-semibold">{kept}</span>
-        <span className="text-muted"> of {judged.length} promises that could be checked were kept</span>
-      </p>
-      <div className="mt-3 flex h-2 gap-[2px]" role="img" aria-label={parts.map((p) => `${p.label} ${p.n}`).join(", ")}>
-        {parts.map((p) => (
-          <span key={p.key} className="rounded-full" style={{ flexGrow: p.n, background: p.color }} />
-        ))}
-      </div>
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
-        {parts.map((p) => (
-          <li key={p.key} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
-            {p.label} <span className="tabular text-ink">{p.n}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function unitFmt(v: number, unit: string): string {
   if (unit === "percent") return `${+v.toFixed(1)}%`;
   if (unit === "rs_crore") return `Rs ${inr(v)} cr`;

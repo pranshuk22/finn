@@ -101,6 +101,18 @@ export function HelpContent() {
         <p className="text-muted">Ask answers only from the last four calls, with quotes. If no quote can be verified, it says so instead of answering.</p>
       </Part>
 
+      <Part title="The scorecard">
+        <p className="text-muted">The six tiles at the top of a company page are fixed rules on the numbers below them:</p>
+        <dl className="space-y-2">
+          <Term name="Growth">Revenue a year over 3 years: 15% or more strong, 8% steady, 0% slow, below that shrinking.</Term>
+          <Term name="Margins">Latest quarter against a year earlier: up a point or more expanding, down a point or more slipping.</Term>
+          <Term name="Cash">Cash from operations over operating profit, 3 years: 90% or more strong, 70% fair. Lenders show return on equity: 15% strong, 10% fair.</Term>
+          <Term name="Balance sheet">Debt to equity: 0.3 or less light, up to 1 moderate, above 1 heavy.</Term>
+          <Term name="Track record">Promises kept of those checked: 60% or more reliable, 40% mixed.</Term>
+          <Term name="Valuation">P/E against 3-year profit growth a year: up to 1x cheap for its growth, up to 2x fair, above rich.</Term>
+        </dl>
+      </Part>
+
       <Part title="Words you will see">
         <dl className="space-y-2">
           <Term name="QoQ, YoY">Against the previous quarter, and against the same quarter a year earlier.</Term>

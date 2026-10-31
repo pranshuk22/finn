@@ -344,3 +344,88 @@ export function LedgerBuilder({ ticker, onBuilt }: { ticker: string; onBuilt: ()
     </div>
   );
 }
+
+const OUTCOME: { key: string; label: string; statuses: string[]; color: string }[] = [
+  { key: "kept", label: "Kept or on track", statuses: ["delivered", "on_track"], color: "var(--viz-up)" },
+  { key: "missed", label: "Missed or off track", statuses: ["missed", "off_track"], color: "var(--viz-down)" },
+  { key: "changed", label: "Revised or not mentioned again", statuses: ["revised", "dropped"], color: "var(--needs-you)" },
+  { key: "unclear", label: "Unclear", statuses: ["unclear"], color: "var(--text-faint)" },
+];
+const colorOf = (status: string) => OUTCOME.find((o) => o.statuses.includes(status))?.color;
+
+/** Management's record: a headline, a thin bar of outcomes, and a timeline with one column per earnings call
+ * and one dot per promise made on it. Hollow dots are not due yet. Tap a dot for the quote. */
+export function TrackRecord({ ledger }: { ledger: Ledger }) {
+  const [open, setOpen] = useState<LedgerItem | null>(null);
+  const items = ledger.items;
+  const judged = items.filter((i) => i.status !== "pending");
+  const parts = OUTCOME.map((o) => ({ ...o, n: judged.filter((i) => o.statuses.includes(i.status)).length })).filter((o) => o.n);
+  const kept = parts.find((p) => p.key === "kept")?.n ?? 0;
+  const calls = ledger.transcripts.map((t) => t.period);
+  return (
+    <div className="mx-4 mb-3 rounded-[12px] bg-card p-4">
+      {judged.length > 0 ? (
+        <p className="text-[15px]">
+          <span className="text-[24px] font-semibold">{kept}</span>
+          <span className="text-muted"> of {judged.length} promises that could be checked were kept</span>
+        </p>
+      ) : (
+        <p className="text-[15px] text-muted">No promise from these calls has come due yet.</p>
+      )}
+      {parts.length > 0 && (
+        <div className="mt-3 flex h-2 gap-[2px]" role="img" aria-label={parts.map((p) => `${p.label} ${p.n}`).join(", ")}>
+          {parts.map((p) => (
+            <span key={p.key} className="rounded-full" style={{ flexGrow: p.n, background: p.color }} />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-4 grid gap-1" style={{ gridTemplateColumns: `repeat(${calls.length}, minmax(0, 1fr))` }}>
+        {calls.map((call) => {
+          const said = items.filter((i) => i.source === call);
+          return (
+            <div key={call} className="flex flex-col items-center">
+              <div className="flex min-h-[44px] flex-wrap content-end justify-center gap-1.5">
+                {said.map((it) => {
+                  const c = colorOf(it.status);
+                  return (
+                    <button
+                      key={it.id}
+                      type="button"
+                      onClick={() => setOpen(it)}
+                      aria-label={`${it.metric}: ${STATUS[it.status]?.label ?? it.status}`}
+                      className="flex h-6 w-6 items-center justify-center"
+                    >
+                      <span
+                        className="block h-3 w-3 rounded-full"
+                        style={c ? { background: c } : { border: "2px solid var(--text-faint)" }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="mt-1 w-full border-t border-line pt-1 text-center text-[11px] text-muted">{call}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
+        {parts.map((p) => (
+          <li key={p.key} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+            {p.label} <span className="tabular text-ink">{p.n}</span>
+          </li>
+        ))}
+        <li className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full border-2 border-faint" />
+          Not due yet <span className="tabular text-ink">{items.length - judged.length}</span>
+        </li>
+      </ul>
+
+      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? open.metric : ""}>
+        {open && <ItemDetail it={open} />}
+      </Sheet>
+    </div>
+  );
+}

@@ -396,6 +396,24 @@ Fix: calls over 200k characters wait 60 s, then 120 s, between retries. Retried 
 
 RELIANCE ledger, before and after (same four calls, Oct 2025 to Jul 2026, segment numbers now in the numbers table): 8 promises to 12, 0 quotes dropped. New: petchem customs duty (not mentioned again), solar, battery and polysilicon commissioning, Kutch power supply, Retail absolute EBITDA "double over the next three years". Jio IPO timing moved from unclear to revised. Bull and bear rebuilt from it.
 
+## E34. Presentation: making importance visible and reading faster
+
+Owner's review (31 Oct): the app was "not as attractive", the Research page "too bland", the brief's opening sentence too big. Changes, each meant to save reading as well as look better:
+
+| Idea | What changed | Checked |
+| --- | --- | --- |
+| A. Scorecard | Six tiles at the top of a company page (growth, margins, cash or returns for lenders, balance sheet, track record, valuation). Each verdict is a fixed rule (`src/scorecard.ts`), printed in Help; a tile opens the section behind it | `scorecard.test.ts` on RELIANCE's figures (P/E 19.2 on 8.9% profit growth: "Rich"), HAL's track record (2 of 8: "Often misses"), a lender (return on equity) |
+| B. Results tiles | Revenue, EBITDA, PBT, PAT as tiles with the YoY change and a five-quarter trend (`results_card.history`); the full table one tap away; notes kept | RELIANCE history Q2 FY26 to Q2 FY27 live |
+| C. Identity and importance | Monogram per company (hue fixed per ticker, strength per theme), an icon per filing kind, an amber edge on Needs you cards | Slate and Paper screenshots |
+| D. Promise timeline | One column per earnings call, one dot per promise coloured by outcome, hollow when not due; tap opens the quote | HDFCBANK: Mar, Apr, Jul, Oct 2026 columns |
+| E. Feel | Swipe right to mark done; counts in the hero count up; a finish moment when every item is read; motion off under reduced-motion | Swipe: in-page touch events moved the card 20 to 210px and stored it as done. DevTools' synthetic touches did not reach the card's handlers, so the real check is on a phone. Finish moment shown after marking all 28 done |
+| F. Ask suggestions | Four questions as chips on the page and above the Ask box when it is focused and empty | 4 chips shown on focus |
+| G. Share a card | Results cards share as a PNG (`html-to-image` 1.11.11, pinned); buttons left out, a footer names the source; share sheet where supported, else download | 148 KB PNG made in 4.8 s. Fonts embed after adding `crossorigin` to the Google Fonts link (before: "Failed to read the 'cssRules' property") |
+
+Also: the opening sentence from 19px to 15px; the stats grid drops P/E, margin and debt to equity, now in the scorecard. White on the slate teal is 3.05:1, so marks on teal use the page background colour (4.0:1 slate, 3.97:1 paper).
+
+Regression on production after deploy: every promise and guidance item tapped on RELIANCE (12), HDFCBANK (6), DIXON (9), TITAN (5), 0 crashed. Tests: backend 47, frontend 34.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

@@ -17,6 +17,7 @@ function results(ticker: string, patYoy: number | null, extra: Partial<ResultsCa
     derived: null,
     suspect: [],
     tax_note: null,
+    history: [],
     source_url: null,
     broadcast_at: null,
     has_prev: true,

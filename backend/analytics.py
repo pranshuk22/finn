@@ -129,6 +129,22 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
         if not is_bank and cur["other_income"] is not None and cur["pbt"] and cur["pbt"] > 0
         else None
     )
+    # Up to five quarters ending with this one, for the small trend under each figure on the card.
+    hist_rows = c.execute(
+        "SELECT * FROM results WHERE ticker=? AND period_end<=? ORDER BY period_end DESC LIMIT 5",
+        (ticker, cur["period_end"]),
+    ).fetchall()[::-1]
+    history = [
+        {
+            "quarter": quarter_label(r["period_end"]),
+            **{
+                label: (ebitda(r) if key is None else r[key])
+                for label, key in lines
+                if not (key in ("ppop", "provisions") and r[key] is None)
+            },
+        }
+        for r in hist_rows
+    ]
     # A figure more than 10% away from Screener's for the same quarter is not headlined: one of the two is wrong
     # (COFORGE Q2 FY27 first showed six-month revenue as the quarter's, 89.6% above Screener).
     suspect = [r["label"] for r in rows if r["check"] and abs(r["check"]["diff_pct"]) > 10]
@@ -139,6 +155,7 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
         "derived": cur["derived"] if "derived" in cur.keys() else None,
         "suspect": suspect,
         "tax_note": _tax_note(cur, yago),
+        "history": history,
         "consolidated": bool(cur["consolidated"]),
         "is_bank": is_bank,
         "unit": "Rs crore",

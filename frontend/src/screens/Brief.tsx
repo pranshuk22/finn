@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useStored } from "../api";
 import { PortfolioStrip } from "../components/Charts";
 import { HelpButton } from "../components/Help";
-import { Card, ErrorState, ExtLink, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
+import { CategoryIcon, Monogram } from "../components/Identity";
+import { ResultsTiles } from "../components/ResultsTiles";
+import { ErrorState, ExtLink, Icon, Pct, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, Swipeable, TextAction, Toast, useCountUp } from "../components/ui";
 import { ago, dayMonthYear, filedDate, inr, istDay, scaleLine, when } from "../format";
+import { shareCard } from "../share";
 import { summarize } from "../summary";
 import { navigate } from "../router";
 import type { Brief, BriefCard, Move, Person } from "../types";
@@ -34,11 +37,18 @@ export function BriefScreen() {
   const [showRoutine, setShowRoutine] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  const [note, setNote] = useState<string | null>(null);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(null), 2500);
+    return () => clearTimeout(t);
+  }, [note]);
 
   const doneSet = useMemo(() => new Set(done), [done]);
   const b = q.data;
@@ -101,8 +111,8 @@ export function BriefScreen() {
               </div>
             )}
 
-            <Group id="needs" title="Needs you" cards={b.needs_you.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
-            <Group id="worth" title="Worth knowing" cards={b.worth_knowing.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
+            <Group id="needs" title="Needs you" cards={b.needs_you.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} onNote={setNote} />
+            <Group id="worth" title="Worth knowing" cards={b.worth_knowing.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} onNote={setNote} />
 
             <Moves moves={b.moves} />
 
@@ -186,8 +196,13 @@ export function BriefScreen() {
       </Sheet>
 
       {toast && <Toast message="Marked done" action="Undo" onAction={() => undo(toast)} />}
+      {!toast && note && <Toast message={note} />}
     </>
   );
+}
+
+function CountUp({ n }: { n: number }) {
+  return <>{useCountUp(n)}</>;
 }
 
 function Hero({ b, done, finished, total }: { b: Brief; done: Set<string>; finished: number; total: number }) {
@@ -202,7 +217,7 @@ function Hero({ b, done, finished, total }: { b: Brief; done: Set<string>; finis
   ];
   return (
     <section className="mx-4 mt-3 overflow-hidden rounded-[14px] bg-hero" aria-label="Summary">
-      <p className="px-4 pt-4 font-display text-[19px] leading-snug">{summarize(b, done)}</p>
+      <p className="px-4 pt-4 font-display text-[15px] leading-relaxed">{summarize(b, done)}</p>
 
       <div className="mt-4 grid grid-cols-3 border-t border-line">
         {stats.map((s, i) => (
@@ -213,7 +228,9 @@ function Hero({ b, done, finished, total }: { b: Brief; done: Set<string>; finis
             disabled={s.n === 0}
             className={`px-4 py-3 text-left ${i ? "border-l border-line" : ""}`}
           >
-            <span className={`tabular block font-display text-[28px] leading-none font-semibold ${s.n ? s.tone : "text-muted"}`}>{s.n}</span>
+            <span className={`block font-display text-[28px] leading-none font-semibold ${s.n ? s.tone : "text-muted"}`}>
+              <CountUp n={s.n} />
+            </span>
             <span className="mt-1 block text-[12px] text-muted">{s.label}</span>
           </button>
         ))}
@@ -231,7 +248,17 @@ function Hero({ b, done, finished, total }: { b: Brief; done: Set<string>; finis
         </div>
       )}
 
-      {total > 0 && (
+      {total > 0 && finished === total && (
+        <div className="flex items-center gap-3 border-t border-line px-4 py-3">
+          <span className="animate-pop flex h-7 w-7 items-center justify-center rounded-full bg-viz-up text-base">
+            <Icon.check />
+          </span>
+          <span className="text-[14px]">
+            You are through this brief. {total} {total === 1 ? "item" : "items"} read.
+          </span>
+        </div>
+      )}
+      {total > 0 && finished < total && (
         <div className="flex items-center gap-3 border-t border-line px-4 py-3" aria-label={`${finished} of ${total} done`}>
           <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-base">
             <div className="h-full rounded-full bg-accent-ink transition-[width] duration-300" style={{ width: `${(finished / total) * 100}%` }} />
@@ -251,71 +278,100 @@ function Group({
   cards,
   onOpen,
   onDone,
+  onNote,
 }: {
   id: string;
   title: string;
   cards: BriefCard[];
   onOpen: (c: BriefCard) => void;
   onDone: (id: string) => void;
+  onNote: (m: string) => void;
 }) {
   if (cards.length === 0) return null;
   return (
     <section id={id} className="scroll-mt-4">
       <SectionTitle count={cards.length}>{title}</SectionTitle>
       {cards.map((c) => (
-        <BriefCardView key={c.id} card={c} onOpen={() => onOpen(c)} onDone={() => onDone(c.id)} />
+        <BriefCardView key={c.id} card={c} onOpen={() => onOpen(c)} onDone={() => onDone(c.id)} onNote={onNote} />
       ))}
     </section>
   );
 }
 
-function BriefCardView({ card, onOpen, onDone }: { card: BriefCard; onOpen: () => void; onDone: () => void }) {
+function BriefCardView({ card, onOpen, onDone, onNote }: { card: BriefCard; onOpen: () => void; onDone: () => void; onNote: (m: string) => void }) {
   const dig = `/research/${card.ticker}${card.results ? "#ledger" : ""}`;
+  const body = useRef<HTMLDivElement>(null);
+  const share = async () => {
+    try {
+      const how = await shareCard(body.current!, `${card.ticker}-${card.category}`, card.results ? "NSE results filing" : "NSE filing");
+      if (how === "saved") onNote("Image saved");
+    } catch {
+      onNote("Could not make the image");
+    }
+  };
   return (
-    <Card className="pb-0">
-      <div className="flex items-center gap-1.5 text-[13px] text-muted">
-        <span className="font-semibold text-ink">{card.ticker}</span>
-        <span>·</span>
-        <span>{card.category_label}</span>
-        {card.alert && card.priority !== "needs_you" && (
-          <span className="ml-1 inline-flex items-center gap-1 text-needs" title="A category you asked to be alerted about">
-            <Icon.bell />
-            Alert
-          </span>
+    <Swipeable onSwipe={onDone} label="Done">
+      <div ref={body} className="relative overflow-hidden rounded-[12px] bg-card p-4 pb-0">
+        {card.priority === "needs_you" && <span className="absolute inset-y-0 left-0 w-[3px] bg-needs" aria-hidden />}
+        <div className="flex items-center gap-2.5">
+          <Monogram ticker={card.ticker} />
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-[13px]">
+              <span className="font-semibold text-ink">{card.ticker}</span>
+              <span className="ml-auto tabular whitespace-nowrap text-muted">{when(card.latest_at)}</span>
+            </p>
+            <p className="flex items-center gap-1.5 text-[12px] text-muted">
+              <CategoryIcon category={card.category} />
+              {card.category_label}
+              {card.alert && card.priority !== "needs_you" && (
+                <span className="ml-1 inline-flex items-center gap-1 text-needs" title="A category you asked to be alerted about">
+                  <Icon.bell />
+                  Alert
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+        <h3 className="mt-2.5 mb-3 text-[17px] leading-snug font-semibold">{card.headline}</h3>
+
+        {card.results && <ResultsTiles r={card.results} />}
+        {!card.results && card.people && <People people={card.people} named={card.people.length === 1} />}
+        {card.scale && (
+          <p className="mt-2 text-[14px] text-muted">
+            {scaleLine(
+              card.scale.amount_cr,
+              card.scale.pct_of_revenue,
+              ["fund_raise", "M&A"].includes(card.category) ? card.scale.pct_of_market_cap : null,
+            )}
+          </p>
         )}
-        <span className="tabular ml-auto whitespace-nowrap">{when(card.latest_at)}</span>
-      </div>
-      <h3 className="mt-1.5 mb-3 text-[17px] leading-snug font-semibold">{card.headline}</h3>
 
-      {card.results && <ResultsTable r={card.results} />}
-      {!card.results && card.people && <People people={card.people} named={card.people.length === 1} />}
-      {card.scale && (
-        <p className="mt-2 text-[14px] text-muted">
-          {scaleLine(
-            card.scale.amount_cr,
-            card.scale.pct_of_revenue,
-            ["fund_raise", "M&A"].includes(card.category) ? card.scale.pct_of_market_cap : null,
+        <Facts card={card} />
+
+        <div className="mt-3 flex items-center border-t border-line" data-noshare>
+          <TextAction onClick={onOpen} icon={<Icon.doc />}>
+            {filingSpan(card)}
+          </TextAction>
+          <span className="flex-1" />
+          {card.results && (
+            <>
+              <TextAction onClick={share} icon={<Icon.share />}>
+                Share
+              </TextAction>
+              <span className="w-4" />
+            </>
           )}
-        </p>
-      )}
-
-      <Facts card={card} />
-
-      <div className="mt-3 flex items-center border-t border-line">
-        <TextAction onClick={onOpen} icon={<Icon.doc />}>
-          {filingSpan(card)}
-        </TextAction>
-        <span className="flex-1" />
-        <TextAction onClick={onDone} icon={<Icon.check />}>
-          Done
-        </TextAction>
-        <span className="w-5" />
-        <TextAction onClick={() => navigate(dig)} strong>
-          Research
-          <Icon.arrow />
-        </TextAction>
+          <TextAction onClick={onDone} icon={<Icon.check />}>
+            Done
+          </TextAction>
+          <span className="w-4" />
+          <TextAction onClick={() => navigate(dig)} strong>
+            Research
+            <Icon.arrow />
+          </TextAction>
+        </div>
       </div>
-    </Card>
+    </Swipeable>
   );
 }
 

@@ -37,6 +37,11 @@
   --viz-up: #2ea58f;
   --viz-down: #d9714a;
 
+  /* company monograms: hue per ticker, these set how loud they are on this theme */
+  --av-s: 24%;
+  --av-l: 34%;
+  --av-ink: #eef1ef;
+
   /* type */
   --font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-serif: "Source Serif 4", Georgia, serif; /* transcript quotes */
@@ -71,6 +76,9 @@
   --needs-you: #8a5d0b;
   --viz-up: #00876c; /* CVD delta E 10.5 on white and on hero */
   --viz-down: #c8472a;
+  --av-s: 38%;
+  --av-l: 86%;
+  --av-ink: #1b2221;
 }
 
 /* ---------- accents ---------- */

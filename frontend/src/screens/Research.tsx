@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
-import { CashVsProfit, PriceChart, TrackRecord } from "../components/Charts";
+import { CashVsProfit, PriceChart } from "../components/Charts";
 import { HelpButton } from "../components/Help";
-import { GuidanceView, LedgerBuilder, LedgerView } from "../components/Ledger";
-import { Card, ErrorState, ExtLink, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, StaleNote, Tabs, Icon } from "../components/ui";
+import { Monogram } from "../components/Identity";
+import { ResultsTiles } from "../components/ResultsTiles";
+import { Scorecard } from "../components/Scorecard";
+import { GuidanceView, LedgerBuilder, LedgerView, TrackRecord } from "../components/Ledger";
+import { Card, ErrorState, ExtLink, Pct, SectionTitle, Sheet, Skeleton, StaleNote, Tabs, Icon } from "../components/ui";
 import { crore, dayMonthYear, inr, plain, when } from "../format";
 import { navigate } from "../router";
 import type { Answer, BalanceSheet, Research, Segments, Trajectory } from "../types";
@@ -53,30 +56,34 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   const s = r.snapshot;
   const price = s.ratios["Current Price"] as number | undefined;
   const hl = s.ratios["High / Low"] as number[] | undefined;
-  const lastBs = r.balance_sheet?.years[r.balance_sheet.years.length - 1];
   const stats: [string, string][] = [
+    // P/E, margin and debt to equity are in the scorecard above
     ["Market cap", s.ratios["Market Cap"] != null ? crore(s.ratios["Market Cap"] as number) : "n/a"],
-    ["P/E", s.ratios["Stock P/E"] != null ? `${s.ratios["Stock P/E"]}` : "n/a"],
     [s.is_financial ? "ROE" : "ROCE", `${(s.is_financial ? s.ratios["ROE"] : s.ratios["ROCE"]) ?? "n/a"}%`],
     ["52w range", hl ? `${inr(hl[1])} to ${inr(hl[0])}` : "n/a"],
     ["TTM revenue", crore(s.ttm.revenue)],
-    [s.ttm.margin_label, s.ttm.margin_pct != null ? `${s.ttm.margin_pct}%` : "n/a"],
     ["TTM net profit", crore(s.ttm.net_profit)],
-    s.is_financial ? ["Price to book", pToB(price, s.ratios["Book Value"] as number | undefined)] : ["Debt to equity", `${lastBs?.debt_to_equity ?? "n/a"}`],
+    ["Price to book", pToB(price, s.ratios["Book Value"] as number | undefined)],
   ];
 
   return (
     <div className="pb-20">
       <TopBar ticker={r.ticker} />
       <header className="px-4 pb-4">
-        <p className="text-[13px] text-muted">
-          <span className="font-semibold text-ink">{r.ticker}</span>
-          {r.resolved_from && ` · was ${r.resolved_from}`}
-          {r.in_portfolio && " · In your portfolio"}
-        </p>
-        <h1 className="mt-1 font-display text-[28px] leading-tight font-semibold">{s.name}</h1>
+        <div className="flex items-center gap-3">
+          <Monogram ticker={r.ticker} size={44} />
+          <div className="min-w-0">
+            <p className="text-[13px] text-muted">
+              <span className="font-semibold text-ink">{r.ticker}</span>
+              {r.resolved_from && ` · was ${r.resolved_from}`}
+              {r.in_portfolio && " · In your portfolio"}
+            </p>
+            <h1 className="font-display text-[26px] leading-tight font-semibold">{s.name}</h1>
+          </div>
+        </div>
         {price != null && !r.price && <p className="tabular mt-1 text-[24px] font-semibold">Rs {inr(price, 2)}</p>}
         {r.price && <PriceChart key={r.ticker} price={r.price} />}
+        <Scorecard r={r} />
         <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-[12px] bg-card">
           {stats.map(([k, v], i) => (
             <div key={k} className={`px-4 py-2.5 ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line" : ""}`}>
@@ -102,7 +109,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
             {r.results.quarter}, quarter ended {dayMonthYear(r.results.period_end)}
             {r.results.broadcast_at && `. Filed ${when(r.results.broadcast_at)}`}
           </p>
-          <ResultsTable r={r.results} />
+          <ResultsTiles r={r.results} />
         </Card>
       ) : (
         <p className="mx-4 text-[14px] text-muted">No quarterly results found in NSE's integrated filings for this company.</p>
@@ -136,7 +143,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
 
       <SectionTitle id="ledger">Narrative vs numbers</SectionTitle>
       <p className="mx-4 -mt-1 mb-3 text-[13px] text-muted">What management promised on past calls, checked against what was reported since.</p>
-      {r.ledger?.status === "ok" && <TrackRecord items={r.ledger.items} />}
+      {r.ledger?.status === "ok" && <TrackRecord ledger={r.ledger} />}
       {r.ledger ? <LedgerView ledger={r.ledger} hide={["pending"]} /> : <LedgerBuilder ticker={r.ticker} onBuilt={q.reload} />}
 
       <SectionTitle id="guidance">Guidance</SectionTitle>
@@ -155,6 +162,25 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
             <BullBearList title="Bear case" tone="down" points={r.bull_bear.bear} />
             <p className="mt-4 text-[12px] text-muted">Written by Flash-Lite from the numbered facts shown under each point; points citing no valid fact are removed.</p>
           </Card>
+        </>
+      )}
+
+      {r.documents.some((d) => d.kind === "transcript") && (
+        <>
+          <SectionTitle id="ask-calls">Ask the calls</SectionTitle>
+          <div className="mx-4 flex flex-wrap gap-2">
+            {SUGGESTED.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("finn:ask", { detail: q }))}
+                className="min-h-9 rounded-full border border-line bg-card px-3.5 py-1.5 text-left text-[13px]"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          <p className="mx-4 mt-2 text-[12px] text-muted">Answers come only from the last four calls, each with a quote checked against the transcript.</p>
         </>
       )}
 
@@ -475,14 +501,28 @@ function BullBearList({ title, tone, points }: { title: string; tone: "up" | "do
   );
 }
 
+// Most people do not know what to ask a set of earnings calls; these show what Ask is good at.
+export const SUGGESTED = [
+  "What did they guide for revenue growth?",
+  "What did they say about margins?",
+  "Any capex or capacity plans?",
+  "What risks did management flag?",
+];
+
 function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: boolean }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [answer, setAnswer] = useState<{ q: string; a: Answer | null; err: string | null } | null>(null);
-  if (!hasTranscripts) return null;
+  useEffect(() => {
+    // the in-page suggestions ask through here, so both share one answer sheet
+    const onAsk = (e: Event) => ask((e as CustomEvent<string>).detail);
+    window.addEventListener("finn:ask", onAsk);
+    return () => window.removeEventListener("finn:ask", onAsk);
+  });
 
-  const ask = async () => {
-    const question = text.trim();
+  const ask = async (preset?: string) => {
+    const question = (preset ?? text).trim();
     if (question.length < 3 || busy) return;
     setBusy(true);
     setAnswer({ q: question, a: null, err: null });
@@ -497,6 +537,8 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
     }
   };
 
+  if (!hasTranscripts) return null;
+
   return (
     <>
       <form
@@ -504,8 +546,23 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
           e.preventDefault();
           ask();
         }}
-        className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[480px] gap-2 border-t border-line bg-base/95 px-4 py-2 backdrop-blur"
+        className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[480px] flex-wrap gap-2 border-t border-line bg-base/95 px-4 py-2 backdrop-blur"
       >
+        {focused && !text && !busy && (
+          <div className="no-scrollbar -mx-4 flex w-[calc(100%+32px)] gap-2 overflow-x-auto px-4 pb-1">
+            {SUGGESTED.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => ask(q)}
+                className="h-8 shrink-0 rounded-full border border-line bg-card px-3 text-[13px] text-ink"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
         <label htmlFor="ask" className="sr-only">
           Ask about {ticker}'s earnings calls
         </label>
@@ -513,6 +570,8 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
           id="ask"
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder={`Ask ${ticker}'s earnings calls`}
           maxLength={500}
           enterKeyHint="send"

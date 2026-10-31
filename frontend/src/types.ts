@@ -27,6 +27,7 @@ export interface ResultsCard {
   derived: string | null; // the filing gave only six, nine or twelve months; the quarter was worked out
   suspect: string[]; // lines more than 10% away from Screener: not headlined
   tax_note: string | null; // tax, not the business, explains most of the PAT change
+  history: ({ quarter: string } & Record<string, number | null | string>)[]; // up to five quarters, oldest first
   source_url: string | null;
   broadcast_at: string | null;
   has_prev: boolean;

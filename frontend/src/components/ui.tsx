@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ago, bps, inr, signedPct, tone } from "../format";
 import type { ResultsCard } from "../types";
 
@@ -195,41 +195,56 @@ export function Sparkline({ values, width = 72, height = 24 }: { values: number[
 export function ResultsTable({ r }: { r: ResultsCard }) {
   return (
     <div>
-      <table className="w-full border-collapse text-[14px]">
-        <thead>
-          <tr className="text-[12px] text-muted">
-            <th className="pb-1.5 text-left font-normal">{r.unit}</th>
-            <th className="pb-1.5 text-right font-normal">{r.quarter}</th>
-            <th className="pb-1.5 text-right font-normal">QoQ</th>
-            <th className="pb-1.5 text-right font-normal">YoY</th>
+      <ResultsGrid r={r} />
+      <ResultsNotes r={r} />
+    </div>
+  );
+}
+
+export function ResultsGrid({ r }: { r: ResultsCard }) {
+  return (
+    <table className="w-full border-collapse text-[14px]">
+      <thead>
+        <tr className="text-[12px] text-muted">
+          <th className="pb-1.5 text-left font-normal">{r.unit}</th>
+          <th className="pb-1.5 text-right font-normal">{r.quarter}</th>
+          <th className="pb-1.5 text-right font-normal">QoQ</th>
+          <th className="pb-1.5 text-right font-normal">YoY</th>
+        </tr>
+      </thead>
+      <tbody>
+        {r.rows.map((row) => (
+          <tr key={row.label} className="border-t border-line">
+            <td className="py-[7px]">
+              {row.label}
+              {row.derived && <sup className="ml-0.5 text-muted">*</sup>}
+            </td>
+            <td className="tabular py-[7px] text-right">{inr(row.value)}</td>
+            <td className="py-[7px] text-right">{r.has_prev ? <Pct value={row.qoq} /> : <span className="text-muted">n/a</span>}</td>
+            <td className="py-[7px] text-right">{r.has_year_ago ? <Pct value={row.yoy} /> : <span className="text-muted">n/a</span>}</td>
           </tr>
-        </thead>
-        <tbody>
-          {r.rows.map((row) => (
-            <tr key={row.label} className="border-t border-line">
-              <td className="py-[7px]">
-                {row.label}
-                {row.derived && <sup className="ml-0.5 text-muted">*</sup>}
-              </td>
-              <td className="tabular py-[7px] text-right">{inr(row.value)}</td>
-              <td className="py-[7px] text-right">{r.has_prev ? <Pct value={row.qoq} /> : <span className="text-muted">n/a</span>}</td>
-              <td className="py-[7px] text-right">{r.has_year_ago ? <Pct value={row.yoy} /> : <span className="text-muted">n/a</span>}</td>
-            </tr>
-          ))}
-          {r.margins?.map((m, i) => (
-            <tr key={m.label} className={i === 0 ? "border-t-2 border-line" : "border-t border-line"}>
-              <td className="py-[7px] text-muted">{m.label}</td>
-              <td className="tabular py-[7px] text-right">{m.now != null ? `${m.now.toFixed(1)}%` : "n/a"}</td>
-              <td className="py-[7px] text-right">
-                <Bps value={r.has_prev ? m.qoq_bps : null} />
-              </td>
-              <td className="py-[7px] text-right">
-                <Bps value={r.has_year_ago ? m.yoy_bps : null} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        ))}
+        {r.margins?.map((m, i) => (
+          <tr key={m.label} className={i === 0 ? "border-t-2 border-line" : "border-t border-line"}>
+            <td className="py-[7px] text-muted">{m.label}</td>
+            <td className="tabular py-[7px] text-right">{m.now != null ? `${m.now.toFixed(1)}%` : "n/a"}</td>
+            <td className="py-[7px] text-right">
+              <Bps value={r.has_prev ? m.qoq_bps : null} />
+            </td>
+            <td className="py-[7px] text-right">
+              <Bps value={r.has_year_ago ? m.yoy_bps : null} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** What FINN wants you to check about these numbers, and where they come from. */
+export function ResultsNotes({ r }: { r: ResultsCard }) {
+  return (
+    <>
       {r.other_income_pct_of_pbt != null && (
         <p className={`mt-2 text-[12px] ${r.other_income_pct_of_pbt >= 25 ? "text-needs" : "text-muted"}`}>
           Other income is {r.other_income_pct_of_pbt.toFixed(0)}% of PBT
@@ -263,7 +278,7 @@ export function ResultsTable({ r }: { r: ResultsCard }) {
           </>
         )}
       </p>
-    </div>
+    </>
   );
 }
 
@@ -405,9 +420,103 @@ export const Icon = {
       <path d="M10 20.5a2 2 0 0 0 4 0" />
     </svg>
   ),
+  share: () => (
+    <svg {...ip}>
+      <path d="M12 4v11M8 8l4-4 4 4M5 13v6h14v-6" />
+    </svg>
+  ),
   chevron: () => (
     <svg {...ip}>
       <path d="m9 6 6 6-6 6" />
     </svg>
   ),
 };
+
+/** Swipe right to finish a card, the gesture people know from mail. Touch events, not pointer events: the
+ * browser cancels a pointer as soon as it might be a scroll, while touch events keep coming, and the page never
+ * scrolls sideways. A vertical move is left to the page, and a swipe never counts as a tap on what is inside. */
+export function Swipeable({ onSwipe, label, children }: { onSwipe: () => void; label: string; children: ReactNode }) {
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const start = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(null);
+  const swiped = useRef(false);
+  const dxNow = useRef(0); // read on touchend: a fast flick can end before React re-renders with the new dx
+  const THRESHOLD = 96;
+  return (
+    <div className="relative mx-4 mb-3">
+      <div
+        className="absolute inset-0 flex items-center rounded-[12px] px-5 text-[14px] font-semibold"
+        style={{ background: "var(--viz-up)", color: "var(--bg)", opacity: Math.min(1, dx / THRESHOLD) }}
+        aria-hidden
+      >
+        <Icon.check />
+        <span className="ml-2">{label}</span>
+      </div>
+      <div
+        style={{ transform: `translateX(${dx}px)`, transition: dragging ? "none" : "transform 200ms ease-out" }}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          start.current = { x: t.clientX, y: t.clientY, axis: null };
+          swiped.current = false;
+        }}
+        onTouchMove={(e) => {
+          const s = start.current;
+          if (!s) return;
+          const t = e.touches[0];
+          const x = t.clientX - s.x;
+          const y = t.clientY - s.y;
+          if (!s.axis && Math.abs(x) + Math.abs(y) > 8) s.axis = Math.abs(x) > Math.abs(y) ? "x" : "y";
+          if (s.axis !== "x") return;
+          swiped.current = true;
+          dxNow.current = Math.max(0, x);
+          setDragging(true);
+          setDx(dxNow.current);
+        }}
+        onTouchEnd={() => {
+          const done = dxNow.current > THRESHOLD;
+          dxNow.current = 0;
+          start.current = null;
+          setDragging(false);
+          setDx(done ? 480 : 0);
+          if (done) setTimeout(onSwipe, 180);
+        }}
+        onTouchCancel={() => {
+          dxNow.current = 0;
+          start.current = null;
+          setDragging(false);
+          setDx(0);
+        }}
+        onClickCapture={(e) => {
+          if (swiped.current) {
+            e.stopPropagation();
+            e.preventDefault();
+            swiped.current = false;
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** A number that counts up when it first appears; shown as is when the reader prefers less motion. */
+export function useCountUp(target: number, ms = 500): number {
+  const [n, setN] = useState(target);
+  useEffect(() => {
+    if (typeof matchMedia === "undefined" || matchMedia("(prefers-reduced-motion: reduce)").matches || target === 0) {
+      setN(target);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / ms);
+      setN(Math.round(target * (1 - (1 - k) ** 3)));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return n;
+}

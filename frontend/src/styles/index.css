@@ -17,6 +17,7 @@
   --color-up: var(--up);
   --color-down: var(--down);
   --color-needs: var(--needs-you);
+  --color-viz-up: var(--viz-up);
   --color-worth: var(--worth-knowing);
   --font-sans: var(--font);
   --font-serif: var(--font-serif);
@@ -96,8 +97,38 @@ button {
   }
 }
 
+@keyframes pop-in {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes rise-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .animate-sheet {
   animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.animate-pop {
+  animation: pop-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.animate-rise {
+  animation: rise-in 280ms ease-out both;
 }
 .animate-fade {
   animation: fade-in 160ms ease-out;
@@ -111,6 +142,8 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .animate-sheet,
   .animate-fade,
+  .animate-pop,
+  .animate-rise,
   .skeleton {
     animation: none;
   }
