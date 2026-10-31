@@ -203,7 +203,7 @@ export function CashVsProfit({ years }: { years: CashQuality["years"] }) {
   const yv = (v: number) => ((max - v) / span) * H;
   const zero = yv(0);
   const slot = W / data.length;
-  const bar = Math.min(24, slot - 10);
+  const bar = Math.min(18, slot - 10);
   const sel = data[Math.min(picked, data.length - 1)];
   return (
     <figure>

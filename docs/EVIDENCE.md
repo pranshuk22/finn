@@ -414,6 +414,24 @@ Also: the opening sentence from 19px to 15px; the stats grid drops P/E, margin a
 
 Regression on production after deploy: every promise and guidance item tapped on RELIANCE (12), HDFCBANK (6), DIXON (9), TITAN (5), 0 crashed. Tests: backend 47, frontend 34.
 
+## E35. A quieter, more professional pass
+
+Owner's review (31 Oct): a scrolling strip on the right of the screen, the company monogram "not professional", Research cards "look vibe coded".
+
+**The strip.** The page itself was never wider than 390px, but two rows scrolled sideways inside it with their last items cut at the edge: the section tabs on Research (9 sections) and the promise filters. Replaced:
+- Sections: a slim sticky bar naming the section in view ("1/9 Business") with a Sections button that lists all nine.
+- Filters: removed; the timeline above the list already gives the breakdown.
+- Ask suggestions above the box wrap instead of scrolling. `html { overflow-x: clip }` so a card swiped away cannot widen the page.
+- Live check on every screen after deploy: page width 390, elements that scroll sideways 0 (before: the two strips on Research).
+
+**Professional pass**, guided by fewer surfaces and colour only where it means something:
+- Monograms removed from cards and the company header.
+- Scorecard and key figures merged into one surface: six verdicts in a two-column grid with hairline dividers, key figures in a compact three-column row. Coloured top stripes and the entrance animation removed; colour is a 6px dot beside each verdict word.
+- Results: four figures in one row with hairline dividers instead of four boxes inside a card; one short header line instead of a caption under every card.
+- Oversized figures brought onto the type scale (cash conversion 30px to 22px, track record 24px to 20px); chart bars capped at 18px; Guidance group labels in sentence case; Business table columns spaced so headers no longer run together.
+
+Tests: backend 47, frontend 34.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

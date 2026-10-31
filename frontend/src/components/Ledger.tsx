@@ -3,7 +3,7 @@ import { api, ApiError } from "../api";
 import { ago, monthYear, plain, target } from "../format";
 import type { Ledger, LedgerItem } from "../types";
 import { GuidedVsActual } from "./Charts";
-import { Button, ExtLink, Icon, Sheet, Tabs } from "./ui";
+import { Button, ExtLink, Icon, Sheet } from "./ui";
 
 export const STATUS: Record<string, { label: string; color: string }> = {
   delivered: { label: "Delivered", color: "var(--up)" },
@@ -40,7 +40,6 @@ function pdfAt(url: string, page: number | null | undefined) {
 
 /** Promises whose outcome can already be read against reported numbers or later calls. Pending ones are Guidance. */
 export function LedgerView({ ledger, hide = [] }: { ledger: Ledger; hide?: string[] }) {
-  const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState<LedgerItem | null>(null);
 
   if (ledger.status !== "ok") {
@@ -48,10 +47,7 @@ export function LedgerView({ ledger, hide = [] }: { ledger: Ledger; hide?: strin
   }
 
   const shown = ledger.items.filter((i) => !hide.includes(i.status));
-  const statuses = ORDER.filter((s) => !hide.includes(s) && ledger.counts[s]);
-  const items = [...shown]
-    .filter((i) => !filter || i.status === filter)
-    .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
+  const items = [...shown].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   const calls = ledger.transcripts.map((t) => t.period);
 
   if (shown.length === 0) {
@@ -60,14 +56,7 @@ export function LedgerView({ ledger, hide = [] }: { ledger: Ledger; hide?: strin
 
   return (
     <div>
-      <Tabs
-        label="Filter promises"
-        value={filter ?? "all"}
-        onChange={(v) => setFilter(v === "all" ? null : v)}
-        items={[{ value: "all", label: "All", count: shown.length }, ...statuses.map((s) => ({ value: s, label: STATUS[s]?.label ?? s, count: ledger.counts[s] }))]}
-      />
-
-      <ul className="mx-4 mt-3 overflow-hidden rounded-[12px] bg-card">
+      <ul className="mx-4 overflow-hidden rounded-[12px] bg-card">
         {items.map((it) => (
           <li key={it.id} className="border-t border-line first:border-0">
             <button type="button" onClick={() => setOpen(it)} className="flex w-full items-start gap-3 px-4 py-3.5 text-left">
@@ -146,7 +135,7 @@ export function GuidanceView({ ledger }: { ledger: Ledger }) {
         if (items.length === 0) return null;
         return (
           <div key={key} className="mx-4 overflow-hidden rounded-[12px] bg-card">
-            <p className="px-4 pt-3 text-[12px] font-semibold tracking-wide text-muted uppercase">{title}</p>
+            <p className="px-4 pt-3 text-[13px] font-semibold text-muted">{title}</p>
             <ul>
               {items.map((it) => (
                 <li key={it.id} className="border-t border-line first:border-0">
@@ -366,7 +355,7 @@ export function TrackRecord({ ledger }: { ledger: Ledger }) {
     <div className="mx-4 mb-3 rounded-[12px] bg-card p-4">
       {judged.length > 0 ? (
         <p className="text-[15px]">
-          <span className="text-[24px] font-semibold">{kept}</span>
+          <span className="text-[20px] font-semibold">{kept}</span>
           <span className="text-muted"> of {judged.length} promises that could be checked were kept</span>
         </p>
       ) : (

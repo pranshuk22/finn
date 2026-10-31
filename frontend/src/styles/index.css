@@ -29,6 +29,7 @@
 html {
   background: var(--backdrop);
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip; /* a card swiped away must never make the page scroll sideways */
 }
 
 body {

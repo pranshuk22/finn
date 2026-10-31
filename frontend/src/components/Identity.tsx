@@ -1,36 +1,6 @@
 import type { ReactNode } from "react";
 
-// Something for the eye to catch while scrolling: a monogram per company and an icon per filing kind. The
-// ticker always sits next to the monogram, so its colour only helps recognition and never carries meaning.
-
-// Hues spread around the wheel; saturation and lightness come from the theme (--av-s, --av-l) so every
-// monogram sits quietly on slate and on paper.
-const HUES = [205, 160, 28, 280, 345, 95, 235, 10, 185, 50];
-
-export function hueFor(ticker: string): number {
-  let h = 0;
-  for (const ch of ticker) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return HUES[h % HUES.length];
-}
-
-export function Monogram({ ticker, size = 32 }: { ticker: string; size?: number }) {
-  const letters = ticker.replace(/[^A-Z]/g, "").slice(0, 2);
-  return (
-    <span
-      aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold tracking-tight"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.38,
-        background: `hsl(${hueFor(ticker)} var(--av-s) var(--av-l))`,
-        color: "var(--av-ink)",
-      }}
-    >
-      {letters}
-    </span>
-  );
-}
+// An icon per filing kind, beside its label, so a scan down the brief picks out results, people and legal.
 
 const ip = {
   width: 14,

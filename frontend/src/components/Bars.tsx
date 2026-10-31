@@ -26,7 +26,7 @@ export function Bars({
   const span = max - min || 1;
   const zero = (max / span) * H;
   const slot = W / data.length;
-  const bar = Math.min(28, slot - 6);
+  const bar = Math.min(18, slot - 8);
   const sel = picked ?? data.length - 1;
 
   return (

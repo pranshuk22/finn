@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
 import { CashVsProfit, PriceChart } from "../components/Charts";
 import { HelpButton } from "../components/Help";
-import { Monogram } from "../components/Identity";
 import { ResultsTiles } from "../components/ResultsTiles";
 import { Scorecard } from "../components/Scorecard";
 import { GuidanceView, LedgerBuilder, LedgerView, TrackRecord } from "../components/Ledger";
-import { Card, ErrorState, ExtLink, Pct, SectionTitle, Sheet, Skeleton, StaleNote, Tabs, Icon } from "../components/ui";
+import { Card, ErrorState, ExtLink, Pct, SectionTitle, Sheet, Skeleton, StaleNote, Icon } from "../components/ui";
 import { crore, dayMonthYear, inr, plain, when } from "../format";
 import { navigate } from "../router";
 import type { Answer, BalanceSheet, Research, Segments, Trajectory } from "../types";
@@ -60,7 +59,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
     // P/E, margin and debt to equity are in the scorecard above
     ["Market cap", s.ratios["Market Cap"] != null ? crore(s.ratios["Market Cap"] as number) : "n/a"],
     [s.is_financial ? "ROE" : "ROCE", `${(s.is_financial ? s.ratios["ROE"] : s.ratios["ROCE"]) ?? "n/a"}%`],
-    ["52w range", hl ? `${inr(hl[1])} to ${inr(hl[0])}` : "n/a"],
+    ["52-week range", hl ? `${inr(hl[1])} to ${inr(hl[0])}` : "n/a"],
     ["TTM revenue", crore(s.ttm.revenue)],
     ["TTM net profit", crore(s.ttm.net_profit)],
     ["Price to book", pToB(price, s.ratios["Book Value"] as number | undefined)],
@@ -70,28 +69,15 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
     <div className="pb-20">
       <TopBar ticker={r.ticker} />
       <header className="px-4 pb-4">
-        <div className="flex items-center gap-3">
-          <Monogram ticker={r.ticker} size={44} />
-          <div className="min-w-0">
-            <p className="text-[13px] text-muted">
-              <span className="font-semibold text-ink">{r.ticker}</span>
-              {r.resolved_from && ` · was ${r.resolved_from}`}
-              {r.in_portfolio && " · In your portfolio"}
-            </p>
-            <h1 className="font-display text-[26px] leading-tight font-semibold">{s.name}</h1>
-          </div>
-        </div>
+        <p className="text-[13px] text-muted">
+          <span className="font-semibold text-ink">{r.ticker}</span>
+          {r.resolved_from && ` · was ${r.resolved_from}`}
+          {r.in_portfolio && " · In your portfolio"}
+        </p>
+        <h1 className="mt-0.5 font-display text-[26px] leading-tight font-semibold">{s.name}</h1>
         {price != null && !r.price && <p className="tabular mt-1 text-[24px] font-semibold">Rs {inr(price, 2)}</p>}
         {r.price && <PriceChart key={r.ticker} price={r.price} />}
-        <Scorecard r={r} />
-        <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-[12px] bg-card">
-          {stats.map(([k, v], i) => (
-            <div key={k} className={`px-4 py-2.5 ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line" : ""}`}>
-              <dt className="text-[12px] text-muted">{k}</dt>
-              <dd className="tabular m-0 text-[15px] font-medium">{v}</dd>
-            </div>
-          ))}
-        </dl>
+        <Scorecard r={r} figures={stats} />
         {s.about && <About text={s.about} />}
       </header>
 
@@ -203,14 +189,11 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   );
 }
 
+/** A slim sticky bar naming the section in view, with every section one tap away. It replaces a tab strip that
+ * scrolled sideways and cut its last tabs off at the screen edge. */
 function SectionNav() {
   const [active, setActive] = useState("business");
-  const bar = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const tab = bar.current?.querySelector<HTMLElement>('[aria-selected="true"]');
-    const list = tab?.parentElement;
-    if (tab && list) list.scrollTo({ left: tab.offsetLeft - 16, behavior: "smooth" });
-  }, [active]);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     const els = SECTIONS.map((x) => document.getElementById(x.id)).filter((e): e is HTMLElement => !!e);
     const io = new IntersectionObserver(
@@ -218,23 +201,48 @@ function SectionNav() {
         const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
         if (top) setActive(top.target.id);
       },
-      { rootMargin: "-90px 0px -60% 0px" },
+      { rootMargin: "-60px 0px -70% 0px" },
     );
     els.forEach((e) => io.observe(e));
     return () => io.disconnect();
   }, []);
+  const go = (id: string) => {
+    setOpen(false);
+    setActive(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    history.replaceState(null, "", `#${id}`);
+  };
+  const i = SECTIONS.findIndex((x) => x.id === active);
   return (
-    <div ref={bar} className="sticky top-0 z-20 bg-base/95 backdrop-blur">
-      <Tabs
-        label="Sections"
-        value={active}
-        items={SECTIONS.map((x) => ({ value: x.id, label: x.label }))}
-        onChange={(id) => {
-          setActive(id);
-          document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-          history.replaceState(null, "", `#${id}`);
-        }}
-      />
+    <div className="sticky top-0 z-20 border-y border-line bg-base/95 backdrop-blur">
+      <button type="button" onClick={() => setOpen(true)} className="flex h-11 w-full items-center gap-2 px-4 text-left" aria-haspopup="dialog">
+        <span className="text-[12px] text-muted tabular">
+          {i + 1}/{SECTIONS.length}
+        </span>
+        <span className="text-[14px] font-semibold">{SECTIONS[i]?.label}</span>
+        <span className="ml-auto flex items-center gap-1 text-[13px] text-accent-ink">
+          Sections
+          <span className="rotate-90">
+            <Icon.chevron />
+          </span>
+        </span>
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Sections">
+        <ol className="-mx-1">
+          {SECTIONS.map((x, k) => (
+            <li key={x.id}>
+              <button
+                type="button"
+                onClick={() => go(x.id)}
+                className={`flex h-12 w-full items-center gap-3 border-b border-line px-1 text-left text-[15px] ${x.id === active ? "font-semibold" : ""}`}
+              >
+                <span className="tabular w-5 text-[12px] text-muted">{k + 1}</span>
+                {x.label}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </Sheet>
     </div>
   );
 }
@@ -321,7 +329,7 @@ function Cash({ r }: { r: Research }) {
     <Card className="space-y-7">
       {cq.cfo_to_ebitda_3y != null && (
         <div>
-          <p className="tabular text-[30px] leading-none font-semibold">{cq.cfo_to_ebitda_3y}%</p>
+          <p className="text-[22px] leading-none font-semibold">{cq.cfo_to_ebitda_3y}%</p>
           <p className="mt-1 text-[13px] text-muted">of operating profit turned into operating cash over the last three years</p>
         </div>
       )}
@@ -359,9 +367,9 @@ function Business({ seg }: { seg: Segments | null }) {
         <thead>
           <tr className="text-muted">
             <th className="border-b border-line py-1.5 text-left font-medium">{seg.quarter}</th>
-            <th className="border-b border-line py-1.5 text-right font-medium">Mix</th>
-            <th className="border-b border-line py-1.5 text-right font-medium">Margin</th>
-            <th className="border-b border-line py-1.5 text-right font-medium">YoY</th>
+            <th className="border-b border-line py-1.5 pl-3 text-right font-medium">Mix</th>
+            <th className="border-b border-line py-1.5 pl-3 text-right font-medium">Margin</th>
+            <th className="border-b border-line py-1.5 pl-3 text-right font-medium">YoY</th>
           </tr>
         </thead>
         <tbody>
@@ -373,7 +381,7 @@ function Business({ seg }: { seg: Segments | null }) {
                   <span className="block h-1 rounded-full bg-accent" style={{ width: `${top ? (100 * (i.share_pct ?? 0)) / top : 0}%` }} />
                 </span>
               </td>
-              <td className="tabular py-2 text-right align-top">
+              <td className="tabular py-2 pl-3 text-right align-top whitespace-nowrap">
                 {i.share_pct != null ? `${i.share_pct}%` : "n/a"}
                 {i.share_change_pts != null && Math.abs(i.share_change_pts) >= 1 && (
                   <span className="block text-[11px] text-muted">
@@ -382,8 +390,8 @@ function Business({ seg }: { seg: Segments | null }) {
                   </span>
                 )}
               </td>
-              <td className="tabular py-2 text-right align-top">{i.margin_pct != null ? `${i.margin_pct}%` : "n/a"}</td>
-              <td className="py-2 text-right align-top">
+              <td className="tabular py-2 pl-3 text-right align-top whitespace-nowrap">{i.margin_pct != null ? `${i.margin_pct}%` : "n/a"}</td>
+              <td className="py-2 pl-3 text-right align-top whitespace-nowrap">
                 <Pct value={i.yoy} />
               </td>
             </tr>
@@ -549,14 +557,14 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
         className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 mx-auto flex max-w-[480px] flex-wrap gap-2 border-t border-line bg-base/95 px-4 py-2 backdrop-blur"
       >
         {focused && !text && !busy && (
-          <div className="no-scrollbar -mx-4 flex w-[calc(100%+32px)] gap-2 overflow-x-auto px-4 pb-1">
+          <div className="flex w-full flex-wrap gap-1.5 pb-1">
             {SUGGESTED.map((q) => (
               <button
                 key={q}
                 type="button"
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={() => ask(q)}
-                className="h-8 shrink-0 rounded-full border border-line bg-card px-3 text-[13px] text-ink"
+                className="h-8 rounded-full border border-line bg-card px-3 text-[13px] text-ink"
               >
                 {q}
               </button>

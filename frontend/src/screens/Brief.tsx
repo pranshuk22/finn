@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useStored } from "../api";
 import { PortfolioStrip } from "../components/Charts";
 import { HelpButton } from "../components/Help";
-import { CategoryIcon, Monogram } from "../components/Identity";
+import { CategoryIcon } from "../components/Identity";
 import { ResultsTiles } from "../components/ResultsTiles";
 import { ErrorState, ExtLink, Icon, Pct, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, Swipeable, TextAction, Toast, useCountUp } from "../components/ui";
 import { ago, dayMonthYear, filedDate, inr, istDay, scaleLine, when } from "../format";
@@ -313,26 +313,20 @@ function BriefCardView({ card, onOpen, onDone, onNote }: { card: BriefCard; onOp
     <Swipeable onSwipe={onDone} label="Done">
       <div ref={body} className="relative overflow-hidden rounded-[12px] bg-card p-4 pb-0">
         {card.priority === "needs_you" && <span className="absolute inset-y-0 left-0 w-[3px] bg-needs" aria-hidden />}
-        <div className="flex items-center gap-2.5">
-          <Monogram ticker={card.ticker} />
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[13px]">
-              <span className="font-semibold text-ink">{card.ticker}</span>
-              <span className="ml-auto tabular whitespace-nowrap text-muted">{when(card.latest_at)}</span>
-            </p>
-            <p className="flex items-center gap-1.5 text-[12px] text-muted">
-              <CategoryIcon category={card.category} />
-              {card.category_label}
-              {card.alert && card.priority !== "needs_you" && (
-                <span className="ml-1 inline-flex items-center gap-1 text-needs" title="A category you asked to be alerted about">
-                  <Icon.bell />
-                  Alert
-                </span>
-              )}
-            </p>
-          </div>
+        <div className="flex items-center gap-1.5 text-[13px] text-muted">
+          <span className="font-semibold text-ink">{card.ticker}</span>
+          <span aria-hidden>·</span>
+          <CategoryIcon category={card.category} />
+          <span>{card.category_label}</span>
+          {card.alert && card.priority !== "needs_you" && (
+            <span className="ml-1 inline-flex items-center gap-1 text-needs" title="A category you asked to be alerted about">
+              <Icon.bell />
+              Alert
+            </span>
+          )}
+          <span className="tabular ml-auto whitespace-nowrap">{when(card.latest_at)}</span>
         </div>
-        <h3 className="mt-2.5 mb-3 text-[17px] leading-snug font-semibold">{card.headline}</h3>
+        <h3 className="mt-1.5 mb-3 text-[17px] leading-snug font-semibold">{card.headline}</h3>
 
         {card.results && <ResultsTiles r={card.results} />}
         {!card.results && card.people && <People people={card.people} named={card.people.length === 1} />}
