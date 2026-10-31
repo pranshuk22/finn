@@ -211,6 +211,49 @@ Checked 2026-10-31 against https://render.com/docs/free, https://render.com/docs
 - **Contrast** (WCAG 2 formula, computed from `frontend/src/styles/tokens.css`): the reference's white text on its taupe button is 3.06:1, below the 4.5:1 AA minimum, so FINN puts dark text `#1e2524` on taupe (5.1:1). Muted grey was raised to `#b8c1bf` and the sheet colour darkened to `#414b4a` so every text colour passes 4.5:1 on background, cards and sheets. Lowest: muted text on sheets, 4.90:1. The faint grey (3.77:1 on background) is kept for icons and large text only.
 - **Preview** of the Brief rendered from the live 7-day API response confirmed a bug: DIXON's results card was headlined with a director appointment filed in the same board outcome. Fixed in `backend/main.py`; the results line now stays the headline and the appointment keeps its own management card.
 
+## E25. Deploy probe: every source answers from AWS Lightsail Mumbai
+
+Instance: Lightsail, ap-south-1, Ubuntu 24.04.4, 2 vCPU, 909 MB RAM, 38 GB disk, static IP 15.206.124.235. Probed 2026-10-31 around 13:30 IST.
+
+| Request from the server | Result |
+| --- | --- |
+| NSE homepage | 403 in 0.06 s, same as from a home IP (E1); the cookie it sets is still enough |
+| NSE `corporate-announcements` for TCS | 200, 2.5 MB in 1.07 s |
+| NSE `integrated-filing-results` for TCS | 200 in 0.16 s |
+| NSE archive transcript PDF | 200, 3.7 MB in 0.22 s |
+| Screener TCS page | 200 in 0.06 s |
+| BSE annual report PDF (with Referer) | 200, 26 MB in 0.13 s |
+| Yahoo chart API by plain curl | 429 "Too Many Requests" |
+| yfinance (what FINN uses) | works: `refresh --only eod` stored 2,157 rows for all 18 tickers |
+
+- The full pipeline ran on the server: `refresh --only filings --days 3` found and classified 1 new filing in 27 s; `--only results` ran clean. So the scheduled refresh lives on the server and nothing depends on a laptop.
+- HTTPS: Caddy obtained a Let's Encrypt certificate for `15-206-124-235.sslip.io` (issuer YE2, expires 29 Jan 2027). From inside the server every page and API returns 200 over it.
+- Two things outside the server: port 443 was closed in the Lightsail firewall (80 and 22 open), and the owner's network answers every DNS query for `sslip.io`, even one sent to 1.1.1.1, with `208.91.112.55`, which whois lists as Fortinet Inc., a web filter block page. A reviewer behind a similar filter would see the same, which is the case for a real domain.
+- Schedules, as systemd timers in IST (`deploy/`): filings, results and filing reads every 30 minutes 08:00 to 22:30; EOD at 16:45 and 19:30 on weekdays; Screener daily at 21:15. A shared lock stops two refreshes overlapping.
+
+## E26. Ledger batch for 11 companies, and a hand check of HAL
+
+Built 2026-10-31 between 13:24 and 13:36 IST, one company at a time.
+
+| Company | Promises | Statuses | Seconds |
+| --- | --- | --- | --- |
+| HAL | 10 | 6 missed, 2 pending, 1 delivered, 1 on track | 37 |
+| PIDILITIND | 4 | 2 delivered, 2 pending | 40 |
+| BAJFINANCE | 10 | 8 pending, 1 revised, 1 on track | 16 |
+| HDFCBANK | 6 | 3 pending, 2 delivered, 1 off track | 18 |
+| RELIANCE | 8 | 4 pending, 1 delivered, 1 revised, 1 unclear, 1 dropped | 404 |
+| INFY | 6 | 3 on track, 3 pending | 43 |
+| LT | 5 | 4 pending, 1 on track | 23 |
+| DIXON | 11 | 9 pending, 2 revised; 2 quotes not found in the PDF and dropped | 63 |
+| TRENT | 0 | no transcripts | 9 |
+| POLYCAB | 11 | 7 pending, 2 revised, 1 delivered, 1 on track; 1 quote dropped | 62 |
+| TCS (rebuilt) | 8 | 5 pending, 1 missed, 1 delivered, 1 unclear | 21 |
+
+- **Cost:** 16 Flash requests for 11 companies. Five 3.6 Flash requests failed (503 or timeout) and were retried; RELIANCE fell back to 3.8 Flash, which took 338 s on 107,523 input tokens. 25 of the day's 40 Flash requests were left.
+- **TRENT has no ledger, correctly:** its 117 NSE filings in the last 12 months include many analyst-meet schedules and no earnings call transcript.
+- **HAL, read against the quotes:** the Nashik third line was promised for "October 2024" (May 2024 call, page 5) and inaugurated on 17 October 2025 (May 2026 call, page 3); HTT-40 deliveries due September 2025 were still "expected during the current year" in May 2026; FY25 revenue grew 2.0% against "10% from '24-'25 onwards". Two verdicts are weaker: the LCA Mk1A evidence quote says deliveries would scale up in FY25 without saying none came in FY24, and the CY25 engine item is GE's supply promise relayed by HAL, not HAL's own target. FY26 revenue growth was judged missed at 6.8% (Screener) against "7% to 8%", while HAL reported "an increase of 7%"; the check now states the gap ("0.2 points below the 7% low end") instead of a bare "missed".
+- **Bull and bear wording:** Flash-Lite wrote "Net profit grew 23% over 5 years" for a 23% five-year CAGR, and kept doing so after a prompt rule against it. The phrase is now rewritten in code to "a year over 5 years", and facts carry their units ("ROCE: 37% in Mar 2022").
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

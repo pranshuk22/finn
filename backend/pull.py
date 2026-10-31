@@ -266,7 +266,9 @@ Rules:
 - due: the date the timeframe ends. FY27 runs from 1 April 2026 to 31 March 2027. 'Next quarter' is relative to the
   call it was said on. Null for 'long term' or open-ended.
 - target_low and target_high: numbers only, in the unit given. A single number goes in both.
-- Use only these texts. Do not use anything you know about the company from elsewhere."""
+- Use only these texts. A CAGR is a yearly rate: write "23% a year over five years", never "grew 23% over five years".
+Keep units exactly as in the facts (%, crore, days, points).
+Do not use anything you know about the company from elsewhere."""
 
 
 def _numbers_table(c, ticker: str) -> str:
@@ -293,6 +295,12 @@ def _latest_quarter_end(c, ticker: str) -> date | None:
     return _period_date(q[-1]["period"]) if q else None
 
 
+def _shortfall(actual: float, low: float) -> str:
+    # HAL guided 7% to 8% for FY26 and reported "an increase of 7%"; Screener's figures give 6.8%. Stating the
+    # gap lets the reader judge a near miss instead of reading a bare "missed".
+    return f", {round(low - actual, 1)} points below the {low:g}% low end" if actual < low else ""
+
+
 def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | None:
     """Python verdict for promises we can measure against reported numbers. None if not measurable."""
     if p["metric_key"] not in ("operating_margin", "revenue_growth", "pat_growth") or p["unit"] != "percent":
@@ -311,6 +319,7 @@ def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | Non
             fy = [r for r in tr["annual"].get("Margin %") or [] if _period_date(r["period"]) == date(due.year, 3, 1)]
             actual = fy[0]["value"] if fy and due.month == 3 else q[-1]["value"]
             basis = f"FY margin {actual}%" if fy and due.month == 3 else f"{q[-1]['period']} margin {actual}%"
+            basis += _shortfall(actual, low)
             return {"status": "delivered" if actual >= low else "missed", "actual": actual, "basis": basis}
         latest = q[-1]
         return {
@@ -330,7 +339,7 @@ def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | Non
                 return {
                     "status": "delivered" if g >= low else "missed",
                     "actual": g,
-                    "basis": f"{label} growth in FY{due.year % 100:02d}: {g}%",
+                    "basis": f"{label} growth in FY{due.year % 100:02d}: {g}%{_shortfall(g, low)}",
                 }
     q = [r for r in tr["quarterly"].get(label) or [] if r["value"] is not None]
     if len(q) >= 5:
@@ -342,6 +351,46 @@ def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | Non
                 "basis": f"{label} {q[-1]['period']} YoY {g}%",
             }
     return None
+
+
+def _verdict(p: dict) -> dict:
+    a = p["assessment"]
+    status, judged_by = a["status"], "model"
+    check = p.get("check")
+    # Growth is unambiguous, so Python decides it. Margin definitions differ (Asian Paints guides on PBDIT
+    # including other income, Screener's operating margin excludes it), so for margins the verdict rests on
+    # the verified quotes and our number is shown only as context (EVIDENCE E20).
+    if check and p["metric_key"] != "operating_margin":
+        status, judged_by = check["status"], "numbers"
+    elif p.get("revised_by") and status not in ("delivered", "missed"):
+        status, judged_by = "revised", "later guidance"
+    return {"status": status, "judged_by": judged_by}
+
+
+def recheck_ledgers() -> int:
+    """Re-run the Python checks on stored ledgers after new results arrive. No model calls."""
+    changed = 0
+    with db.session() as c:
+        rows = c.execute("SELECT ticker FROM research WHERE section='ledger'").fetchall()
+        for r in rows:
+            t = r["ticker"]
+            led = get_section(c, t, "ledger")
+            if not led or led.get("status") != "ok":
+                continue
+            latest_q = _latest_quarter_end(c, t)
+            items = []
+            for it in led["items"]:
+                it = {**it, "check": _numeric_check(c, t, it, latest_q)}
+                items.append({**it, **_verdict(it)})
+            if items != led["items"]:
+                counts: dict[str, int] = {}
+                for it in items:
+                    counts[it["status"]] = counts.get(it["status"], 0) + 1
+                payload = {k: v for k, v in led.items() if k != "built_at"} | {"items": items, "counts": counts}
+                # keep built_at: the model's reading did not change, only the numbers it is checked against
+                c.execute("UPDATE research SET payload=? WHERE ticker=? AND section='ledger'", (json.dumps(payload), t))
+                changed += 1
+    return changed
 
 
 def build_ledger(ticker: str) -> dict:
@@ -425,19 +474,7 @@ def build_ledger(ticker: str) -> dict:
             q["source"] for q in later if (q["target_low"], q["target_high"]) == (p["target_low"], p["target_high"])
         ]
 
-    items = []
-    for p in promises:
-        a = p["assessment"]
-        status, judged_by = a["status"], "model"
-        check = p.get("check")
-        # Growth is unambiguous, so Python decides it. Margin definitions differ (Asian Paints guides on PBDIT
-        # including other income, Screener's operating margin excludes it), so for margins the verdict rests on
-        # the verified quotes and our number is shown only as context (EVIDENCE E20).
-        if check and p["metric_key"] != "operating_margin":
-            status, judged_by = check["status"], "numbers"
-        elif p.get("revised_by") and status not in ("delivered", "missed"):
-            status, judged_by = "revised", "later guidance"
-        items.append({**p, "status": status, "judged_by": judged_by})
+    items = [{**p, **_verdict(p)} for p in promises]
 
     # Collapse repeats: keep the earliest statement of an unchanged target, note where it was repeated.
     seen = set()
@@ -482,31 +519,53 @@ At most 3 points each side. No adjectives like 'strong' or 'robust' unless a num
 Do not use anything you know about the company from elsewhere."""
 
 
+def _n(v) -> str:
+    """607.0 -> "607", 14.4 -> "14.4", 5515.17 -> "5,515": the model copies numbers as written."""
+    if v is None:
+        return "n/a"
+    if abs(v) >= 1000:
+        return f"{v:,.0f}"
+    return f"{v:g}"
+
+
+_GROWTH = {
+    "cagr_3y": "3-year CAGR (a yearly rate)",
+    "cagr_5y": "5-year CAGR (a yearly rate)",
+    "last_year": "growth last year",
+}
+
+
 def _facts(c, ticker: str, ledger: dict | None) -> dict[str, str]:
     facts: dict[str, str] = {}
     tr = A.trajectory(c, ticker)
     for label, g in tr["growth"].items():
         for k, v in g.items():
-            if v is not None:
-                facts[f"F{len(facts) + 1}"] = f"{label} {k.replace('_', ' ')}: {v}"
+            if v is None:
+                continue
+            if k == "change_pts_5y":
+                facts[f"F{len(facts) + 1}"] = f"Margin change over 5 years: {_n(v)} points"
+            else:
+                facts[f"F{len(facts) + 1}"] = f"{label} {_GROWTH.get(k, k)}: {_n(v)}%"
     cq = A.cash_quality(c, ticker)
     if cq["cfo_to_ebitda_3y"] is not None:
         facts[f"F{len(facts) + 1}"] = (
-            f"3-year cumulative operating cash flow / operating profit: {cq['cfo_to_ebitda_3y']}%"
+            f"3-year cumulative operating cash flow / operating profit: {_n(cq['cfo_to_ebitda_3y'])}%"
         )
     for item, s in cq["working_capital"].items():
         if len(s) >= 2:
+            name, unit = (item[:-2], "%") if item.endswith(" %") else (item, "")
+            a, b = s[0], s[-1]
             facts[f"F{len(facts) + 1}"] = (
-                f"{item}: {s[0]['period']} {s[0]['value']} to {s[-1]['period']} {s[-1]['value']}"
+                f"{name}: {_n(a['value'])}{unit} in {a['period']}, {_n(b['value'])}{unit} in {b['period']}"
             )
     if cq["leverage"]:
         lv = cq["leverage"][-1]
-        facts[f"F{len(facts) + 1}"] = f"Debt to equity {lv['period']}: {lv['debt_to_equity']}"
+        facts[f"F{len(facts) + 1}"] = f"Debt to equity in {lv['period']}: {_n(lv['debt_to_equity'])}"
     rc = A.results_card(c, ticker)
     if rc:
         for r in rc["rows"]:
             facts[f"F{len(facts) + 1}"] = (
-                f"{rc['quarter']} {r['label']}: {r['value']} crore, QoQ {r['qoq']}%, YoY {r['yoy']}%"
+                f"{rc['quarter']} {r['label']}: Rs {_n(r['value'])} crore, QoQ {_n(r['qoq'])}%, YoY {_n(r['yoy'])}%"
             )
     if ledger:
         for it in ledger.get("items", []):
@@ -515,6 +574,19 @@ def _facts(c, ticker: str, ledger: dict | None) -> dict[str, str]:
                 f"Status: {it['status']}"
             )
     return facts
+
+
+_CAGR_AS_TOTAL = re.compile(
+    r"(grew|growth of|rose|increased)( by)? (\d+(?:\.\d+)?)% over (the last )?(\w+) years", re.I
+)
+
+
+def _yearly(text: str) -> str:
+    """Flash-Lite kept writing "grew 23% over 5 years" for a 23% CAGR even when told not to (2026-10-31).
+    A CAGR is a yearly rate, so the wording is fixed in code."""
+    return _CAGR_AS_TOTAL.sub(
+        lambda m: f"{m.group(1)} {m.group(3)}% a year over {m.group(4) or ''}{m.group(5)} years", text
+    )
 
 
 def build_bull_bear(ticker: str) -> dict:
@@ -535,7 +607,7 @@ def build_bull_bear(ticker: str) -> dict:
         for p in getattr(res, side):
             refs = [r for r in p.refs if r in facts]
             if refs:  # a point with no valid reference is dropped
-                pts.append({"text": p.text, "refs": [{"id": r, "fact": facts[r]} for r in refs]})
+                pts.append({"text": _yearly(p.text), "refs": [{"id": r, "fact": facts[r]} for r in refs]})
         out[side] = pts[:3]
     return out
 

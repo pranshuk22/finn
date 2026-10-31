@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend import analytics as A
-from backend import db, enrich, pull
+from backend import db, enrich, llm, pull
 from backend.config import ADHOC, ALIASES, PORTFOLIO, ROOT, resolve_ticker
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -79,6 +79,9 @@ CATEGORY_LABEL = {
     "pledging": "Pledge",
     "unclassified": "Routine",
 }
+
+
+AMOUNT_CATEGORIES = {"M&A", "fund_raise", "capex", "litigation", "credit_rating", "press_release"}
 
 
 class AlertRules(BaseModel):
@@ -162,7 +165,8 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                 # a board meeting can file results and an appointment together; the results line stays the headline
                 if not card["results"]:
                     card["headline"] = enrich.people_line(own or card["people"]) or card["headline"]
-            if amount:
+            # Only where a size means something; an appointment filing once yielded "Rs 1,143 crore" from a profile.
+            if amount and cat in AMOUNT_CATEGORIES:
                 card["scale"] = A.scale(c, ticker, amount)
             cards.append(card)
         # newest first within the same priority and category (two stable sorts)
@@ -286,6 +290,27 @@ def build_ledger(raw: str, force: bool = False):
     return {"status": "started"}
 
 
+@app.get("/api/research/{raw}/jobs")
+def jobs(raw: str):
+    """Cheap poll for the ledger build; the full research payload is only refetched when a job finishes."""
+    ticker = resolve_ticker(raw)
+    with db.session() as c:
+        has_ledger = pull.get_section(c, ticker, "ledger") is not None
+    b = llm.budget()
+    flash_left = sum(b[m]["per_day"] - b[m]["used_today"] for m in (llm.REASON, llm.REASON_FALLBACK))
+    return {"jobs": pull.job_status(ticker), "has_ledger": has_ledger, "flash_left_today": max(0, flash_left)}
+
+
+@app.exception_handler(llm.BudgetExhausted)
+def budget_exhausted(_request, _exc):
+    return CleanJSON(
+        status_code=503,
+        content={
+            "detail": "The model's free daily quota is used up. It resets at 12:30 IST; stored ledgers still work."
+        },
+    )
+
+
 class Question(BaseModel):
     question: str = Field(min_length=3, max_length=500)
 
@@ -308,6 +333,7 @@ def meta():
             "llm": [dict(r) for r in calls],
             "llm_by_task": {r["task"]: r["n"] for r in by_task},
             "classified_by": {r[0]: r[1] for r in c.execute("SELECT classified_by, COUNT(*) FROM filings GROUP BY 1")},
+            "budget": llm.budget(),
         }
 
 

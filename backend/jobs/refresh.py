@@ -211,6 +211,10 @@ def main() -> None:
         refresh_results(nse, everyone)
     if "screener" in steps:
         refresh_screener(everyone)
+    if {"results", "screener"} & set(steps):
+        from backend.pull import recheck_ledgers
+
+        log(f"ledgers: rechecked against new numbers, {recheck_ledgers()} changed")
     with db.session() as c:
         db.set_meta(c, "refreshed_at", db.now_iso())
         log(

@@ -69,7 +69,7 @@ The biggest unknown: does NSE answer a datacenter IP? Test before building anyth
 ### 5. Classifier eval [me, then you] about 45 min plus 10 min of yours
 
 - 60 October filings, picked so every stage is represented. I label them from the filing text; you spot-check at least 15.
-- Accuracy per stage (label, rules, model) and for priority. Saved as `eval/filings_labelled.json`, results as E26 and in the README.
+- Accuracy per stage (label, rules, model) and for priority. Saved as `eval/filings_labelled.json`, results as E27 and in the README.
 
 ### 6. Tests for the judgment code [me] about 30 min
 
