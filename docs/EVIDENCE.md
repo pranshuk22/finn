@@ -204,6 +204,13 @@ Checked 2026-10-31 against https://render.com/docs/free, https://render.com/docs
 - **Unseen ticker:** `GET /api/research/TITAN`, with TITAN not in any list and not in the database, returned 200 in 5.6 s: Screener tables, NSE results (Q1 FY27 revenue 21,356 crore, YoY +29.3% after the parser fix in E15's HAL note), trajectory, cash quality and four transcript links. `ZOMATO` resolves to `ETERNAL`; a made-up symbol returns 404 with "Check the NSE symbol".
 - **Older iXBRL format:** Jun 2025 filings for TITAN and HAL state the unit as "INR (in Actuals)" in the currency row and dates as `30-Jun-2025`. The parser now reads both, which filled in their YoY comparisons.
 
+## E24. Colour palette: sampled from the chosen reference, then checked for contrast
+
+- **Reference:** Pinterest pin 885872189202118303 ("Meet Marcus Insights" onboarding screen), chosen by the owner on 2026-10-31 over pure black and light options.
+- **Sampled** with PyMuPDF from the 736 x 1104 pin image: screen background `#2e3736`, cards about `#3a4342` to `#4f5759`, button taupe `#9e9189`, page behind the phone `#445255`.
+- **Contrast** (WCAG 2 formula, computed from `frontend/src/styles/tokens.css`): the reference's white text on its taupe button is 3.06:1, below the 4.5:1 AA minimum, so FINN puts dark text `#1e2524` on taupe (5.1:1). Muted grey was raised to `#b8c1bf` and the sheet colour darkened to `#414b4a` so every text colour passes 4.5:1 on background, cards and sheets. Lowest: muted text on sheets, 4.90:1. The faint grey (3.77:1 on background) is kept for icons and large text only.
+- **Preview** of the Brief rendered from the live 7-day API response confirmed a bug: DIXON's results card was headlined with a director appointment filed in the same board outcome. Fixed in `backend/main.py`; the results line now stays the headline and the appointment keeps its own management card.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

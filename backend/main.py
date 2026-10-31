@@ -159,7 +159,9 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             if people:
                 card["people"] = list(people.values())
                 own = [p for p in card["people"] if not p.get("entity") and p["change"] in ("joining", "leaving")]
-                card["headline"] = enrich.people_line(own or card["people"]) or card["headline"]
+                # a board meeting can file results and an appointment together; the results line stays the headline
+                if not card["results"]:
+                    card["headline"] = enrich.people_line(own or card["people"]) or card["headline"]
             if amount:
                 card["scale"] = A.scale(c, ticker, amount)
             cards.append(card)

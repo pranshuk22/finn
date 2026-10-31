@@ -40,7 +40,7 @@ Owner in brackets. Time is my estimate, not a measurement.
 The biggest unknown: does NSE answer a datacenter IP? Test before building anything on top.
 
 - You: Lightsail, Mumbai, Ubuntu 24.04, $7 plan (1 GB). Attach a static IP, open ports 80 and 443. Check in Billing that the credits cover Lightsail and note their expiry. Send me the SSH key path and the IP.
-- Me: from the instance, call the NSE announcements and integrated-filing endpoints, Screener, a BSE transcript PDF and yfinance. Record results as E24.
+- Me: from the instance, call the NSE announcements and integrated-filing endpoints, Screener, a BSE transcript PDF and yfinance. Record results as E25.
 - If NSE blocks it: refresh runs on your Mac and the database is copied to the server on a schedule. The app does not change.
 
 ### 2. Scheduled refresh inside the server [me] about 45 min
@@ -69,13 +69,13 @@ The biggest unknown: does NSE answer a datacenter IP? Test before building anyth
 ### 5. Classifier eval [me, then you] about 45 min plus 10 min of yours
 
 - 60 October filings, picked so every stage is represented. I label them from the filing text; you spot-check at least 15.
-- Accuracy per stage (label, rules, model) and for priority. Saved as `eval/filings_labelled.json`, results as E25 and in the README.
+- Accuracy per stage (label, rules, model) and for priority. Saved as `eval/filings_labelled.json`, results as E26 and in the README.
 
 ### 6. Tests for the judgment code [me] about 30 min
 
 - Brief grouping and ordering, `priority` rules, `management_priority`, numeric checks for growth, `scale`.
 
-### 7. Frontend [me] about 6 to 8 h, waiting on your design reference
+### 7. Frontend [me] about 6 to 8 h
 
 Screens, in build order:
 
@@ -86,7 +86,7 @@ Screens, in build order:
 
 Across all screens: loading, empty and error states; tabular numbers; touch targets at least 44 px; no horizontal scroll at 360 px; last response shown instantly from the device and refreshed in the background; installable PWA. Dig in from a results card opens Research at the ledger.
 
-Design tokens (colours, type scale, radius, spacing) come from your reference, into `frontend/src/styles/tokens.css`.
+Design: muted slate with a taupe accent, from the reference you chose (E24). Tokens are in `frontend/src/styles/tokens.css`; every text colour passes WCAG AA. Fixes seen in the preview: show tiny amounts as "under 0.01% of yearly revenue", show every time in IST, put the moves list on a fixed grid so sparklines line up.
 
 ### 8. Full deploy [me] about 1 h, after 1 and 7
 
@@ -110,7 +110,7 @@ Design tokens (colours, type scale, radius, spacing) come from your reference, i
 | Sat 04:30 to 06:00 | 4 (untested paths), 6 (tests), ledgers on remaining 3.8 Flash quota |
 | As soon as the instance exists | 1 (deploy probe), then 2 (scheduler) |
 | Sat 12:30 | Flash quota resets: rest of 3 (ledgers) |
-| Sat, once the design arrives | 7 (frontend), the long block |
+| Sat afternoon | 7 (frontend), the long block |
 | Sat evening | 5 (eval, with your spot-check), 8 (full deploy) |
 | Sun morning | Polish frontend from your feedback, refresh snapshot |
 | Sun afternoon | 9 (submission) |
@@ -128,13 +128,11 @@ Last added, first cut: Ask UI, per-category overrides, bull and bear UI, alert r
 | NSE blocks the Lightsail IP | Unknown until step 1 | Refresh on your Mac, copy the database up |
 | Flash daily quota runs out during review | Medium | 1 call per ledger, stored ledgers, fallback to the other Flash model, clear message when both are out |
 | Free tier 503s ("high demand") | Seen on 3.1 Flash-Lite and 3.8 Flash | Retries, then sibling model; nothing in the brief depends on a live model call |
-| Design arrives late | Medium | Build components on neutral tokens, then swap the tokens |
 | Ledger quality varies by company | Medium | Quote check drops unsupported rows; show how many were dropped; hand-check one ledger |
 | Credits do not cover Lightsail | Unknown | $7 for the month on the card, or fall back to Render paid |
 
 ## Decisions waiting on you
 
 1. Create the Lightsail instance and confirm the credits cover it.
-2. The design reference.
-3. GitHub: repo name, public or private until submission, and approval to push.
-4. Spot-check of the classifier labels (step 5).
+2. GitHub: repo name, public or private until submission, and approval to push.
+3. Spot-check of the classifier labels (step 5).
