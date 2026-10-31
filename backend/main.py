@@ -110,6 +110,40 @@ def _level(role: str) -> str:
     return "board" if "director" in (role or "").lower() else "staff"
 
 
+def _price_story(c, ticker: str) -> dict | None:
+    """Daily closes we hold, with the filings that mattered placed on the session they could first move the price.
+
+    A filing after the 15:30 IST close lands on the next session, the same rule as `analytics.reaction`.
+    Routine filings are left off: the chart should show what an investor would have wanted to know.
+    """
+    rows = c.execute("SELECT date, close FROM eod WHERE ticker=? ORDER BY date", (ticker,)).fetchall()
+    if len(rows) < 20:
+        return None
+    dates = [r["date"] for r in rows]
+    events: dict[str, list[dict]] = {}
+    for f in c.execute(
+        "SELECT an_dt, category, priority, summary FROM filings WHERE ticker=? AND priority != 'routine'"
+        " AND category IS NOT NULL AND an_dt >= ? ORDER BY an_dt",
+        (ticker, dates[0]),
+    ):
+        day, at = f["an_dt"][:10], f["an_dt"][11:16]
+        session = next((d for d in dates if d > day or (d == day and at < "15:30")), None)
+        if session is None:
+            continue
+        events.setdefault(session, []).append(
+            {
+                "category_label": CATEGORY_LABEL.get(f["category"], f["category"]),
+                "priority": f["priority"],
+                "summary": f["summary"],
+                "at": f["an_dt"],
+            }
+        )
+    return {
+        "series": [{"date": r["date"], "close": round(r["close"], 2)} for r in rows],
+        "events": [{"date": d, "filings": fs} for d, fs in sorted(events.items())],
+    }
+
+
 def _filed_before(c, ticker: str, day: str) -> list[dict]:
     """What the company filed between the previous close and this session's close: the likely explanation
     for a price or volume move, or, if empty, a sign that nothing on record explains it. One entry per
@@ -324,6 +358,7 @@ def research(raw: str):
             "snapshot": snap,
             "results": A.results_card(c, ticker),
             "trajectory": A.trajectory(c, ticker),
+            "price": _price_story(c, ticker),
             "segments": A.segments(c, ticker),
             "cash_quality": A.cash_quality(c, ticker),
             "balance_sheet": A.balance_sheet(c, ticker),

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
+import { CashVsProfit, PriceChart, TrackRecord } from "../components/Charts";
 import { GuidanceView, LedgerBuilder, LedgerView } from "../components/Ledger";
 import { Card, ErrorState, ExtLink, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, StaleNote, Tabs, Icon } from "../components/ui";
 import { crore, dayMonthYear, inr, plain, when } from "../format";
@@ -73,7 +74,8 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
           {r.in_portfolio && " · In your portfolio"}
         </p>
         <h1 className="mt-1 font-display text-[28px] leading-tight font-semibold">{s.name}</h1>
-        {price != null && <p className="tabular mt-1 text-[24px] font-semibold">Rs {inr(price, 2)}</p>}
+        {price != null && !r.price && <p className="tabular mt-1 text-[24px] font-semibold">Rs {inr(price, 2)}</p>}
+        {r.price && <PriceChart key={r.ticker} price={r.price} />}
         <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-[12px] bg-card">
           {stats.map(([k, v], i) => (
             <div key={k} className={`px-4 py-2.5 ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line" : ""}`}>
@@ -133,6 +135,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
 
       <SectionTitle id="ledger">Narrative vs numbers</SectionTitle>
       <p className="mx-4 -mt-1 mb-3 text-[13px] text-muted">What management promised on past calls, checked against what was reported since.</p>
+      {r.ledger?.status === "ok" && <TrackRecord items={r.ledger.items} />}
       {r.ledger ? <LedgerView ledger={r.ledger} hide={["pending"]} /> : <LedgerBuilder ticker={r.ticker} onBuilt={q.reload} />}
 
       <SectionTitle id="guidance">Guidance</SectionTitle>
@@ -294,7 +297,7 @@ function Cash({ r }: { r: Research }) {
           <p className="mt-1 text-[13px] text-muted">of operating profit turned into operating cash over the last three years</p>
         </div>
       )}
-      <Bars title="Operating cash flow, Rs crore" points={cq.years.map((y) => ({ period: y.period, value: y.cfo }))} format={(v) => inr(v)} />
+      <CashVsProfit years={cq.years} />
       <Bars title="Free cash flow, Rs crore" points={cq.years.map((y) => ({ period: y.period, value: y.fcf }))} format={(v) => inr(v)} />
     </Card>
   );

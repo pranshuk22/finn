@@ -252,7 +252,8 @@ def _segments(soup, tables, factor: float) -> dict | None:
         ):
             v = _num(cells[2])
             if v is not None:
-                part[cells[1].strip()] = round(v * factor, 2)
+                # the app and repo never show en or em dashes (filings use them in names like "Energy \u2013 Green")
+                part[re.sub(r"\s*[\u2013\u2014]\s*", " - ", cells[1].strip())] = round(v * factor, 2)
     if not revenue:
         return None
     return {"single": None, "items": [{"name": n, "revenue": v, "result": result.get(n)} for n, v in revenue.items()]}

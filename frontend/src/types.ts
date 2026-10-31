@@ -130,6 +130,7 @@ export interface PortfolioDay {
   median_pct: number;
   best: { ticker: string; move_pct: number };
   worst: { ticker: string; move_pct: number };
+  stocks: { ticker: string; move_pct: number }[];
 }
 
 export interface AlertRules {
@@ -177,7 +178,14 @@ export interface Trajectory {
 }
 
 export interface CashQuality {
-  years: { period: string; cfo: number | null; fcf: number | null; cfo_to_ebitda: number | null; cfo_to_pat: number | null }[];
+  years: {
+    period: string;
+    cfo: number | null;
+    operating_profit: number | null;
+    fcf: number | null;
+    cfo_to_ebitda: number | null;
+    cfo_to_pat: number | null;
+  }[];
   cfo_to_ebitda_3y: number | null;
   working_capital: Record<string, Point[]>;
   leverage: { period: string; debt: number | null; equity: number | null; debt_to_equity: number | null }[];
@@ -190,6 +198,8 @@ export interface LedgerItem {
   metric: string;
   metric_key: string;
   target: string;
+  target_low: number | null;
+  target_high: number | null;
   unit: string; // percent | rs_crore | bps | other
   timeframe: string | null;
   due: string | null;
@@ -228,6 +238,11 @@ export interface BullBear {
   bull: { text: string; refs: { id: string; fact: string }[] }[];
   bear: { text: string; refs: { id: string; fact: string }[] }[];
   built_at: string;
+}
+
+export interface PriceStory {
+  series: { date: string; close: number }[];
+  events: { date: string; filings: { category_label: string; priority: string; summary: string; at: string }[] }[];
 }
 
 export interface Segment {
@@ -271,6 +286,7 @@ export interface Research {
   snapshot: Snapshot;
   results: ResultsCard | null;
   trajectory: Trajectory | null;
+  price: PriceStory | null;
   segments: Segments | null;
   cash_quality: CashQuality | null;
   balance_sheet: BalanceSheet | null;

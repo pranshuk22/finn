@@ -198,6 +198,7 @@ def portfolio_day(c: sqlite3.Connection, tickers: list[str]) -> dict | None:
         "median_pct": round(median, 2),
         "best": {"ticker": best[0], "move_pct": best[1]},
         "worst": {"ticker": worst[0], "move_pct": worst[1]},
+        "stocks": [{"ticker": t, "move_pct": m} for t, m in sorted(moves, key=lambda m: -m[1])],
     }
 
 
@@ -346,6 +347,7 @@ def cash_quality(c: sqlite3.Connection, ticker: str) -> dict:
             {
                 "period": y,
                 "cfo": cfo_m.get(y),
+                "operating_profit": op_m.get(y),
                 "fcf": by(fcf).get(y),
                 "cfo_to_ebitda": round(100 * cfo_m[y] / op_m[y], 0) if op_m.get(y) else None,
                 "cfo_to_pat": round(100 * cfo_m[y] / np_m[y], 0) if np_m.get(y) else None,

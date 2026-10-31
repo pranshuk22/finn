@@ -25,6 +25,7 @@ def test_bank_layout_has_ppop_not_ebitda_inputs():
 
 def test_segments_tie_to_revenue_and_skip_adjustments():
     # LT's segment list carries "Add:" and "Less:" rows inside the numbered list; they are not segments.
+    # (The fixture's notes had seven en dashes, replaced with hyphens for the repo's house style.)
     r = parse_results_ixbrl((FIX / "lt_q2fy27_ixbrl.html").read_text())
     names = [i["name"] for i in r["segments"]["items"]]
     assert len(names) == 8 and not any(n.lower().startswith(("add", "less")) for n in names)

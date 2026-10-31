@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { ago, monthYear, plain, target } from "../format";
 import type { Ledger, LedgerItem } from "../types";
+import { GuidedVsActual } from "./Charts";
 import { Button, ExtLink, Icon, Sheet, Tabs } from "./ui";
 
 export const STATUS: Record<string, { label: string; color: string }> = {
@@ -76,6 +77,7 @@ export function LedgerView({ ledger, hide = [] }: { ledger: Ledger; hide?: strin
                   <StatusChip status={it.status} />
                 </div>
                 <p className="tabular mt-0.5 text-[15px]">{target(it.target, it.unit)}</p>
+                {it.judged_by === "numbers" && <GuidedVsActual it={it} />}
                 <p className="mt-1.5 text-[13px] text-muted">
                   {it.judged_by === "numbers" && it.check ? it.check.basis : it.assessment.note}
                 </p>

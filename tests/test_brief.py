@@ -90,7 +90,29 @@ def test_portfolio_day_breadth_and_extremes(client):
         "median_pct": 1.0,
         "best": {"ticker": "AAA", "move_pct": 5.0},
         "worst": {"ticker": "BBB", "move_pct": -2.0},
+        "stocks": [  # best to worst, for the chart in the hero
+            {"ticker": "AAA", "move_pct": 5.0},
+            {"ticker": "CCC", "move_pct": 1.0},
+            {"ticker": "BBB", "move_pct": -2.0},
+        ],
     }
+
+
+def test_price_chart_places_a_filing_on_the_session_it_could_move(client):
+    from backend.main import _price_story
+
+    _, db = client
+    days = [f"2026-10-{d:02d}" for d in range(1, 31) if d not in (4, 5, 11, 12, 18, 19, 25, 26)]
+    with db.session() as c:
+        c.executemany("INSERT INTO eod(ticker, date, close, volume) VALUES('AAA',?,100,1000)", [(d,) for d in days])
+    add(db, 1, "AAA", "results", "worth_knowing", "2026-10-22T14:10:00")  # in market hours: same session
+    add(db, 2, "AAA", "litigation", "needs_you", "2026-10-22T16:20:00")  # after the close: next session
+    add(db, 3, "AAA", "M&A", "worth_knowing", "2026-10-25T11:00:00")  # a Sunday: Monday's session
+    add(db, 4, "AAA", "dividend", "routine", "2026-10-21T10:00:00")  # routine: not marked
+    with db.session() as c:
+        story = _price_story(c, "AAA")
+    placed = {e["date"]: [f["category_label"] for f in e["filings"]] for e in story["events"]}
+    assert placed == {"2026-10-22": ["Results"], "2026-10-23": ["Litigation"], "2026-10-27": ["M&A"]}
 
 
 def test_reaction_uses_the_first_session_after_the_filing(client):

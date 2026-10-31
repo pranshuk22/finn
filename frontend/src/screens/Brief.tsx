@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useStored } from "../api";
+import { PortfolioStrip } from "../components/Charts";
 import { Card, ErrorState, ExtLink, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
 import { ago, dayMonthYear, inr, istDay, scaleLine, when } from "../format";
 import { summarize } from "../summary";
@@ -221,6 +222,7 @@ function Hero({ b, done, finished, total }: { b: Brief; done: Set<string>; finis
           {pd.up} up, {pd.down} down
           {pd.count < pd.of && `, ${pd.of - pd.count} not priced yet`}, median <Pct value={pd.median_pct} digits={2} />. Best {pd.best.ticker}{" "}
           <Pct value={pd.best.move_pct} />, worst {pd.worst.ticker} <Pct value={pd.worst.move_pct} />.
+          {pd.stocks?.length > 1 && <PortfolioStrip pd={pd} />}
         </div>
       )}
 

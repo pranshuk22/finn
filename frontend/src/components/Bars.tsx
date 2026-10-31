@@ -30,7 +30,7 @@ export function Bars({
   const sel = picked ?? data.length - 1;
 
   return (
-    <figure className="m-0">
+    <figure>
       <figcaption className="flex items-baseline justify-between gap-3">
         <span className="text-[13px] text-muted">{title}</span>
         <span className="tabular text-[13px]">
