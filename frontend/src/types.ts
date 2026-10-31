@@ -24,6 +24,9 @@ export interface ResultsCard {
   ebitda_margin: number | null;
   margins: { label: string; now: number | null; prev: number | null; year_ago: number | null; qoq_bps: number | null; yoy_bps: number | null }[];
   other_income_pct_of_pbt: number | null;
+  derived: string | null; // the filing gave only six, nine or twelve months; the quarter was worked out
+  suspect: string[]; // lines more than 10% away from Screener: not headlined
+  tax_note: string | null; // tax, not the business, explains most of the PAT change
   source_url: string | null;
   broadcast_at: string | null;
   has_prev: boolean;
@@ -56,7 +59,7 @@ export interface Scale {
 }
 
 export type Reaction =
-  | { pending: true; session: string }
+  | { pending: true; state: "upcoming" | "not_loaded"; date: string }
   | { pending: false; date: string; session: string; move_pct: number; vol_mult: number | null };
 
 export interface FilingRef {
@@ -114,7 +117,8 @@ export interface Brief {
   routine: {
     count: number;
     by_category: Record<string, number>;
-    items: { id: number; ticker: string; at: string; summary: string; category_label: string; pdf_url: string | null }[];
+    // copies: NSE sometimes publishes the same filing more than once in the same second; shown once
+    items: { id: number; ticker: string; at: string; summary: string; category_label: string; pdf_url: string | null; copies: number }[];
   };
   total_filings: number;
   portfolio_day: PortfolioDay | null;
@@ -298,6 +302,7 @@ export interface Research {
 
 export interface Answer {
   covered: boolean;
+  unverified?: boolean; // the model said the calls cover it, but none of its quotes was found in the PDF
   answer: string;
   citations: { source: string; page: number; quote: string; url: string }[];
   unverified_dropped?: number;

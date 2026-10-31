@@ -2,7 +2,8 @@
 
 import json
 import sqlite3
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from backend.config import FINANCIALS
 
@@ -128,10 +129,16 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
         if not is_bank and cur["other_income"] is not None and cur["pbt"] and cur["pbt"] > 0
         else None
     )
+    # A figure more than 10% away from Screener's for the same quarter is not headlined: one of the two is wrong
+    # (COFORGE Q2 FY27 first showed six-month revenue as the quarter's, 89.6% above Screener).
+    suspect = [r["label"] for r in rows if r["check"] and abs(r["check"]["diff_pct"]) > 10]
     return {
         "ticker": ticker,
         "period_end": cur["period_end"],
         "quarter": quarter_label(cur["period_end"]),
+        "derived": cur["derived"] if "derived" in cur.keys() else None,
+        "suspect": suspect,
+        "tax_note": _tax_note(cur, yago),
         "consolidated": bool(cur["consolidated"]),
         "is_bank": is_bank,
         "unit": "Rs crore",
@@ -146,6 +153,28 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
     }
 
 
+def _tax_note(cur, yago) -> str | None:
+    """When tax, not the business, explains most of the PAT change. MAXHEALTH Q2 FY27: PAT -15.6% YoY while PBT
+    rose 21.3%, because a year ago tax was a credit (PAT 110% of PBT). SUZLON: PAT -69.2%, PBT -7.9%."""
+    if (
+        yago is None
+        or None in (cur["pbt"], cur["pat"], yago["pbt"], yago["pat"])
+        or cur["pbt"] <= 0
+        or yago["pbt"] <= 0
+    ):
+        return None
+    pat_yoy, pbt_yoy = pct(cur["pat"], yago["pat"]), pct(cur["pbt"], yago["pbt"])
+    tax_now, tax_then = round(100 * (1 - cur["pat"] / cur["pbt"])), round(100 * (1 - yago["pat"] / yago["pbt"]))
+    if pat_yoy is None or pbt_yoy is None or abs(pat_yoy - pbt_yoy) <= 15 or abs(tax_now - tax_then) <= 10:
+        return None
+    then = (
+        f"a year ago tax was a credit (PAT was {round(100 * yago['pat'] / yago['pbt'])}% of PBT)"
+        if tax_then < 0
+        else f"tax took {tax_then}% of PBT a year ago"
+    )
+    return f"PAT {pat_yoy:+.1f}% YoY, but PBT {pbt_yoy:+.1f}%: {then}, {tax_now}% now. PBT shows the trend better."
+
+
 def quarter_label(period_end: str) -> str:
     """2026-09-30 -> Q2 FY27 (Indian financial year starts in April)."""
     d = date.fromisoformat(period_end)
@@ -156,9 +185,12 @@ def quarter_label(period_end: str) -> str:
 
 def results_headline(card: dict) -> str:
     """One line like 'Revenue +6.2% YoY, PAT -3.1% YoY'. Plain arithmetic, no adjectives."""
+    if card.get("suspect"):
+        return f"{card['quarter']} results filed; {' and '.join(card['suspect'])} differ from Screener by over 10%"
+    profit = "PBT" if card.get("tax_note") else "PAT"  # when tax explains the PAT change, lead with PBT
     parts = []
     for r in card["rows"]:
-        if r["label"] in ("Revenue", "PAT") and r["yoy"] is not None:
+        if r["label"] in ("Revenue", profit) and r["yoy"] is not None:
             parts.append(f"{r['label']} {r['yoy']:+.1f}% YoY")
     if not parts:
         for r in card["rows"]:
@@ -547,6 +579,9 @@ def scale(c: sqlite3.Connection, ticker: str, amount_cr: float) -> dict:
     }
 
 
+IST = ZoneInfo("Asia/Kolkata")
+
+
 def reaction(c: sqlite3.Connection, ticker: str, at: str, lookback: int = 20) -> dict | None:
     """How the stock traded in the first session after a filing: the same day if filed before the 15:30 IST
     close, else the next trading day. Move against the previous close; volume against the prior 20 sessions."""
@@ -558,7 +593,14 @@ def reaction(c: sqlite3.Connection, ticker: str, at: str, lookback: int = 20) ->
     day = filed.date().isoformat()
     i = next((k for k, r in enumerate(rows) if (r["date"] > day if after_close else r["date"] >= day)), None)
     if i is None:
-        return {"pending": True, "session": "next session" if after_close else "same day"}
+        # No price yet for the session after the filing. Either that session is still ahead (filed Friday
+        # evening, read on Saturday: Monday), or it has closed and its price is not loaded yet.
+        session = filed.date() + timedelta(days=1) if after_close else filed.date()
+        while session.weekday() >= 5:  # weekends; exchange holidays are not modelled
+            session += timedelta(days=1)
+        now = datetime.now(IST).replace(tzinfo=None)
+        ahead = session > now.date() or (session == now.date() and now.time() < time(15, 30))
+        return {"pending": True, "state": "upcoming" if ahead else "not_loaded", "date": session.isoformat()}
     if i == 0 or not rows[i - 1]["close"]:
         return None
     window = [r["volume"] for r in rows[max(0, i - lookback) : i]]

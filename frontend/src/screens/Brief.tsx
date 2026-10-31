@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useStored } from "../api";
 import { PortfolioStrip } from "../components/Charts";
+import { HelpButton } from "../components/Help";
 import { Card, ErrorState, ExtLink, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
-import { ago, filedDate, inr, istDay, scaleLine, when } from "../format";
+import { ago, dayMonthYear, filedDate, inr, istDay, scaleLine, when } from "../format";
 import { summarize } from "../summary";
 import { navigate } from "../router";
 import type { Brief, BriefCard, Move, Person } from "../types";
@@ -61,7 +62,10 @@ export function BriefScreen() {
           <p className="text-[13px] text-muted">{today()}</p>
           {b?.freshness.filings_refreshed_at && <p className="text-[12px] text-muted">Updated {ago(b.freshness.filings_refreshed_at)}</p>}
         </div>
-        <h1 className="mt-0.5 font-display text-[34px] leading-tight font-semibold tracking-[-0.01em]">Brief</h1>
+        <div className="mt-0.5 flex items-center justify-between gap-3">
+          <h1 className="font-display text-[34px] leading-tight font-semibold tracking-[-0.01em]">Brief</h1>
+          <HelpButton />
+        </div>
       </header>
 
       <div className="mt-3">
@@ -126,6 +130,7 @@ export function BriefScreen() {
                       <li key={r.id} className="border-t border-line py-3">
                         <p className="text-[12px] text-muted">
                           <span className="font-semibold text-ink">{r.ticker}</span> · {r.category_label} · {when(r.at)}
+                          {r.copies > 1 && ` · filed ${r.copies} times`}
                         </p>
                         <p className="mt-0.5 text-[14px]">{r.summary}</p>
                         {r.pdf_url && (
@@ -325,7 +330,7 @@ const STATUS_WORD: Record<string, string> = {
   missed: "missed",
   off_track: "off track",
   revised: "revised",
-  dropped: "dropped",
+  dropped: "not mentioned again",
   delivered: "delivered",
   on_track: "on track",
   pending: "pending",
@@ -347,7 +352,11 @@ function Facts({ card }: { card: BriefCard }) {
           )}
         </p>
       )}
-      {r?.pending && <p className="text-muted">Stock reaction: the {r.session === "same day" ? "session" : "next session"} has not closed yet.</p>}
+      {r?.pending && (
+        <p className="text-muted">
+          {r.state === "upcoming" ? `Stock reaction: first session after the filing is ${dayMonthYear(r.date)}.` : `Stock reaction: price for ${dayMonthYear(r.date)} not loaded yet.`}
+        </p>
+      )}
       {led && (
         <button type="button" onClick={() => navigate(`/research/${card.ticker}#ledger`)} className="flex min-h-9 items-center gap-1 text-left text-accent-ink">
           Promise ledger:{" "}

@@ -365,6 +365,27 @@ Tests: backend 36, frontend 27, all passing.
 - Cash quality: cash from operations as columns with operating profit as a tick on each, one axis.
 - Colour check (dataviz validator): the text pair for gains and losses failed as chart fills (CVD delta E 2.9 on slate). Chart pair now #2ea58f / #d9714a on slate, #00876c / #c8472a on paper: CVD delta E 10.5 or more, contrast 3:1 or more on card and hero surfaces.
 
+## E32. Acting on the review: each finding checked before it was fixed
+
+| Finding | What the data showed | Fix | Live after deploy |
+| --- | --- | --- | --- |
+| COFORGE revenue +111.6% QoQ | The Q2 FY27 filing gives six-month figures in both columns (start 01-04-2026, end 30-09-2026). Stored 11,698.5 = Q1 5,527.7 + Screener's Sep 6,171 | Parser records the months covered; a 6, 9 or 12-month filing becomes a quarter by subtracting stored quarters, labelled on the card (`refresh.to_quarter`). Any line over 10% from Screener is not headlined. Re-read of all 116 stored filings: only COFORGE changed | Revenue 6,170.8 (+11.6% QoQ), PAT 604.9 vs Screener 6,171 / 605 |
+| MAXHEALTH PAT -15.6% vs release "+10%" | Card matches filing and Screener (491 to 414). PBT rose 21.3%; a year ago PAT was 110% of PBT (tax credit). The release quotes gross revenue 3,219 and an adjusted PAT | Tax note on the card; headline and hero use PBT when tax explains the PAT change (`analytics._tax_note`) | "PAT -15.6% YoY, but PBT +21.3%: a year ago tax was a credit..." |
+| SUZLON "profit fell 69.2%" | Same: PAT 1,279 on PBT 562 a year ago | Same rule | Headline "PBT -7.9% YoY" |
+| Promise judged on the wrong metric | `_numeric_check` compared any revenue-growth promise with company revenue | Scope guard: a metric naming a part of the business is not checked against company totals (`pull._company_level`, 8 cases tested). 11 stored ledgers rechecked, no model calls | HDFCBANK MSME loan growth: "unclear" from the calls; TITAN jewellery targets: pending |
+| Legal adjournment in Needs you | The rule matched "SEBI" in the boilerplate "SEBI (Listing Obligations ...)" that every Regulation 30 notice carries | Boilerplate excluded; an adjournment read from the PDF is Worth knowing | MAXHEALTH's two adjournments moved; classifier eval still passes |
+| Needs you by time; tiny fine with Alert tag; triplicate | Order was priority, category, newest. RELIANCE penalty 0.0% of revenue and market cap. BAJAJ-AUTO: three NSE filings with identical text at 17:28:47 | Within a category, biggest profit change, most senior person, or largest deal first; no Alert under 0.1% of revenue and market cap; identical routine filings shown once with a count. Hero names a CEO or chair leaving | Results led by DIXON, RELIANCE...; "filed 3 times" |
+| "Session has not closed yet" on Saturday | One wording for two cases | Says the date of the first session after the filing (weekends skipped), or that the price is not loaded | DIXON, RELIANCE: "first session after the filing is 2 Nov" |
+| "3 not priced yet" | BAJAJ-AUTO, GRAVITA, POLYCAB missing 30 Oct; the server's first run was Saturday | Rerun filled all 18; Saturday catch-up added to the price timer | 0 missing |
+| Search by name fails | Search only knew FINN's 22 companies; NSE's autocomplete endpoint now returns 404 | `/api/search` over NSE's published equity list (2,620 rows, cached a week) | "bharat electronics" finds BEL; "zomato" finds ETERNAL |
+| "Status: on_track" in bull and bear; "call call"; "Dropped" | Raw status in the facts; the model's source string; a label stronger than the rule behind it | Plain words in facts; citations use the matched document's period; "Not mentioned again". Ask now says "No quote could be verified" instead of "Not covered" when that is the reason | Bull and bear rebuilt for 13 companies |
+
+Guidance shows each target once, from the latest call, naming earlier calls. A "?" on Brief, Research, Alerts and Settings opens one page on how to read FINN; its tier descriptions were checked against `classify.priority`.
+
+Not reproduced: "Reload wipes Done marks". Reload clears only saved `/api/` responses; `api.test.ts` covers it.
+
+Tests: backend 47, frontend 30.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

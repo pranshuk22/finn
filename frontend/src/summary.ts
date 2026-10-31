@@ -14,10 +14,12 @@ export function list(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
-function patYoy(c: BriefCard): number | null {
-  if (!c.results?.has_year_ago) return null;
-  const pat = c.results.rows.find((r) => r.label === "PAT");
-  return pat?.yoy ?? null;
+/** The profit line worth quoting: PBT when tax explains the PAT change, none when the figures look wrong. */
+function profitYoy(c: BriefCard): { label: string; y: number } | null {
+  if (!c.results?.has_year_ago || c.results.suspect?.length) return null;
+  const label = c.results.tax_note ? "PBT" : "PAT";
+  const y = c.results.rows.find((r) => r.label === label)?.yoy;
+  return y == null ? null : { label, y };
 }
 
 export function summarize(b: Brief, done: Set<string>): string {
@@ -33,20 +35,38 @@ export function summarize(b: Brief, done: Set<string>): string {
   if (results.length) {
     const quarter = results[0].results!.quarter;
     let s = `${list(results.map((c) => c.ticker))} reported ${quarter}`;
-    const moves = results.map((c) => ({ c, y: patYoy(c) })).filter((x): x is { c: BriefCard; y: number } => x.y != null);
+    const moves = results.flatMap((c) => {
+      const p = profitYoy(c);
+      return p ? [{ c, ...p }] : [];
+    });
     if (moves.length) {
       const big = moves.reduce((a, x) => (Math.abs(x.y) > Math.abs(a.y) ? x : a));
-      s += `; ${big.c.ticker}'s profit ${big.y >= 0 ? "rose" : "fell"} ${Math.abs(big.y).toFixed(1)}% from a year ago`;
+      const what = big.label === "PBT" ? "profit before tax" : "profit";
+      s += `; ${big.c.ticker}'s ${what} ${big.y >= 0 ? "rose" : "fell"} ${Math.abs(big.y).toFixed(1)}% from a year ago`;
     }
     sentences.push(`${s}.`);
   }
 
   const people = open.filter((c) => c.category === "management_change");
   if (people.length) {
-    sentences.push(`${count(people.length, "leadership change", "leadership changes")}, at ${list([...new Set(people.map((c) => c.ticker))])}.`);
+    // A CEO or chair leaving is the news; name it rather than fold it into a count.
+    const exits = people.flatMap((c) => (c.people ?? []).filter((p) => p.level === "top" && p.change === "leaving").map((p) => `${c.ticker}'s ${shortRole(p.role)}`));
+    const exitClause = exits.length ? `; ${list([...new Set(exits)])} ${exits.length === 1 ? "is" : "are"} leaving` : "";
+    sentences.push(`${count(people.length, "leadership change", "leadership changes")}, at ${list([...new Set(people.map((c) => c.ticker))])}${exitClause}.`);
   }
 
   const other = open.length - results.length - people.length;
   if (other > 0 && sentences.length > 1) sentences.push(`${count(other, "other filing", "other filings")}.`);
   return sentences.join(" ");
+}
+
+/** "Managing Director and Chief Executive Officer" reads "MD and CEO" in a sentence. */
+export function shortRole(role: string): string {
+  const r = role.toLowerCase();
+  const md = /managing director/.test(r);
+  if (/chief executive/.test(r)) return md ? "MD and CEO" : "CEO";
+  if (md) return "MD";
+  if (/chief financial/.test(r)) return "CFO";
+  if (/chair(man|person)?\b/.test(r)) return "Chair";
+  return role.split(/ and |,/)[0].trim();
 }

@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta
 import httpx
 
 from backend import classify, db
+from backend.analytics import _quarter_back
 from backend.config import ADHOC, PORTFOLIO, USER_AGENT
 from backend.sources import eod, pdf, screener
 from backend.sources.nse import NSE, parse_results_ixbrl
@@ -99,6 +100,48 @@ def refresh_filings(nse: NSE, tickers: list[str], days: int) -> None:
     log(f"filings: classified {by}")
 
 
+_FIGURES = [
+    "revenue",
+    "total_income",
+    "other_income",
+    "finance_costs",
+    "depreciation",
+    "ppop",
+    "provisions",
+    "pbt",
+    "pat",
+]
+
+
+def to_quarter(c, ticker: str, consolidated: int, p: dict) -> dict | None:
+    """The quarter's figures from a parsed filing. A filing that covers 6, 9 or 12 months in its first column
+    (COFORGE Q2 FY27 gave only six-month figures) is turned into a quarter by subtracting the stored quarters
+    before it in the same year; without all of them it returns None rather than show a six-month total as a
+    quarter. Checked on COFORGE: 11,698.5 - 5,527.7 = 6,170.8 crore revenue, Screener 6,171.
+    """
+    months = p.get("months") or 3
+    if months == 3:
+        return {**p, "derived": None}
+    end = date.fromisoformat(p["period_end"])
+    earlier = []
+    for k in range(1, months // 3):
+        r = c.execute(
+            "SELECT * FROM results WHERE ticker=? AND period_end=? AND consolidated=? AND derived IS NULL",
+            (ticker, _quarter_back(end, k), consolidated),
+        ).fetchone()
+        if r is None:
+            return None
+        earlier.append(r)
+    out = {**p, "derived": f"{months} months in the filing, less the {len(earlier)} earlier quarter(s)"}
+    for key in _FIGURES:
+        if p.get(key) is not None and all(r[key] is not None for r in earlier):
+            out[key] = round(p[key] - sum(r[key] for r in earlier), 2)
+        else:
+            out.pop(key, None)
+    out["segments"] = None  # segment tables are not derived; the card shows the latest true quarter's instead
+    return out
+
+
 def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
     """Latest `quarters` results per ticker: enough for QoQ and YoY."""
     with db.session() as c:
@@ -112,7 +155,8 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
             continue
         cons = [r for r in rows if r.get("consolidated") == "Consolidated"]
         rows = cons or [r for r in rows if r.get("consolidated") in ("Standalone", "Non-Consolidated")]
-        for r in rows[:quarters]:
+        # oldest first, so a six-month filing finds the quarter before it already stored
+        for r in sorted(rows[:quarters], key=lambda r: datetime.strptime(r["qe_Date"], "%d-%b-%Y")):
             qe = datetime.strptime(r["qe_Date"], "%d-%b-%Y").date().isoformat()
             if (t, qe) in have or not r.get("ixbrl"):
                 continue
@@ -122,14 +166,22 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
                 log(f"results: {t} {qe} parse failed: {e}")
                 continue
             time.sleep(0.3)
+            p["period_end"] = p["period_end"] or qe
             with db.session() as c:
+                q = to_quarter(c, t, int(bool(cons)), p)
+                if q is None:
+                    log(
+                        f"results: {t} {qe} has only {p['months']}-month figures and no earlier quarters to derive from"
+                    )
+                    continue
+                p = q
                 c.execute(
                     "INSERT OR REPLACE INTO results(ticker, period_end, consolidated, revenue, total_income,"
                     " other_income, finance_costs, depreciation, ppop, provisions, pbt, pat, is_bank,"
-                    " broadcast_at, source_url, segments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    " broadcast_at, source_url, segments, derived) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         t,
-                        p["period_end"] or qe,
+                        p["period_end"],
                         int(bool(cons)),
                         p.get("revenue"),
                         p.get("total_income"),
@@ -144,6 +196,7 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
                         _dt(r.get("broadcast_Date") or r.get("creation_Date")),
                         r["ixbrl"],
                         json.dumps(p["segments"]) if p.get("segments") else None,
+                        p["derived"],
                     ),
                 )
             added += 1

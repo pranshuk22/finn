@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS results (
     broadcast_at TEXT,
     source_url TEXT,
     segments TEXT,                    -- JSON from the same filing: {single, items: [{name, revenue, result}]}
+    derived TEXT,                     -- set when the filing gave only 6, 9 or 12 months and the quarter was derived
     PRIMARY KEY (ticker, period_end, consolidated)
 );
 
@@ -114,7 +115,7 @@ def session():
 
 
 # Columns added after a table was first created: CREATE TABLE IF NOT EXISTS leaves old tables as they were.
-_ADDED = [("results", "segments", "TEXT")]
+_ADDED = [("results", "segments", "TEXT"), ("results", "derived", "TEXT")]
 
 
 def init() -> None:

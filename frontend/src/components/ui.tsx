@@ -236,6 +236,14 @@ export function ResultsTable({ r }: { r: ResultsCard }) {
           {r.other_income_pct_of_pbt >= 25 && ": a large part of profit does not come from operations"}.
         </p>
       )}
+      {r.tax_note && <p className="mt-2 text-[12px] text-needs">{r.tax_note}</p>}
+      {r.suspect?.length > 0 && (
+        <p className="mt-2 text-[12px] text-needs">
+          Check the filing: {r.suspect.join(" and ")} {r.suspect.length > 1 ? "differ" : "differs"} from Screener by more than 10%, so
+          FINN does not headline {r.suspect.length > 1 ? "them" : "it"}.
+        </p>
+      )}
+      {r.derived && <p className="mt-2 text-[12px] text-muted">Quarter worked out from the filing: {r.derived}.</p>}
       {r.rows.some((x) => x.check) && (
         <p className="mt-2 text-[12px] text-muted">
           {r.rows

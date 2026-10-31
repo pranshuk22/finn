@@ -4,6 +4,8 @@ NSE's API needs the cookies set by its homepage, even though the homepage itself
 answers 403 to scripts (EVIDENCE E1).
 """
 
+import csv
+import io
 import re
 import time
 from datetime import date, datetime
@@ -66,6 +68,13 @@ class NSE:
         )
         time.sleep(PAUSE_S)
         return data.get("data", []) if isinstance(data, dict) else []
+
+    def equity_list(self) -> list[dict]:
+        """Every equity listed on NSE with its company name, from NSE's own published list (about 2,600 rows)."""
+        r = self.client.get("https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv")
+        r.raise_for_status()
+        rows = list(csv.DictReader(io.StringIO(r.text)))
+        return [{"ticker": x["SYMBOL"].strip(), "name": x["NAME OF COMPANY"].strip()} for x in rows if x.get("SYMBOL")]
 
     def fetch_text(self, url: str) -> str:
         r = self.client.get(url)
@@ -178,7 +187,7 @@ def parse_results_ixbrl(html: str) -> dict:
         raise ValueError("P&L table not found")
 
     out: dict = {"unit_in_filing": unit, "is_bank": "interest earned" in _norm(pl.get_text(" "))}
-    period_end = None
+    period_end = period_start = None
     for tr in pl.find_all("tr"):
         cells = [_norm(c.get_text(" ", strip=True)) for c in tr.find_all(["td", "th"])]
         # rows look like [index, label, current quarter, year to date]
@@ -192,6 +201,9 @@ def parse_results_ixbrl(html: str) -> dict:
         if label.startswith("date of end of reporting period"):
             period_end = _date(values[0])
             continue
+        if label.startswith("date of start of reporting period"):
+            period_start = _date(values[0])
+            continue
         for key, names in _ROWS.items():
             if key in out:
                 continue
@@ -200,8 +212,18 @@ def parse_results_ixbrl(html: str) -> dict:
                 if v is not None:
                     out[key] = round(v * factor, 2)
     out["period_end"] = period_end
+    # Months covered by the first column. Normally 3, but some filings (COFORGE Q2 FY27) carry only six-month
+    # figures in both columns; the caller then derives the quarter from earlier quarters.
+    out["months"] = _months(period_start, period_end)
     out["segments"] = _segments(soup, tables, factor)
     return out
+
+
+def _months(start: str | None, end: str | None) -> int | None:
+    if not start or not end:
+        return None
+    a, b = date.fromisoformat(start), date.fromisoformat(end)
+    return (b.year - a.year) * 12 + b.month - a.month + 1
 
 
 def _segments(soup, tables, factor: float) -> dict | None:

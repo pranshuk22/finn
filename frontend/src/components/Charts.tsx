@@ -157,7 +157,7 @@ export function PriceChart({ price }: { price: PriceStory }) {
 const OUTCOME: { key: string; label: string; statuses: string[]; color: string }[] = [
   { key: "kept", label: "Kept or on track", statuses: ["delivered", "on_track"], color: "var(--viz-up)" },
   { key: "missed", label: "Missed or off track", statuses: ["missed", "off_track"], color: "var(--viz-down)" },
-  { key: "changed", label: "Revised or dropped", statuses: ["revised", "dropped"], color: "var(--needs-you)" },
+  { key: "changed", label: "Revised or not mentioned again", statuses: ["revised", "dropped"], color: "var(--needs-you)" },
   { key: "unclear", label: "Unclear", statuses: ["unclear"], color: "var(--text-faint)" },
 ];
 

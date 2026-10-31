@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useQuery, useStored } from "../api";
+import { HelpButton } from "../components/Help";
 import { Header, SectionTitle, Segmented } from "../components/ui";
 import { when } from "../format";
 import { ACCENTS, resolved, updateSettings, useSettings, type Accent, type TextSize, type Theme, type Typeface } from "../settings";
@@ -148,6 +149,9 @@ export function SettingsScreen() {
 
       <SectionTitle>About</SectionTitle>
       <Group>
+        <Row label="How FINN works">
+          <HelpButton />
+        </Row>
         <Row label="FINN">
           <Value>ENAM challenge build, 2026</Value>
         </Row>

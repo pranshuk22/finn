@@ -1,5 +1,7 @@
 """Code that turns model output and numbers into verdicts. These rules are where a wrong word misleads an investor."""
 
+import pytest
+
 from backend import pull
 
 
@@ -76,3 +78,22 @@ def test_promise_timeframe_is_not_said_twice():
     assert _when({"target": "2x EBITDA", "timeframe": "FY29"}) == ", by FY29"
     assert _when({"target": "40 GWh", "timeframe": "within three years"}) == ", within three years"
     assert _when({"target": "40 GWh", "timeframe": None}) == ""
+
+
+@pytest.mark.parametrize(
+    "metric, company",
+    [
+        ("Revenue growth", True),
+        ("Operating EBITDA margin", True),
+        ("Exit operating margin", True),
+        ("Full year value growth", True),
+        ("Business Banking MSME loan growth", False),  # HDFCBANK: was judged against total revenue
+        ("Jewellery revenue growth CAGR", False),  # TITAN: one division, not the company
+        ("CaratLane EBIT margin", False),
+        ("AUM growth", False),
+    ],
+)
+def test_only_company_wide_targets_are_checked_against_company_numbers(metric, company):
+    from backend.pull import _company_level
+
+    assert _company_level(metric) is company

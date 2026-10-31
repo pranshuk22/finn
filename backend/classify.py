@@ -148,7 +148,9 @@ def priority(category: str, text: str, label: str = "") -> str:
     if category == "litigation":
         if _has(
             t,
-            r"insolvency|nclt|nclat|\bsebi\b|enforcement directorate|\bcbi\b|fraud|"
+            # "SEBI" alone matched the boilerplate "SEBI (Listing Obligations ...)" in every Regulation 30 notice
+            r"insolvency|nclt|nclat|\bsebi\b(?!\s*\((listing|lodr|prohibition|substantial))|enforcement directorate|"
+            r"\bcbi\b|fraud|"
             r"search|suspension|winding up",
         ):
             return "needs_you"

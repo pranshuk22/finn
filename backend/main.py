@@ -3,7 +3,7 @@
 import json
 import os
 import threading
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from backend import analytics as A
 from backend import db, enrich, llm, pull
 from backend.config import ADHOC, ALIASES, PORTFOLIO, ROOT, resolve_ticker
+from backend.sources.nse import NSE
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -179,6 +180,29 @@ def _people_headline(people: list[dict]) -> str | None:
     return enrich.people_line(own or people)
 
 
+_LEVEL_WEIGHT = {"top": 3, "board": 2, "staff": 1}
+
+
+def _weight(card: dict) -> float:
+    """How much a card matters next to others of its kind. Results: the size of the year-on-year profit change
+    (PBT when tax distorts PAT). People: the most senior person. Deals and legal: size against market cap."""
+    rc = card["results"]
+    if rc and not rc["suspect"]:
+        line = next((r for r in rc["rows"] if r["label"] == ("PBT" if rc["tax_note"] else "PAT")), None)
+        return abs(line["yoy"]) if line and line["yoy"] is not None else 0
+    if card["people"]:
+        return max(_LEVEL_WEIGHT.get(p["level"], 0) + (0.5 if p["change"] == "leaving" else 0) for p in card["people"])
+    if card["scale"] and card["scale"].get("pct_of_market_cap") is not None:
+        return card["scale"]["pct_of_market_cap"]
+    return 0
+
+
+def _immaterial(scale: dict) -> bool:
+    """Under 0.1% of both revenue and market cap: worth knowing at most, never an alert."""
+    rev, cap = scale.get("pct_of_revenue"), scale.get("pct_of_market_cap")
+    return all(x is not None and x < 0.1 for x in (rev, cap)) or (rev is None and cap is not None and cap < 0.1)
+
+
 @app.get("/api/brief")
 def brief(hours: int = Query(24, ge=1, le=24 * 90)):
     since = _now() - timedelta(hours=hours)
@@ -249,6 +273,8 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             # Only where a size means something; an appointment filing once yielded "Rs 1,143 crore" from a profile.
             if amount and cat in AMOUNT_CATEGORIES:
                 card["scale"] = A.scale(c, ticker, amount)
+                if _immaterial(card["scale"]):
+                    card["alert"] = False  # RELIANCE's Rs 18.7 lakh customs penalty carried an Alert tag
             if ticker in PORTFOLIO:  # prices are kept for the portfolio only
                 at = card["results"]["broadcast_at"] if card["results"] else best["an_dt"]
                 card["reaction"] = A.reaction(c, ticker, at)
@@ -256,9 +282,9 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             if led and led.get("status") == "ok":
                 card["ledger"] = {"counts": led["counts"], "promises": len(led["items"])}
             cards.append(card)
-        # newest first within the same priority and category (two stable sorts)
+        # Within a priority and category, the card that matters most first; ties newest first (stable sorts).
         cards.sort(key=lambda k: k["latest_at"], reverse=True)
-        cards.sort(key=lambda k: (PRIORITY_ORDER[k["priority"]], CATEGORY_ORDER.get(k["category"], 99)))
+        cards.sort(key=lambda k: (PRIORITY_ORDER[k["priority"]], CATEGORY_ORDER.get(k["category"], 99), -_weight(k)))
 
         trading_days = max(1, round(hours / 24))
         moves = A.eod_scan(c, list(PORTFOLIO), rules.price_pct, rules.vol_mult, days=trading_days)
@@ -266,6 +292,12 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             m["name"] = _name(m["ticker"])
             m["spark"] = A.sparkline(c, m["ticker"], 30)
             m["filed"] = _filed_before(c, m["ticker"], m["date"])
+
+        # NSE sometimes publishes the same filing several times in the same second (BAJAJ-AUTO's investor meet
+        # on 29 Oct came three times, one per attachment). Show it once, with how many copies there were.
+        copies: dict[tuple, list] = {}
+        for r in routine:
+            copies.setdefault((r["ticker"], r["an_dt"], r["text"]), []).append(r)
 
         routine_by_cat: dict[str, int] = {}
         for r in routine:
@@ -290,8 +322,10 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                         "summary": r["summary"],
                         "category_label": CATEGORY_LABEL.get(r["category"], r["category"]),
                         "pdf_url": r["pdf_url"],
+                        "copies": len(same),
                     }
-                    for r in routine
+                    for same in copies.values()
+                    for r in same[:1]
                 ],
             },
             "total_filings": len(rows),
@@ -338,6 +372,45 @@ def companies():
         "adhoc": [{"ticker": t, "name": known.get(t, t)} for t in ADHOC],
         "aliases": ALIASES,
     }
+
+
+def _equities() -> list[dict]:
+    """NSE's list of listed equities, cached for a week in the meta table."""
+    with db.session() as c:
+        cached = db.get_meta(c, "nse_equity_list")
+    if cached and cached["at"] > (datetime.now(UTC) - timedelta(days=7)).isoformat():
+        return cached["rows"]
+    try:
+        rows = NSE().equity_list()
+    except Exception:  # noqa: BLE001  an old list beats no search
+        return cached["rows"] if cached else []
+    with db.session() as c:
+        db.set_meta(c, "nse_equity_list", {"at": db.now_iso(), "rows": rows})
+    return rows
+
+
+@app.get("/api/search")
+def search(q: str):
+    """Symbol or company name to NSE symbols. Exact symbol first, then symbol prefix, then a name word that
+    starts with the query, then a name that contains it. "bharat electronics" finds BEL."""
+    term = q.strip().upper()
+    if len(term) < 2:
+        return {"matches": []}
+    ranked = []
+    for e in _equities():
+        sym, name = e["ticker"], e["name"].upper()
+        if sym == term or resolve_ticker(term) == sym:
+            rank = 0
+        elif sym.startswith(term):
+            rank = 1
+        elif name.startswith(term) or f" {term}" in f" {name}":
+            rank = 2
+        elif term in name:
+            rank = 3
+        else:
+            continue
+        ranked.append((rank, len(name), e))
+    return {"matches": [e for _, _, e in sorted(ranked, key=lambda x: x[:2])[:8]]}
 
 
 @app.get("/api/research/{raw}")

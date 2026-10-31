@@ -190,6 +190,8 @@ def run(days: int = 35, limit: int | None = None) -> None:
         prio = f["priority"]
         if f["category"] == "management_change" and r["people"]:
             prio = management_priority(r["people"])
+        elif f["category"] == "litigation" and prio == "needs_you" and _ADJOURNED.search(summary):
+            prio = "worth_knowing"  # a hearing moved to another date decides nothing (MAXHEALTH, 29 and 30 Oct)
         with db.session() as c:
             c.execute(
                 "UPDATE filings SET summary=?, priority=?, enrichment=? WHERE id=?",
@@ -197,6 +199,8 @@ def run(days: int = 35, limit: int | None = None) -> None:
             )
     print(f"enrich: done, {len(reads)} read")
 
+
+_ADJOURNED = re.compile(r"\badjourn", re.I)
 
 _SENIOR = re.compile(
     r"\b(ceo|cfo|coo|md)\b|chief (executive|financial|operating) officer|managing director|"

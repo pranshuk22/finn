@@ -124,11 +124,13 @@ def test_reaction_uses_the_first_session_after_the_filing(client):
         c.executemany("INSERT INTO eod(ticker, date, close, volume) VALUES('ZZZ',?,?,?)", days)
         before_close = A.reaction(c, "ZZZ", "2026-10-27T11:00:00")
         after_close = A.reaction(c, "ZZZ", "2026-10-27T17:30:00")
-        not_yet = A.reaction(c, "ZZZ", "2026-10-28T18:00:00")
+        missing = A.reaction(c, "ZZZ", "2026-10-28T18:00:00")  # Thursday 29 Oct has closed; no price stored
+        weekend = A.reaction(c, "ZZZ", "2030-01-04T18:00:00")  # a Friday evening: the next session is Monday
     assert before_close["session"] == "same day" and before_close["move_pct"] == 2.0
     assert after_close["session"] == "next session" and after_close["move_pct"] == -5.0
     assert after_close["vol_mult"] == 3.0
-    assert not_yet == {"pending": True, "session": "next session"}
+    assert missing == {"pending": True, "state": "not_loaded", "date": "2026-10-29"}
+    assert weekend == {"pending": True, "state": "upcoming", "date": "2030-01-07"}
 
 
 def test_people_levels():

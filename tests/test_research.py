@@ -71,3 +71,31 @@ def test_balance_sheet_coverage_skips_a_half_year_column(c):
     assert mar["mix"] == {"debt": 10.0, "equity": 40.0, "other": 50.0}
     assert sep["interest_coverage"] is None  # no full-year P&L for a half year
     assert b["interest_coverage"] == {"period": "Mar 2026", "value": 10.0}
+
+
+def test_six_month_filing_becomes_a_quarter(c):
+    # COFORGE Q2 FY27 filed six-month figures in both columns; Screener's Sep 2026 quarter: revenue 6,171, PAT 605
+    from backend.jobs.refresh import to_quarter
+
+    c.execute(
+        "INSERT INTO results(ticker, period_end, consolidated, revenue, pbt, pat) VALUES(?,?,1,?,?,?)",
+        ("COFORGE", "2026-06-30", 5527.7, 702.1, 531.7),
+    )
+    q = to_quarter(
+        c, "COFORGE", 1, {"period_end": "2026-09-30", "months": 6, "revenue": 11698.5, "pbt": 1501.0, "pat": 1136.6}
+    )
+    assert (q["revenue"], q["pbt"], q["pat"]) == (6170.8, 798.9, 604.9)
+    assert q["derived"].startswith("6 months")
+    # without the earlier quarter the six-month figure is not passed off as a quarter
+    assert to_quarter(c, "OTHER", 1, {"period_end": "2026-09-30", "months": 6, "revenue": 1.0}) is None
+    assert to_quarter(c, "X", 1, {"period_end": "2026-09-30", "months": 3, "revenue": 1.0})["derived"] is None
+
+
+def test_tax_note_when_tax_explains_the_profit_change():
+    from backend.analytics import _tax_note
+
+    # SUZLON Q2 FY27 against Q2 FY26: PAT was 227% of PBT a year ago (a tax credit)
+    note = _tax_note({"pbt": 518.21, "pat": 394.15}, {"pbt": 562.5, "pat": 1279.44})
+    assert note.startswith("PAT -69.2% YoY, but PBT -7.9%: a year ago tax was a credit (PAT was 227% of PBT), 24% now")
+    # TCS: tax steady, PAT and PBT move together
+    assert _tax_note({"pbt": 18638, "pat": 13934}, {"pbt": 16200, "pat": 12130}) is None

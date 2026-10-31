@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
 import { CashVsProfit, PriceChart, TrackRecord } from "../components/Charts";
+import { HelpButton } from "../components/Help";
 import { GuidanceView, LedgerBuilder, LedgerView } from "../components/Ledger";
 import { Card, ErrorState, ExtLink, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, StaleNote, Tabs, Icon } from "../components/ui";
 import { crore, dayMonthYear, inr, plain, when } from "../format";
@@ -222,6 +223,7 @@ function TopBar({ ticker }: { ticker: string }) {
         Back
       </button>
       <span className="sr-only">{ticker}</span>
+      <HelpButton className="mr-2" />
     </div>
   );
 }
@@ -528,7 +530,9 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
             {answer.err && <p className="text-[14px] text-down">{answer.err}</p>}
             {answer.a && (
               <>
-                {!answer.a.covered && <p className="text-[13px] font-semibold text-needs">Not covered by the calls</p>}
+                {!answer.a.covered && (
+                  <p className="text-[13px] font-semibold text-needs">{answer.a.unverified ? "No quote could be verified" : "Not covered by the calls"}</p>
+                )}
                 <p className="text-[15px]">{plain(answer.a.answer)}</p>
                 {answer.a.citations.map((c) => (
                   <figure key={`${c.source}-${c.page}-${c.quote.slice(0, 20)}`} className="m-0 border-l-2 border-accent pl-4">
@@ -541,7 +545,8 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
                 {!!answer.a.unverified_dropped && (
                   <p className="text-[12px] text-muted">
                     {answer.a.unverified_dropped} quote{answer.a.unverified_dropped > 1 ? "s" : ""} could not be found in the PDF and{" "}
-                    {answer.a.unverified_dropped > 1 ? "were" : "was"} removed.
+                    {answer.a.unverified_dropped > 1 ? "were" : "was"} removed
+                    {answer.a.covered && answer.a.citations.length > 0 && ". Read only what the quotes above support"}.
                   </p>
                 )}
               </>

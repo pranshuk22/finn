@@ -11,7 +11,7 @@ export const STATUS: Record<string, { label: string; color: string }> = {
   missed: { label: "Missed", color: "var(--down)" },
   off_track: { label: "Off track", color: "var(--down)" },
   revised: { label: "Revised", color: "var(--needs-you)" },
-  dropped: { label: "Dropped", color: "var(--needs-you)" },
+  dropped: { label: "Not mentioned again", color: "var(--needs-you)" }, // no later call brings it up
   pending: { label: "Pending", color: "var(--text-muted)" },
   unclear: { label: "Unclear", color: "var(--text-muted)" },
 };
@@ -119,7 +119,22 @@ const HEADLINE: [string, string][] = [
 export function GuidanceView({ ledger }: { ledger: Ledger }) {
   const [open, setOpen] = useState<LedgerItem | null>(null);
   if (ledger.status !== "ok") return null;
-  const live = ledger.items.filter((i) => i.status === "pending" || i.status === "on_track");
+  // The same target guided on several calls (DIXON's "IT hardware revenue" three times) shows once: the latest
+  // call's words, with the earlier calls named.
+  const said = (i: LedgerItem) => Date.parse(`1 ${i.source}`) || 0;
+  const earlier = new Map<string, string[]>();
+  const live = ledger.items
+    .filter((i) => i.status === "pending" || i.status === "on_track")
+    .sort((a, b) => said(b) - said(a))
+    .filter((i) => {
+      const key = i.metric.toLowerCase();
+      if (!earlier.has(key)) {
+        earlier.set(key, []);
+        return true;
+      }
+      earlier.get(key)!.push(i.source);
+      return false;
+    });
   if (live.length === 0) {
     return <p className="mx-4 text-[14px] text-muted">No open numeric guidance in the last {ledger.transcripts.length} calls.</p>;
   }
@@ -142,6 +157,7 @@ export function GuidanceView({ ledger }: { ledger: Ledger }) {
                       <p className="mt-1 text-[12px] text-muted">
                         {it.speaker ? `${it.speaker}, ` : ""}
                         {it.source} call · {it.due ? `by ${monthYear(it.due)}` : it.timeframe || "no date given"}
+                        {(earlier.get(it.metric.toLowerCase())?.length ?? 0) > 0 && ` · earlier calls: ${earlier.get(it.metric.toLowerCase())!.join(", ")}`}
                       </p>
                     </div>
                     {it.status === "on_track" && <StatusChip status="on_track" />}

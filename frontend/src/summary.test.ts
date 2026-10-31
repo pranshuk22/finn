@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { count, list, summarize } from "./summary";
+import { count, list, shortRole, summarize } from "./summary";
 import type { Brief, BriefCard, ResultsCard } from "./types";
 
-function results(ticker: string, patYoy: number | null): ResultsCard {
+function results(ticker: string, patYoy: number | null, extra: Partial<ResultsCard> = {}): ResultsCard {
   return {
     ticker,
     period_end: "2026-09-30",
@@ -14,10 +14,14 @@ function results(ticker: string, patYoy: number | null): ResultsCard {
     ebitda_margin: null,
     margins: [],
     other_income_pct_of_pbt: null,
+    derived: null,
+    suspect: [],
+    tax_note: null,
     source_url: null,
     broadcast_at: null,
     has_prev: true,
     has_year_ago: patYoy !== null,
+    ...extra,
   };
 }
 
@@ -90,6 +94,30 @@ describe("summarize", () => {
     const b = brief([card("a", "TCS", "litigation")], [card("w", "INFY", "capex")]);
     expect(summarize(b, new Set(["a"]))).toBe("Nothing urgent. One item is worth a look.");
     expect(summarize(b, new Set(["a", "w"]))).toBe("Nothing needs you. You're caught up.");
+  });
+
+  it("quotes PBT when tax explains the PAT change, and skips figures that disagree with Screener", () => {
+    // SUZLON Q2 FY27: PAT -69.2% YoY because a year ago tax was a credit; PBT -7.9%
+    const suzlon = results("SUZLON", -69.2, { tax_note: "PAT -69.2% YoY, but PBT -7.9%" });
+    suzlon.rows.push({ label: "PBT", value: 518, prev: 389, year_ago: 562, qoq: 33.1, yoy: -7.9, derived: false, check: null });
+    const coforge = results("COFORGE", 193.5, { suspect: ["Revenue"] });
+    expect(summarize(brief([card("a", "SUZLON", "results", suzlon), card("b", "COFORGE", "results", coforge)]), new Set())).toBe(
+      "Two filings need you. SUZLON and COFORGE reported Q2 FY27; SUZLON's profit before tax fell 7.9% from a year ago.",
+    );
+  });
+
+  it("names a CEO or chair who is leaving instead of folding it into a count", () => {
+    const hdfc = card("a", "HDFCBANK", "management_change");
+    hdfc.people = [
+      { name: "Sashidhar Jagdishan", role: "Managing Director and Chief Executive Officer", change: "leaving", senior: true, level: "top" },
+      { name: "Anup Bagchi", role: "Managing Director and Chief Executive Officer", change: "joining", senior: true, level: "top" },
+    ];
+    const dixon = card("b", "DIXON", "management_change");
+    dixon.people = [{ name: "Prithvi Vachani", role: "Executive Director", change: "joining", senior: true, level: "top" }];
+    expect(summarize(brief([hdfc, dixon]), new Set())).toBe(
+      "Two filings need you. Two leadership changes, at HDFCBANK and DIXON; HDFCBANK's MD and CEO is leaving.",
+    );
+    expect(shortRole("Chairman and Director")).toBe("Chair");
   });
 
   it("counts filings outside results and people", () => {

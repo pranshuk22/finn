@@ -309,9 +309,28 @@ def _shortfall(actual: float, low: float) -> str:
     return f", {round(low - actual, 1)} points below the {low:g}% low end" if actual < low else ""
 
 
+# Words that describe a company-wide revenue, profit or margin figure. Anything else left in a promise's metric
+# names a part of the business: "Business Banking MSME loan growth" (HDFCBANK) or "jewellery revenue CAGR"
+# (TITAN) were judged against company revenue before 31 Oct, which an independent review caught.
+_GENERIC = re.compile(
+    r"\b(total|overall|company|consolidated|group|revenue|revenues|sales|top[- ]?line|income|growth|grow|rate|"
+    r"cagr|yoy|annual|annualised|margin|margins|operating|ebitda|ebit|pbdit|pat|net|profit|profits|the|of|in|"
+    r"for|and|level|guidance|target|percent|double[- ]digit|single[- ]digit|exit|range|long|term|full|year|"
+    r"value)\b",
+    re.I,
+)
+
+
+def _company_level(metric: str) -> bool:
+    return not re.sub(r"[^a-z]", "", _GENERIC.sub("", metric.lower()))
+
+
 def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | None:
-    """Python verdict for promises we can measure against reported numbers. None if not measurable."""
+    """Python verdict for promises we can measure against reported numbers. None if not measurable, including
+    a target for one segment or product: FINN checks only against company totals."""
     if p["metric_key"] not in ("operating_margin", "revenue_growth", "pat_growth") or p["unit"] != "percent":
+        return None
+    if not _company_level(p["metric"]):
         return None
     low = p["target_low"]
     if low is None:
@@ -388,7 +407,7 @@ def recheck_ledgers() -> int:
             latest_q = _latest_quarter_end(c, t)
             items = []
             for it in led["items"]:
-                it = {**it, "check": _numeric_check(c, t, it, latest_q)}
+                it = {"repeated_in": [], **it, "check": _numeric_check(c, t, it, latest_q)}
                 items.append({**it, **_verdict(it)})
             if items != led["items"]:
                 counts: dict[str, int] = {}
@@ -592,9 +611,18 @@ def _facts(c, ticker: str, ledger: dict | None) -> dict[str, str]:
     if ledger:
         for it in ledger.get("items", []):
             facts[it["id"]] = (
-                f"Promise ({it['source']} call): {it['metric']}, {it['target']}{_when(it)}. Status: {it['status']}"
+                f"Promise ({it['source']} call): {it['metric']}, {it['target']}{_when(it)}. "
+                f"Status: {_STATUS_WORDS.get(it['status'], it['status'])}"
             )
     return facts
+
+
+# The model copies fact text as written; "Status: on_track" once reached a bull case verbatim.
+_STATUS_WORDS = {
+    "on_track": "on track",
+    "off_track": "off track",
+    "dropped": "not mentioned in later calls",
+}
 
 
 def _when(it: dict) -> str:
@@ -681,13 +709,20 @@ def ask(ticker: str, question: str) -> dict:
         if pg is None:
             dropped += 1
             continue
-        cites.append({"source": ct.source, "page": pg, "quote": ct.quote, "url": d["url"]})
+        cites.append({"source": d["period"], "page": pg, "quote": ct.quote, "url": d["url"]})  # not "Apr 2026 call"
     answer = res.answer
     covered = res.covered
-    if covered and not cites:
+    unverified = covered and not cites  # the calls may cover it, but no quote could be found word for word
+    if unverified:
         covered = False
         answer = "I could not back an answer with an exact quote from the transcripts, so I am not giving one."
-    return {"covered": covered, "answer": answer, "citations": cites, "unverified_dropped": dropped}
+    return {
+        "covered": covered,
+        "unverified": unverified,
+        "answer": answer,
+        "citations": cites,
+        "unverified_dropped": dropped,
+    }
 
 
 # ---------- section cache and background jobs ----------

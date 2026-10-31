@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
+import { HelpButton } from "../components/Help";
 import { Button, Card, ErrorState, Header, Pct, SectionTitle, Skeleton, Switch } from "../components/ui";
 import { when } from "../format";
 import type { AlertRules, Scan } from "../types";
@@ -64,7 +65,7 @@ export function Alerts() {
 
   return (
     <>
-      <Header eyebrow="What counts as unusual" title="Alerts" sub="Tune it on real data: FINN replays your thresholds over the last 60 trading sessions." />
+      <Header eyebrow="What counts as unusual" title="Alerts" right={<HelpButton />} sub="Tune it on real data: FINN replays your thresholds over the last 60 trading sessions." />
       {!rules && saved.loading && <Skeleton lines={2} />}
       {!rules && saved.error && <ErrorState message={saved.error.message} onRetry={saved.reload} />}
 
