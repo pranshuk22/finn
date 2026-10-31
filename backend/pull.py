@@ -462,6 +462,7 @@ def build_ledger(ticker: str) -> dict:
 
     # Same measurable metric guided again later with a different target: that is a revision, decided in Python.
     for p in promises:
+        p["repeated_in"] = []  # every item has the field, also those skipped below (the sheet reads it)
         if p["metric_key"] == "other":
             continue
         later = [

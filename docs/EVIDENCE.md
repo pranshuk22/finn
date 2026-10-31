@@ -349,6 +349,22 @@ One bug found on the way: the move context first kept the two latest filings, so
 
 Tests: backend 36, frontend 27, all passing.
 
+## E31. Independent review, the promise sheet crash, and charts
+
+**Review.** A separate agent saw only the two challenge PDFs and the live site at 390px (no code, README or this log) and drove it in headless Chrome for about 19 minutes. Scores out of 10: saves time 7, shows what matters 6, trust 6, density 7, visual design 8, interactivity 6, thought-through 7, mobile fit 8. Its findings are the to-do list for the last day.
+
+**Crash, confirmed and fixed.** Tapping a promise or guidance item showed "This screen could not be shown". Cause: the detail sheet read `repeated_in.length`, and the ledger set `repeated_in` only for measurable metrics; 60 of 97 stored promises had no such field. Fixed at both ends: every promise gets the field, and the sheet tolerates its absence.
+- Before, on production, tapping every item (headless script): RELIANCE 8 of 8 crashed, HDFCBANK 5 of 6, DIXON 10 of 11.
+- After deploy: RELIANCE, HDFCBANK, DIXON and TITAN, 31 items, 0 crashed.
+- "effective Invalid Date" on management cards: 9 people had a date written in words ("12th November 2026"); such dates are now shown as written (`format.filedDate`, tested).
+
+**Charts** (`components/Charts.tsx`), following the dataviz method: one hue for magnitude, a validated pair for gains and losses with direction also shown by position, thin marks, hairline axes, tap to read.
+- Brief hero: every portfolio stock's move on the day, best to worst.
+- Research header: daily closes (about six months held) with Needs you and Worth knowing filings placed on the session they could first move the price (after 15:30 IST means the next session; tested).
+- Narrative vs numbers: track record ("2 of 8 promises that could be checked were kept", HAL) and guided range against the reported figure for numeric promises.
+- Cash quality: cash from operations as columns with operating profit as a tick on each, one axis.
+- Colour check (dataviz validator): the text pair for gains and losses failed as chart fills (CVD delta E 2.9 on slate). Chart pair now #2ea58f / #d9714a on slate, #00876c / #c8472a on paper: CVD delta E 10.5 or more, contrast 3:1 or more on card and hero surfaces.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

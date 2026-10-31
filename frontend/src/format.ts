@@ -97,6 +97,11 @@ export function dayMonthYear(iso: string): string {
   return new Date(`${iso}T00:00:00+05:30`).toLocaleDateString("en-IN", { timeZone: IST, day: "numeric", month: "short", year: "numeric" });
 }
 
+/** A date read out of a filing: ISO is formatted, anything else ("12th November 2026") is shown as written. */
+export function filedDate(text: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? dayMonthYear(text) : text;
+}
+
 /** A promise target as said; a bare number gets its unit ("100000" in Rs crore reads "Rs 1,00,000 crore"). */
 export function target(text: string, unit: string): string {
   const t = text.trim();

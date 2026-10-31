@@ -194,7 +194,7 @@ function ItemDetail({ it }: { it: LedgerItem }) {
       <section>
         <h3 className="mb-3 text-[13px] text-muted">What they said</h3>
         <Quote text={it.quote} who={it.speaker} source={it.source} page={it.page} url={it.source_url} />
-        {it.repeated_in.length > 0 && <p className="mt-2 text-xs text-muted">Repeated on the {it.repeated_in.join(", ")} calls.</p>}
+        {(it.repeated_in?.length ?? 0) > 0 && <p className="mt-2 text-xs text-muted">Repeated on the {it.repeated_in!.join(", ")} calls.</p>}
       </section>
 
       <section>

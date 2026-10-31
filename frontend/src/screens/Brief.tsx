@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useStored } from "../api";
 import { PortfolioStrip } from "../components/Charts";
 import { Card, ErrorState, ExtLink, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
-import { ago, dayMonthYear, inr, istDay, scaleLine, when } from "../format";
+import { ago, filedDate, inr, istDay, scaleLine, when } from "../format";
 import { summarize } from "../summary";
 import { navigate } from "../router";
 import type { Brief, BriefCard, Move, Person } from "../types";
@@ -402,7 +402,7 @@ function People({ people, named }: { people: Person[]; named: boolean }) {
             <p className="mt-1.5 text-[12px] text-muted">
               {p.level && LEVEL[p.level]}
               {p.entity && `, at ${p.entity}`}
-              {p.effective && `${p.level ? " · " : ""}effective ${dayMonthYear(p.effective)}`}
+              {p.effective && `${p.level ? " · " : ""}effective ${filedDate(p.effective)}`}
             </p>
           )}
           {p.bio?.confident && p.bio.lines.length > 0 ? null : p.profile_from_filing ? (

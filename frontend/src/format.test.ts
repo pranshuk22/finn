@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ago, bps, dayMonthYear, inr, plain, scaleLine, signedPct, target, tone, when } from "./format";
+import { ago, bps, dayMonthYear, filedDate, inr, plain, scaleLine, signedPct, target, tone, when } from "./format";
 
 describe("inr", () => {
   it("groups digits the Indian way", () => {
@@ -86,5 +86,12 @@ describe("target", () => {
   });
   it("leaves a target with words as said", () => {
     expect(target("INR 6,000 crores to INR 7,000 crores", "rs_crore")).toBe("INR 6,000 crores to INR 7,000 crores");
+  });
+});
+
+describe("filedDate", () => {
+  it("formats ISO and keeps a date written in words, instead of showing Invalid Date", () => {
+    expect(filedDate("2027-01-01")).toBe("1 Jan 2027");
+    expect(filedDate("12th November 2026")).toBe("12th November 2026");
   });
 });

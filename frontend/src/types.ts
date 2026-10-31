@@ -217,7 +217,7 @@ export interface LedgerItem {
     evidence_url?: string | null;
   };
   check: { status: string; actual: number | null; basis: string } | null;
-  repeated_in: string[];
+  repeated_in?: string[]; // missing on ledgers built before 31 Oct for metrics marked "other"
   status: string;
   judged_by: "numbers" | "model" | "later guidance";
 }
