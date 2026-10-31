@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
 import { navigate, useRoute } from "./router";
+import { useSettings } from "./settings";
 import { Alerts } from "./screens/Alerts";
 import { BriefScreen } from "./screens/Brief";
 import { ResearchScreen } from "./screens/Research";
 import { Search } from "./screens/Search";
+import { SettingsScreen } from "./screens/Settings";
 
 export function App() {
   const route = useRoute();
+  useSettings(); // re-render on appearance changes (zoom, fonts) and follow the system theme
   return (
     <div className="flex min-h-dvh flex-col">
       <main className="flex-1 pb-[calc(72px+env(safe-area-inset-bottom))]">
@@ -14,6 +17,7 @@ export function App() {
         {route.name === "search" && <Search />}
         {route.name === "research" && <ResearchScreen key={route.ticker} ticker={route.ticker} section={route.section} />}
         {route.name === "alerts" && <Alerts />}
+        {route.name === "settings" && <SettingsScreen />}
       </main>
       <TabBar active={route.name === "search" ? "research" : route.name} />
     </div>
@@ -29,6 +33,7 @@ function TabBar({ active }: { active: string }) {
       <Tab to="/" label="Brief" on={active === "brief"} icon={<BriefIcon />} />
       <Tab to="/research" label="Research" on={active === "research"} icon={<SearchIcon />} />
       <Tab to="/alerts" label="Alerts" on={active === "alerts"} icon={<BellIcon />} />
+      <Tab to="/settings" label="Settings" on={active === "settings"} icon={<GearIcon />} />
     </nav>
   );
 }
@@ -76,6 +81,15 @@ function SearchIcon() {
     </svg>
   );
 }
+function GearIcon() {
+  return (
+    <svg {...iconProps}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" />
+    </svg>
+  );
+}
+
 function BellIcon() {
   return (
     <svg {...iconProps}>

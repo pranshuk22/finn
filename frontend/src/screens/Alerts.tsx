@@ -72,7 +72,7 @@ export function Alerts() {
         <>
           <Card>
             <div className="text-center">
-              <p className="tabular font-serif text-[48px] leading-none font-semibold" aria-live="polite">
+              <p className="tabular font-display text-[48px] leading-none font-semibold" aria-live="polite">
                 {scan ? scan.count : "..."}
               </p>
               <p className="mt-2 text-[13px] text-muted">

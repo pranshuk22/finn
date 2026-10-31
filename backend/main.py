@@ -1,6 +1,7 @@
 """FastAPI app. Reads SQLite; only research for a ticker we have not seen does live fetching."""
 
 import json
+import os
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -8,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -207,6 +208,7 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                 ],
             },
             "total_filings": len(rows),
+            "portfolio_day": A.portfolio_day(c, list(PORTFOLIO)),
             "freshness": _freshness(c),
         }
 
@@ -349,7 +351,15 @@ def _freshness(c) -> dict:
 # ---------- production: serve the built frontend ----------
 
 DIST = ROOT / "frontend" / "dist"
-if DIST.exists():
+APP_URL = os.getenv("FINN_APP_URL")  # where the app is served when this server only runs the API
+
+if APP_URL and not DIST.exists():
+
+    @app.get("/")
+    def to_app():
+        return RedirectResponse(APP_URL)
+
+elif DIST.exists():
     app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
 
     @app.get("/{path:path}")

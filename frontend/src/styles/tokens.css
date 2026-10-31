@@ -1,25 +1,29 @@
-/* FINN design tokens. Palette sampled from the chosen reference (muted slate, taupe accent);
-   every text colour passes WCAG AA (4.5:1) on bg, surface and raised. See docs/EVIDENCE.md E24. */
+/* FINN design tokens. Slate is sampled from the chosen reference (EVIDENCE E24); Paper is its light counterpart.
+   Every theme and accent pairing was checked: all text colours pass WCAG AA (4.5:1) on bg, surface and raised,
+   and on-accent passes on its accent (lowest pairing 5.02:1). Choices are curated so no setting can break that.
+   Attributes on <html>: data-theme (slate | paper), data-accent (taupe | sage | steel | ochre),
+   data-type (editorial | modern | classic), data-size (standard | large). */
 
 :root {
   color-scheme: dark;
 
   /* surfaces, darkest to lightest */
-  --bg: #2e3736;          /* screen background, sampled */
-  --surface: #3a4342;     /* cards */
-  --raised: #414b4a;      /* bottom sheets, menus */
-  --line: #56615f;        /* dividers, card borders */
-  --backdrop: #445255;    /* behind sheets and on wide screens, sampled */
+  --bg: #2e3736; /* screen background, sampled */
+  --surface: #3a4342; /* cards */
+  --raised: #414b4a; /* bottom sheets, menus */
+  --line: #56615f; /* dividers, card borders */
+  --backdrop: #445255; /* behind sheets and on wide screens, sampled */
+  --hero: #34403e;
 
   /* text */
   --text: #eef1ef;
   --text-muted: #b8c1bf;
-  --text-faint: #87918f;  /* icons and large text only, never on raised: 3.8:1 on bg, 2.8:1 on raised */
+  --text-faint: #87918f; /* icons and large text only */
 
   /* accent: taupe from the reference button. White on it fails AA (3.06), so it carries dark text */
-  --accent: #9e9189;      /* sampled */
+  --accent: #9e9189;
   --on-accent: #1e2524;
-  --accent-text: #cdbfb3; /* accent used as text on dark surfaces */
+  --accent-text: #cdbfb3;
 
   /* meaning */
   --up: #97d8b3;
@@ -29,28 +33,76 @@
 
   /* type */
   --font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-serif: "Source Serif 4", Georgia, serif; /* titles and transcript quotes */
-  --fs-xs: 12px;
-  --fs-sm: 13px;
+  --font-serif: "Source Serif 4", Georgia, serif; /* transcript quotes */
+  --font-display: var(--font-serif); /* titles */
   --fs-base: 15px;
-  --fs-lg: 17px;
-  --fs-xl: 22px;
-  --fs-2xl: 30px;
-  --lh-tight: 1.2;
   --lh: 1.5;
-  --tracking-tight: -0.02em;
 
-  /* shape and space */
+  /* shape */
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 12px;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
   --tap: 44px;
+}
+
+/* ---------- Paper: light theme ---------- */
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #f3f1ec;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --line: #e1ddd5;
+  --backdrop: #e7e3dc;
+  --hero: #ebe7df;
+  --text: #1b2221;
+  --text-muted: #596260;
+  --text-faint: #8b928f;
+  --accent: #6b5d54;
+  --on-accent: #ffffff;
+  --accent-text: #6b5d54;
+  --up: #1d7348;
+  --down: #b03a2e;
+  --needs-you: #8a5d0b;
+}
+
+/* ---------- accents ---------- */
+:root[data-accent="sage"] {
+  --accent: #8faa9b;
+  --accent-text: #b3cdbf;
+}
+:root[data-accent="steel"] {
+  --accent: #8fa5bb;
+  --accent-text: #b7c9db;
+}
+:root[data-accent="ochre"] {
+  --accent: #c2a46c;
+  --accent-text: #dcc28f;
+}
+:root[data-theme="paper"][data-accent="sage"] {
+  --accent: #46695a;
+  --accent-text: #46695a;
+}
+:root[data-theme="paper"][data-accent="steel"] {
+  --accent: #3f5f7f;
+  --accent-text: #3f5f7f;
+}
+:root[data-theme="paper"][data-accent="ochre"] {
+  --accent: #7a5a1c;
+  --accent-text: #7a5a1c;
+}
+
+/* ---------- typefaces ---------- */
+:root[data-type="modern"] {
+  --font-display: var(--font);
+}
+:root[data-type="classic"] {
+  --font: "Source Serif 4", Georgia, serif;
+  --font-display: "Source Serif 4", Georgia, serif;
+}
+
+/* ---------- text size ---------- */
+:root[data-size="large"] #root {
+  zoom: 1.1;
 }
 
 .num {

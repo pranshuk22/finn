@@ -62,3 +62,32 @@ def test_amount_only_on_deal_type_cards(client):
     )
     b = tc.get("/api/brief?hours=24").json()
     assert b["needs_you"][0]["scale"] is None
+
+
+def test_portfolio_day_breadth_and_extremes(client):
+    from backend import analytics as A
+
+    _, db = client
+    rows = [
+        ("AAA", "2026-10-28", 100.0),
+        ("AAA", "2026-10-29", 105.0),  # +5%
+        ("BBB", "2026-10-28", 200.0),
+        ("BBB", "2026-10-29", 196.0),  # -2%
+        ("CCC", "2026-10-28", 50.0),
+        ("CCC", "2026-10-29", 50.5),  # +1%
+        ("DDD", "2026-10-27", 10.0),
+        ("DDD", "2026-10-28", 11.0),  # no row on the latest day: left out
+    ]
+    with db.session() as c:
+        c.executemany("INSERT INTO eod(ticker, date, close, volume) VALUES(?,?,?,1000)", rows)
+        day = A.portfolio_day(c, ["AAA", "BBB", "CCC", "DDD"])
+    assert day == {
+        "date": "2026-10-29",
+        "count": 3,
+        "of": 4,
+        "up": 2,
+        "down": 1,
+        "median_pct": 1.0,
+        "best": {"ticker": "AAA", "move_pct": 5.0},
+        "worst": {"ticker": "BBB", "move_pct": -2.0},
+    }

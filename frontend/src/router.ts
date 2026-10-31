@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
-// Three screens and one parameter do not need a routing library.
+// Five screens and one parameter do not need a routing library.
 
 export type Route =
   | { name: "brief" }
   | { name: "search" }
   | { name: "research"; ticker: string; section: string | null }
-  | { name: "alerts" };
+  | { name: "alerts" }
+  | { name: "settings" };
 
 export function parse(path: string, hash: string): Route {
   const parts = path.split("/").filter(Boolean);
@@ -15,6 +16,7 @@ export function parse(path: string, hash: string): Route {
   }
   if (parts[0] === "research") return { name: "search" };
   if (parts[0] === "alerts") return { name: "alerts" };
+  if (parts[0] === "settings") return { name: "settings" };
   return { name: "brief" };
 }
 

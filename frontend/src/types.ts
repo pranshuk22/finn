@@ -104,7 +104,19 @@ export interface Brief {
     items: { id: number; ticker: string; at: string; summary: string; category_label: string; pdf_url: string | null }[];
   };
   total_filings: number;
+  portfolio_day: PortfolioDay | null;
   freshness: Freshness;
+}
+
+export interface PortfolioDay {
+  date: string;
+  count: number;
+  of: number;
+  up: number;
+  down: number;
+  median_pct: number;
+  best: { ticker: string; move_pct: number };
+  worst: { ticker: string; move_pct: number };
 }
 
 export interface AlertRules {

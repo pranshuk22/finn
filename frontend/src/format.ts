@@ -21,7 +21,7 @@ export function tone(x: number | null | undefined): "up" | "down" | "flat" {
 /** "Rs 56 crore, under 0.01% of yearly revenue" */
 export function scaleLine(amountCr: number, pct: number): string {
   const share = pct < 0.01 ? "under 0.01%" : pct < 1 ? `${pct.toFixed(2)}%` : `${pct.toFixed(1)}%`;
-  return `Rs ${inr(amountCr)} crore, ${share} of yearly revenue`;
+  return `Rs ${inr(amountCr, amountCr < 10 ? 2 : 0)} crore, ${share} of yearly revenue`;
 }
 
 // The backend stores exchange timestamps as IST wall time without an offset ("2026-10-30T19:47:12"),

@@ -153,7 +153,7 @@ flowchart LR
 ```
 
 - **Backend:** Python 3.12, FastAPI, Pydantic v2, SQLite. Ingestion writes to SQLite and the API only reads, so responses take 7 to 24 ms locally ([E21](docs/EVIDENCE.md#e21-api-speed-and-payload-and-what-that-says-about-caching)). SQLite is the cache: no Redis, because a server-side cache would save milliseconds nobody notices. Responses are gzipped (the 30-day brief goes from 157 KB to 29 KB). The only live work is research on a ticker FINN has not seen yet.
-- **Frontend:** React, Vite, Tailwind CSS, served by FastAPI from the same origin, 73 KB of JavaScript gzipped. An installable PWA: every screen draws the last copy saved on the phone at once, refreshes it in the background, and says how old it is when offline. Colours were sampled from the chosen design reference and every text colour passes WCAG AA contrast ([E24](docs/EVIDENCE.md#e24-colour-palette-sampled-from-the-chosen-reference-then-checked-for-contrast)).
+- **Frontend:** React, Vite, Tailwind CSS, served from Vercel, 75 KB of JavaScript gzipped. An installable PWA: every screen draws the last copy saved on the phone at once, refreshes it in the background, and says how old it is when offline. Colours were sampled from the chosen design reference ([E24](docs/EVIDENCE.md#e24-colour-palette-sampled-from-the-chosen-reference-then-checked-for-contrast)). Settings offer two themes (Slate, Paper, or follow the system), four accents, three typefaces and a larger text size; the choices are curated, and all 8 theme and accent pairings were checked to keep every text colour at WCAG AA (lowest 5.02:1). The brief opens with a summary written in code from the data, never by a model, and with how the portfolio moved on the last session.
 - **Hosting:** AWS Lightsail in Mumbai (2 vCPU, 1 GB), always on, with a disk that keeps SQLite. NSE, Screener, BSE, yfinance and Gemini all answer from it ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Caddy serves HTTPS with a Let's Encrypt certificate. The public link is on Vercel's free plan, which serves the app and forwards `/api` to the server (`frontend/vercel.json`), so the address is a mainstream domain rather than an IP-based one that office web filters block ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Render's free tier was ruled out: it sleeps after 15 minutes, takes about a minute to wake, and loses local files on restart ([E22](docs/EVIDENCE.md#e22-hosting-render-free-versus-aws-lightsail)).
 - **Schedule:** systemd timers on the server, in IST: filings, results and filing reads every 30 minutes from 08:00 to 22:30; prices after the close on trading days; Screener once a night. One lock keeps two refreshes from overlapping. Files in `deploy/`.
 
@@ -190,16 +190,19 @@ uv sync
 uv run python -m backend.jobs.refresh   # filings, EOD, results, Screener (about 3 minutes)
 uv run python -m backend.enrich         # read vague and management filings
 uv run uvicorn backend.main:app --port 8000
-uv run pytest                           # 15 tests: parser, quote check, verdicts, brief grouping
+uv run pytest                           # 16 tests: parser, quote check, verdicts, brief grouping, breadth
 
 # frontend
 cd frontend
 bun install
 bun run dev                     # http://localhost:5173, proxies /api to :8000
+bun run test                    # 20 tests: formatting, the brief summary, routing
 bun run build                   # FastAPI then serves frontend/dist on :8000
 ```
 
-**Deploy** (Ubuntu 24.04): copy the repo and `.env` to `~/finn`, then run `deploy/setup.sh`. It installs Caddy, the app service and the timers.
+**CI** (`.github/workflows/ci.yml`) runs on every push: ruff lint and format check plus pytest for the backend; type check, Vitest and a production build for the frontend; and a house-style check that fails on any em or en dash.
+
+**Deploy:** one frontend, one backend. The app is on Vercel (`cd frontend && vercel deploy --prod`), which forwards `/api` to the server. The server (Ubuntu 24.04) runs only the API and the refresh: copy the repo and `.env` to `~/finn` once and run `deploy/setup.sh` (Caddy, the service, the timers); after that `deploy/push.sh` ships backend changes. The server's root redirects to the app.
 
 No `uv`? `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` works too.
 

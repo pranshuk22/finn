@@ -65,7 +65,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
           {r.resolved_from && ` · was ${r.resolved_from}`}
           {r.in_portfolio && " · In your portfolio"}
         </p>
-        <h1 className="mt-1 font-serif text-[28px] leading-tight font-semibold">{s.name}</h1>
+        <h1 className="mt-1 font-display text-[28px] leading-tight font-semibold">{s.name}</h1>
         {price != null && <p className="tabular mt-1 text-[24px] font-semibold">Rs {inr(price, 2)}</p>}
         <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-[12px] bg-card">
           {stats.map(([k, v], i) => (

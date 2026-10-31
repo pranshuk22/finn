@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useStored } from "../api";
-import { Card, ErrorState, ExtLink, Header, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
-import { ago, inr, scaleLine, when } from "../format";
+import { Card, ErrorState, ExtLink, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
+import { ago, inr, istDay, scaleLine, when } from "../format";
+import { summarize } from "../summary";
 import { navigate } from "../router";
 import type { Brief, BriefCard, Move, Person } from "../types";
 
@@ -54,32 +55,19 @@ export function BriefScreen() {
 
   return (
     <>
-      <Header
-        eyebrow={today()}
-        title="Brief"
-        sub={
-          b ? (
-            <span>
-              {left.length === 0 ? "Nothing left to read" : `${left.length} to read`}
-              {finished.length > 0 && `, ${finished.length} done`}
-              {b.freshness.filings_refreshed_at && <span> · checked {ago(b.freshness.filings_refreshed_at)}</span>}
-            </span>
-          ) : null
-        }
-      />
-
-      <Segmented label="Time window" options={WINDOWS} value={hours} onChange={setHours} />
-
-      {cards.length > 0 && (
-        <div className="mx-4 mt-4 flex items-center gap-3" aria-hidden>
-          <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-card">
-            <div className="h-full rounded-full bg-accent-ink transition-[width] duration-300" style={{ width: `${(finished.length / cards.length) * 100}%` }} />
-          </div>
-          <span className="tabular text-[12px] text-muted">
-            {finished.length}/{cards.length}
-          </span>
+      <header className="px-4 pt-[calc(20px+env(safe-area-inset-top))]">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-[13px] text-muted">{today()}</p>
+          {b?.freshness.filings_refreshed_at && <p className="text-[12px] text-muted">Updated {ago(b.freshness.filings_refreshed_at)}</p>}
         </div>
-      )}
+        <h1 className="mt-0.5 font-display text-[34px] leading-tight font-semibold tracking-[-0.01em]">Brief</h1>
+      </header>
+
+      <div className="mt-3">
+        <Segmented label="Time window" options={WINDOWS} value={hours} onChange={setHours} />
+      </div>
+
+      {b && <Hero b={b} done={doneSet} finished={finished.length} total={cards.length} />}
 
       <div className="mt-2">
         <StaleNote savedAt={q.savedAt} onRetry={q.reload} />
@@ -98,7 +86,7 @@ export function BriefScreen() {
           <>
             {left.length === 0 && (
               <div className="mx-4 mt-10 text-center">
-                <p className="font-serif text-[22px] font-semibold">You're caught up</p>
+                <p className="font-display text-[22px] font-semibold">You're caught up</p>
                 <p className="mx-auto mt-2 max-w-[300px] text-[14px] text-muted">
                   {cards.length === 0
                     ? `Nothing in the last ${WINDOWS.find((w) => w.value === hours)?.label ?? `${hours} hours`} needs your attention.`
@@ -108,8 +96,8 @@ export function BriefScreen() {
               </div>
             )}
 
-            <Group title="Needs you" cards={b.needs_you.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
-            <Group title="Worth knowing" cards={b.worth_knowing.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
+            <Group id="needs" title="Needs you" cards={b.needs_you.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
+            <Group id="worth" title="Worth knowing" cards={b.worth_knowing.filter((c) => !doneSet.has(c.id))} onOpen={setOpen} onDone={markDone} />
 
             <Moves moves={b.moves} />
 
@@ -196,10 +184,76 @@ export function BriefScreen() {
   );
 }
 
-function Group({ title, cards, onOpen, onDone }: { title: string; cards: BriefCard[]; onOpen: (c: BriefCard) => void; onDone: (id: string) => void }) {
+function Hero({ b, done, finished, total }: { b: Brief; done: Set<string>; finished: number; total: number }) {
+  const needs = b.needs_you.filter((c) => !done.has(c.id)).length;
+  const worth = b.worth_knowing.filter((c) => !done.has(c.id)).length;
+  const pd = b.portfolio_day;
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const stats = [
+    { id: "needs", label: "Need you", n: needs, tone: "text-needs" },
+    { id: "worth", label: "Worth knowing", n: worth, tone: "text-ink" },
+    { id: "moves", label: "Price moves", n: b.moves.length, tone: "text-ink" },
+  ];
+  return (
+    <section className="mx-4 mt-3 overflow-hidden rounded-[14px] bg-hero" aria-label="Summary">
+      <p className="px-4 pt-4 font-display text-[19px] leading-snug">{summarize(b, done)}</p>
+
+      <div className="mt-4 grid grid-cols-3 border-t border-line">
+        {stats.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => jump(s.id)}
+            disabled={s.n === 0}
+            className={`px-4 py-3 text-left ${i ? "border-l border-line" : ""}`}
+          >
+            <span className={`tabular block font-display text-[28px] leading-none font-semibold ${s.n ? s.tone : "text-muted"}`}>{s.n}</span>
+            <span className="mt-1 block text-[12px] text-muted">{s.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {pd && (
+        <div className="border-t border-line px-4 py-3 text-[13px] text-muted">
+          <span className="text-ink">
+            Your {pd.of} stocks on {istDay(`${pd.date}T15:30:00`)}:
+          </span>{" "}
+          {pd.up} up, {pd.down} down
+          {pd.count < pd.of && `, ${pd.of - pd.count} not priced yet`}, median <Pct value={pd.median_pct} digits={2} />. Best {pd.best.ticker}{" "}
+          <Pct value={pd.best.move_pct} />, worst {pd.worst.ticker} <Pct value={pd.worst.move_pct} />.
+        </div>
+      )}
+
+      {total > 0 && (
+        <div className="flex items-center gap-3 border-t border-line px-4 py-3" aria-label={`${finished} of ${total} done`}>
+          <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-base">
+            <div className="h-full rounded-full bg-accent-ink transition-[width] duration-300" style={{ width: `${(finished / total) * 100}%` }} />
+          </div>
+          <span className="tabular text-[12px] text-muted">
+            {finished} of {total} done
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Group({
+  id,
+  title,
+  cards,
+  onOpen,
+  onDone,
+}: {
+  id: string;
+  title: string;
+  cards: BriefCard[];
+  onOpen: (c: BriefCard) => void;
+  onDone: (id: string) => void;
+}) {
   if (cards.length === 0) return null;
   return (
-    <section>
+    <section id={id} className="scroll-mt-4">
       <SectionTitle count={cards.length}>{title}</SectionTitle>
       {cards.map((c) => (
         <BriefCardView key={c.id} card={c} onOpen={() => onOpen(c)} onDone={() => onDone(c.id)} />
@@ -314,7 +368,7 @@ function Sources({ card }: { card: BriefCard }) {
 function Moves({ moves }: { moves: Move[] }) {
   if (moves.length === 0) return null;
   return (
-    <section>
+    <section id="moves" className="scroll-mt-4">
       <SectionTitle count={moves.length}>Price and volume</SectionTitle>
       <ul className="mx-4 overflow-hidden rounded-[12px] bg-card">
         {moves.map((m) => (

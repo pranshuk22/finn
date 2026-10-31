@@ -141,6 +141,37 @@ def results_headline(card: dict) -> str:
 # ---------- EOD alerts ----------
 
 
+def portfolio_day(c: sqlite3.Connection, tickers: list[str]) -> dict | None:
+    """How the portfolio moved on the latest session: breadth, median move, best and worst."""
+    last = c.execute("SELECT MAX(date) FROM eod").fetchone()[0]
+    if not last:
+        return None
+    moves = []
+    for t in tickers:
+        rows = c.execute(
+            "SELECT date, close FROM eod WHERE ticker=? AND date <= ? ORDER BY date DESC LIMIT 2", (t, last)
+        ).fetchall()
+        if len(rows) == 2 and rows[0]["date"] == last and rows[1]["close"]:
+            moves.append((t, round(100 * (rows[0]["close"] / rows[1]["close"] - 1), 2)))
+    if not moves:
+        return None
+    ordered = sorted(m for _, m in moves)
+    mid = len(ordered) // 2
+    median = ordered[mid] if len(ordered) % 2 else (ordered[mid - 1] + ordered[mid]) / 2
+    best = max(moves, key=lambda m: m[1])
+    worst = min(moves, key=lambda m: m[1])
+    return {
+        "date": last,
+        "count": len(moves),
+        "of": len(tickers),  # a ticker without a close for that day is left out, not guessed (EVIDENCE E9)
+        "up": sum(1 for _, m in moves if m > 0),
+        "down": sum(1 for _, m in moves if m < 0),
+        "median_pct": round(median, 2),
+        "best": {"ticker": best[0], "move_pct": best[1]},
+        "worst": {"ticker": worst[0], "move_pct": worst[1]},
+    }
+
+
 def eod_scan(
     c: sqlite3.Connection, tickers: list[str], price_pct: float, vol_mult: float, days: int, lookback: int = 20
 ) -> list[dict]:

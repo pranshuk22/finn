@@ -20,6 +20,8 @@
   --color-worth: var(--worth-knowing);
   --font-sans: var(--font);
   --font-serif: var(--font-serif);
+  --font-display: var(--font-display);
+  --color-hero: var(--hero);
   --radius-card: var(--radius-lg);
 }
 

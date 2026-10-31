@@ -6,7 +6,7 @@ The brief decides the trade-offs: "Thin-but-working beats broad-but-broken" and 
 
 ## Ground rules
 
-- No em dashes or en dashes anywhere: UI copy, code, comments, docs, commits. The API also replaces any that arrive inside exchange filings. Check before every commit: `grep -rn $'—\|–' --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=data .`
+- No em dashes or en dashes anywhere: UI copy, code, comments, docs, commits. The API also replaces any that arrive inside exchange filings. CI enforces it; locally: `git grep -nIP '\x{2013}|\x{2014}'`
 - Commits: short title, one or two crisp lines of body. No co-author trailers.
 - Every number in the README or UI that is not live data comes from `docs/EVIDENCE.md` or the telemetry table.
 - Models never do arithmetic. Python computes every percentage, ratio and unit conversion.
@@ -28,11 +28,11 @@ The brief decides the trade-offs: "Thin-but-working beats broad-but-broken" and 
 | Bull and bear | Flash-Lite over numbered facts; points without a valid id dropped. Built for ASIANPAINT | E19 |
 | Model layer | Per-minute spacing, daily budget per model, fallback chain, telemetry in `llm_calls` | E17, E19 |
 | API | `/api/brief`, `/api/alerts/rules`, `/api/alerts/scan`, `/api/research/{t}`, `/api/research/{t}/ledger`, `/api/research/{t}/ask`, `/api/companies`, `/api/meta`; gzip; dash-free JSON | E21 |
-| Tests | Results parser, quote check, verdicts, shortfall wording, CAGR rewrite, brief grouping, amounts only on deal cards. 15 passing | |
+| Tests and CI | Backend 16 (parser, quote check, verdicts, wording, brief grouping, breadth); frontend 20 (formatting, summary, routing); GitHub Actions workflow with a no-dash check, runs once the repo is pushed | |
 | Hosting | Lightsail Mumbai: every source answers from it; app, Caddy HTTPS and timers running (`deploy/`) | E22, E25 |
 | Ledgers | 11 companies built, TRENT correctly empty; HAL read against its quotes; checks state their gap and rerun on new results | E26 |
 | Ask | Tested on TCS: 2 cited answers, 1 refusal, no quote dropped | E26 |
-| Frontend | Brief, Research (ledger, quote sheets, charts, Ask), Alerts with live replay, Search; PWA with on-device cache; slate palette, AA contrast | E24 |
+| Frontend | Brief with a computed summary and portfolio breadth, Research (ledger, quote sheets, charts, Ask), Alerts with live replay, Search, Settings (theme, accent, typeface, size); PWA with on-device cache; every pairing AA | E24 |
 
 ## Left, in order
 

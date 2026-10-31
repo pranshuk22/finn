@@ -9,7 +9,7 @@ export function Header({ eyebrow, title, sub, right }: { eyebrow?: string; title
     <header className="px-4 pt-[calc(20px+env(safe-area-inset-top))] pb-4">
       {eyebrow && <p className="text-[13px] text-muted">{eyebrow}</p>}
       <div className="mt-0.5 flex items-end justify-between gap-3">
-        <h1 className="font-serif text-[32px] leading-tight font-semibold tracking-[-0.01em]">{title}</h1>
+        <h1 className="font-display text-[32px] leading-tight font-semibold tracking-[-0.01em]">{title}</h1>
         {right}
       </div>
       {sub && <div className="mt-1.5 text-[14px] text-muted">{sub}</div>}
@@ -40,14 +40,16 @@ export function Segmented<T extends string | number>({
   value,
   onChange,
   label,
+  className = "mx-4 bg-card",
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
   label: string;
+  className?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="mx-4 grid rounded-[10px] bg-card p-[3px]" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+    <div role="radiogroup" aria-label={label} className={`grid rounded-[10px] p-[3px] ${className}`} style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -153,7 +155,7 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boo
       onClick={() => onChange(!on)}
       className={`relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors ${on ? "bg-accent" : "bg-line"}`}
     >
-      <span className={`absolute top-[3px] h-6 w-6 rounded-full bg-ink shadow transition-[left] ${on ? "left-[23px]" : "left-[3px]"}`} />
+      <span className={`absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-[left] ${on ? "left-[23px]" : "left-[3px]"}`} />
     </button>
   );
 }
@@ -261,7 +263,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
       >
         <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-line" />
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[20px] font-semibold">{title}</h2>
+          <h2 className="font-display text-[20px] font-semibold">{title}</h2>
           <button type="button" onClick={onClose} className="-mr-2 h-11 px-2 text-[15px] text-accent-ink">
             Done
           </button>
