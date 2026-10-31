@@ -226,9 +226,10 @@ function SectionNav() {
   const go = (id: string) => {
     setActive(id);
     setOpen(false);
-    lockUntil.current = Date.now() + 1000;
+    lockUntil.current = Date.now() + 700;
     history.replaceState(null, "", `#${id}`);
-    setTimeout(() => jumpTo(id), 60); // after the menu has closed and the page is scrollable again
+    // two frames: the menu unmounts and releases the page first, then the jump runs on a scrollable page
+    requestAnimationFrame(() => requestAnimationFrame(() => jumpTo(id)));
   };
   const i = Math.max(0, present.findIndex((x) => x.id === active));
   return (

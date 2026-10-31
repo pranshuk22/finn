@@ -406,7 +406,7 @@ Owner's review (31 Oct): the app was "not as attractive", the Research page "too
 | B. Results tiles | Revenue, EBITDA, PBT, PAT as tiles with the YoY change and a five-quarter trend (`results_card.history`); the full table one tap away; notes kept | RELIANCE history Q2 FY26 to Q2 FY27 live |
 | C. Identity and importance | Monogram per company (hue fixed per ticker, strength per theme), an icon per filing kind, an amber edge on Needs you cards | Slate and Paper screenshots |
 | D. Promise timeline | One column per earnings call, one dot per promise coloured by outcome, hollow when not due; tap opens the quote | HDFCBANK: Mar, Apr, Jul, Oct 2026 columns |
-| E. Feel | Swipe right to mark done; counts in the hero count up; a finish moment when every item is read; motion off under reduced-motion | Swipe: in-page touch events moved the card 20 to 210px and stored it as done. DevTools' synthetic touches did not reach the card's handlers, so the real check is on a phone. Finish moment shown after marking all 28 done |
+| E. Feel | Swipe right to mark done; counts in the hero count up; a finish moment when every item is read; motion off under reduced-motion | Swipe: in-page touch events moved the card 20 to 210px and stored it as done (DevTools touches first missed the card because it was below the screen; confirmed with real touches in E37). Finish moment shown after marking all 28 done |
 | F. Ask suggestions | Four questions as chips on the page and above the Ask box when it is focused and empty | 4 chips shown on focus |
 | G. Share a card | Results cards share as a PNG (`html-to-image` 1.11.11, pinned); buttons left out, a footer names the source; share sheet where supported, else download | 148 KB PNG made in 4.8 s. Fonts embed after adding `crossorigin` to the Google Fonts link (before: "Failed to read the 'cssRules' property") |
 
@@ -440,6 +440,28 @@ Tests: backend 47, frontend 34.
 - Live test on TCS: Cash, Guidance, Business, Balance sheet each land at 52px with the bar naming the tapped section.
 
 **Research tab** (owner: "too plain"). Now a watchlist: breadth for the day (12 up, 6 down) with a thin bar; sector groups or sorted by the day's move (remembered on the device); each row has the latest quarter's revenue and profit growth (PBT where tax distorts PAT), a 30-day line, the close and the day's move. `/api/companies` returns this for all 22 companies in 0.03 s locally, 0.4 s through Vercel.
+
+## E37. The section menu froze the screen on a phone
+
+**Owner's report:** tapping Sections, the options disappear and the screen freezes.
+
+**Cause, reproduced with touch emulation** (taps through DevTools touch events, not script clicks): the menu opened, but its options were at y = -738, above the screen. The menu was rendered inside the sticky section bar, whose `backdrop-blur` (a `backdrop-filter`) becomes the containing block for `position: fixed` descendants. So the "full screen" sheet was positioned against the 44px bar instead of the viewport, while its scroll lock held the page still. Earlier tests clicked options through script, which works off screen, so they missed it.
+
+**Fix:**
+- Every sheet renders through a portal at the end of `<body>`, so no ancestor's filter or transform can move it (swiped cards use a transform too).
+- The sheet's focus and scroll lock run once on open and once on close (the caller's `onClose` is kept in a ref instead of re-running the effect on each re-render).
+- The lock is released before any jump; long jumps are instant, since a long programmatic smooth scroll on iOS ignores the finger until it ends.
+
+**Checked on production with touch taps** (TCS; the bar first scrolled into view as a reader would):
+
+| Tapped | Menu | Landed | Lock after | Finger scroll after |
+| --- | --- | --- | --- | --- |
+| Cash | opened, closed | "5/10 Cash" | released | 297px |
+| Business | opened, closed | "1/10 Business" | released | 302px |
+| Guidance | opened, closed | "7/10 Guidance" | released | 302px |
+| Sources | opened, closed | "10/10 Sources" | released | 0px (already at the page bottom) |
+
+**Swipe to done, re-tested the same way:** the earlier failure (E34) was the same test flaw, a touch below the visible screen. With the card on screen, a right swipe marked DIXON done, the next card moved up and Undo appeared; a vertical drag over a card scrolled the page 301px and marked nothing.
 
 ## Open questions (not yet verified)
 

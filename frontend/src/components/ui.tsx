@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ago, bps, inr, signedPct, tone } from "../format";
 import type { ResultsCard } from "../types";
 
@@ -286,21 +287,29 @@ export function ResultsNotes({ r }: { r: ResultsCard }) {
 
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
+  // Callers pass a new onClose on every render. Keeping it in a ref means the focus and scroll lock below run
+  // once when the sheet opens and once when it closes, not on every re-render (the Research section bar
+  // re-renders on each scroll frame, and re-focusing during a scroll can stall it on iOS).
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    panel.current?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
+    lockScroll(true);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      lockScroll(false);
       prev?.focus({ preventScroll: true }); // focusing must not scroll: a jump started on close would be cancelled
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
-  return (
+  // Rendered at the end of <body>: a sheet opened from inside the sticky section bar (backdrop-blur) or a swiped
+  // card (transform) would otherwise be positioned against that element instead of the screen, which put the
+  // Research section menu off screen while the page stayed locked behind it.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" aria-label="Close" className="animate-fade absolute inset-0 bg-black/55" onClick={onClose} />
       <div
@@ -317,7 +326,8 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -521,8 +531,18 @@ export function useCountUp(target: number, ms = 500): number {
   return n;
 }
 
-/** Scroll so a section's heading sits just under the sticky section bar (44px) on Research. */
+/** The page stops scrolling behind an open sheet. Released before any jump, so a jump never meets a locked page. */
+export function lockScroll(on: boolean): void {
+  document.documentElement.style.overflow = on ? "hidden" : "";
+  document.body.style.overflow = on ? "hidden" : "";
+}
+
+/** Scroll so a section's heading sits just under the sticky section bar (44px) on Research. Short jumps glide;
+ * long ones are instant, because a long programmatic smooth scroll on iOS ignores the finger until it ends. */
 export function jumpTo(id: string, offset = 52): void {
   const el = document.getElementById(id);
-  if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: "smooth" });
+  if (!el) return;
+  lockScroll(false);
+  const delta = el.getBoundingClientRect().top - offset;
+  window.scrollTo({ top: window.scrollY + delta, behavior: Math.abs(delta) < 1200 ? "smooth" : "auto" });
 }
