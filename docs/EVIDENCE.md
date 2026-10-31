@@ -432,6 +432,15 @@ Owner's review (31 Oct): a scrolling strip on the right of the screen, the compa
 
 Tests: backend 47, frontend 34.
 
+## E36. Section menu that lands where it says, and a watchlist
+
+**Sections** (owner: "not working well"). Reproduced headless on RELIANCE: tapping Sources left the bar on "8/9 Bull and bear" (the Ask section was not in the list), the count was 9 whatever the company had, headings stopped 96px down, and the jump started while the menu was still closing (on iPhone Safari, focus returning to the button can cancel a smooth scroll). Now:
+- The section in view is read from the scroll position: the last heading above the bar, or the last section once the page bottom is reached. Only sections the company has are listed (RELIANCE 10, COFORGE 9 without a ledger).
+- The jump runs after the menu has closed, to 52px (just under the 44px bar); returning focus no longer scrolls (`focus({ preventScroll: true })`). Scorecard tiles and links into a section use the same offset.
+- Live test on TCS: Cash, Guidance, Business, Balance sheet each land at 52px with the bar naming the tapped section.
+
+**Research tab** (owner: "too plain"). Now a watchlist: breadth for the day (12 up, 6 down) with a thin bar; sector groups or sorted by the day's move (remembered on the device); each row has the latest quarter's revenue and profit growth (PBT where tax distorts PAT), a 30-day line, the close and the day's move. `/api/companies` returns this for all 22 companies in 0.03 s locally, 0.4 s through Vercel.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

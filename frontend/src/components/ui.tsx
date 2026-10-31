@@ -296,7 +296,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
-      prev?.focus();
+      prev?.focus({ preventScroll: true }); // focusing must not scroll: a jump started on close would be cancelled
     };
   }, [open, onClose]);
   if (!open) return null;
@@ -519,4 +519,10 @@ export function useCountUp(target: number, ms = 500): number {
     return () => cancelAnimationFrame(raf);
   }, [target, ms]);
   return n;
+}
+
+/** Scroll so a section's heading sits just under the sticky section bar (44px) on Research. */
+export function jumpTo(id: string, offset = 52): void {
+  const el = document.getElementById(id);
+  if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: "smooth" });
 }

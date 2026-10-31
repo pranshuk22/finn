@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
 import { CashVsProfit, PriceChart } from "../components/Charts";
@@ -6,7 +6,7 @@ import { HelpButton } from "../components/Help";
 import { ResultsTiles } from "../components/ResultsTiles";
 import { Scorecard } from "../components/Scorecard";
 import { GuidanceView, LedgerBuilder, LedgerView, TrackRecord } from "../components/Ledger";
-import { Card, ErrorState, ExtLink, Pct, SectionTitle, Sheet, Skeleton, StaleNote, Icon } from "../components/ui";
+import { Card, ErrorState, ExtLink, Icon, jumpTo, Pct, SectionTitle, Sheet, Skeleton, StaleNote } from "../components/ui";
 import { crore, dayMonthYear, inr, plain, when } from "../format";
 import { navigate } from "../router";
 import type { Answer, BalanceSheet, Research, Segments, Trajectory } from "../types";
@@ -21,6 +21,7 @@ const SECTIONS = [
   { id: "ledger", label: "Narrative vs numbers" },
   { id: "guidance", label: "Guidance" },
   { id: "bullbear", label: "Bull and bear" },
+  { id: "ask-calls", label: "Ask the calls" },
   { id: "sources", label: "Sources" },
 ];
 
@@ -34,7 +35,10 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   }, [r, ticker]);
 
   useEffect(() => {
-    if (r && section) document.getElementById(section)?.scrollIntoView({ block: "start" });
+    if (r && section) {
+      const el = document.getElementById(section);
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 52 }); // under the section bar
+    }
   }, [r, section]);
 
   if (!r) {
@@ -189,37 +193,51 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   );
 }
 
-/** A slim sticky bar naming the section in view, with every section one tap away. It replaces a tab strip that
- * scrolled sideways and cut its last tabs off at the screen edge. */
+/** A slim sticky bar naming the section in view, with every section one tap away. The section in view is read
+ * from the scroll position (the last heading above the bar; the last section once the page bottom is reached),
+ * and only sections this company has are listed. */
 function SectionNav() {
   const [active, setActive] = useState("business");
   const [open, setOpen] = useState(false);
+  const [present, setPresent] = useState(SECTIONS);
+  const lockUntil = useRef(0);
   useEffect(() => {
-    const els = SECTIONS.map((x) => document.getElementById(x.id)).filter((e): e is HTMLElement => !!e);
-    const io = new IntersectionObserver(
-      (entries) => {
-        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setActive(top.target.id);
-      },
-      { rootMargin: "-60px 0px -70% 0px" },
-    );
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const here = SECTIONS.filter((x) => document.getElementById(x.id));
+      setPresent((p) => (p.length === here.length ? p : here));
+      if (Date.now() < lockUntil.current) return; // a jump is in flight; it has already set the label
+      const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+      const passed = here.filter((x) => document.getElementById(x.id)!.getBoundingClientRect().top <= 60);
+      const id = atBottom ? here[here.length - 1]?.id : passed[passed.length - 1]?.id;
+      if (id) setActive(id);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
   }, []);
   const go = (id: string) => {
-    setOpen(false);
     setActive(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setOpen(false);
+    lockUntil.current = Date.now() + 1000;
     history.replaceState(null, "", `#${id}`);
+    setTimeout(() => jumpTo(id), 60); // after the menu has closed and the page is scrollable again
   };
-  const i = SECTIONS.findIndex((x) => x.id === active);
+  const i = Math.max(0, present.findIndex((x) => x.id === active));
   return (
     <div className="sticky top-0 z-20 border-y border-line bg-base/95 backdrop-blur">
       <button type="button" onClick={() => setOpen(true)} className="flex h-11 w-full items-center gap-2 px-4 text-left" aria-haspopup="dialog">
-        <span className="text-[12px] text-muted tabular">
-          {i + 1}/{SECTIONS.length}
+        <span className="tabular text-[12px] text-muted">
+          {i + 1}/{present.length}
         </span>
-        <span className="text-[14px] font-semibold">{SECTIONS[i]?.label}</span>
+        <span className="text-[14px] font-semibold">{present[i]?.label}</span>
         <span className="ml-auto flex items-center gap-1 text-[13px] text-accent-ink">
           Sections
           <span className="rotate-90">
@@ -229,15 +247,17 @@ function SectionNav() {
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title="Sections">
         <ol className="-mx-1">
-          {SECTIONS.map((x, k) => (
+          {present.map((x, k) => (
             <li key={x.id}>
               <button
                 type="button"
                 onClick={() => go(x.id)}
+                aria-current={x.id === active ? "true" : undefined}
                 className={`flex h-12 w-full items-center gap-3 border-b border-line px-1 text-left text-[15px] ${x.id === active ? "font-semibold" : ""}`}
               >
                 <span className="tabular w-5 text-[12px] text-muted">{k + 1}</span>
                 {x.label}
+                {x.id === active && <span className="ml-auto text-[12px] font-normal text-muted">You are here</span>}
               </button>
             </li>
           ))}

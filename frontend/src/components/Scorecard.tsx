@@ -1,5 +1,6 @@
 import { scorecard, type Tone } from "../scorecard";
 import type { Research } from "../types";
+import { jumpTo } from "./ui";
 
 // The company at a glance: six verdicts, each a fixed rule on the numbers further down (rules in Help), then the
 // key figures. One surface with hairline dividers; colour only on the small dot beside each verdict word.
@@ -13,7 +14,6 @@ export const TONE: Record<Tone, string> = {
 
 export function Scorecard({ r, figures }: { r: Research; figures: [string, string][] }) {
   const tiles = scorecard(r);
-  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
     <section aria-label="Scorecard" className="mt-4 overflow-hidden rounded-[12px] bg-card">
       <div className="grid grid-cols-2">
@@ -21,7 +21,7 @@ export function Scorecard({ r, figures }: { r: Research; figures: [string, strin
           <button
             key={t.key}
             type="button"
-            onClick={() => go(t.section)}
+            onClick={() => jumpTo(t.section)}
             className={`px-4 py-3 text-left ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line" : ""}`}
           >
             <span className="block text-[12px] text-muted">{t.label}</span>

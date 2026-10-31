@@ -363,15 +363,44 @@ def scan(
     return {"count": len(hits), "days": min(days, n_days), "per_ticker": per_ticker, "hits": hits[:50]}
 
 
+def _glance(c, ticker: str) -> dict:
+    """What a watchlist row shows: last close and the day's move with a 30-day line (portfolio only, prices are
+    kept for it), and the latest quarter's headline growth."""
+    out: dict = {"close": None, "move_pct": None, "date": None, "spark": [], "results": None}
+    rows = c.execute("SELECT date, close FROM eod WHERE ticker=? ORDER BY date DESC LIMIT 2", (ticker,)).fetchall()
+    if len(rows) == 2 and rows[1]["close"]:
+        out.update(
+            close=round(rows[0]["close"], 2),
+            date=rows[0]["date"],
+            move_pct=round(100 * (rows[0]["close"] / rows[1]["close"] - 1), 2),
+            spark=A.sparkline(c, ticker, 30),
+        )
+    rc = A.results_card(c, ticker)
+    if rc and not rc["suspect"]:
+        profit = "PBT" if rc["tax_note"] else "PAT"
+        key = "yoy" if rc["has_year_ago"] else "qoq"
+        by = {r["label"]: r[key] for r in rc["rows"]}
+        out["results"] = {
+            "quarter": rc["quarter"],
+            "basis": key.upper(),
+            "revenue": by.get("Revenue"),
+            "profit_label": profit,
+            "profit": by.get(profit),
+        }
+    return out
+
+
 @app.get("/api/companies")
 def companies():
     with db.session() as c:
         known = {r["ticker"]: r["name"] for r in c.execute("SELECT ticker, name FROM companies")}
-    return {
-        "portfolio": [{"ticker": t, "name": v[0], "sector": v[1], "size": v[2]} for t, v in PORTFOLIO.items()],
-        "adhoc": [{"ticker": t, "name": known.get(t, t)} for t in ADHOC],
-        "aliases": ALIASES,
-    }
+        return {
+            "portfolio": [
+                {"ticker": t, "name": v[0], "sector": v[1], "size": v[2], **_glance(c, t)} for t, v in PORTFOLIO.items()
+            ],
+            "adhoc": [{"ticker": t, "name": known.get(t, t), **_glance(c, t)} for t in ADHOC],
+            "aliases": ALIASES,
+        }
 
 
 def _equities() -> list[dict]:

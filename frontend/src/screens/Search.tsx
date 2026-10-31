@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, useQuery } from "../api";
+import { api, useQuery, useStored } from "../api";
 import { HelpButton } from "../components/Help";
-import { Header, SectionTitle } from "../components/ui";
+import { Header, Icon, Pct, SectionTitle, Segmented, Sparkline } from "../components/ui";
+import { inr, istDay } from "../format";
 import { navigate } from "../router";
-import type { Companies } from "../types";
+import type { Companies, Glance } from "../types";
 
 export function Search() {
   const q = useQuery<Companies>("/api/companies");
@@ -70,23 +71,109 @@ export function Search() {
         </ul>
       )}
 
-      {!term && q.data && (
-        <>
-          <SectionTitle>Your portfolio</SectionTitle>
-          <ul className="mx-4">
-            {q.data.portfolio.map((c) => (
-              <Row key={c.ticker} ticker={c.ticker} name={`${c.name} · ${c.sector}`} onClick={() => go(c.ticker)} />
-            ))}
-          </ul>
-          <SectionTitle>Also prepared</SectionTitle>
-          <ul className="mx-4">
-            {q.data.adhoc.map((c) => (
-              <Row key={c.ticker} ticker={c.ticker} name={c.name} onClick={() => go(c.ticker)} />
-            ))}
-          </ul>
-        </>
-      )}
+      {!term && q.data && <Watchlist data={q.data} go={go} />}
     </>
+  );
+}
+
+function Watchlist({ data, go }: { data: Companies; go: (t: string) => void }) {
+  const [sort, setSort] = useStored<"sector" | "move">("watch-sort", "sector");
+  const priced = data.portfolio.filter((c) => c.move_pct != null);
+  const up = priced.filter((c) => c.move_pct! > 0).length;
+  const down = priced.filter((c) => c.move_pct! < 0).length;
+  const day = priced.find((c) => c.date)?.date;
+  const sectors = [...new Set(data.portfolio.map((c) => c.sector))];
+  const byMove = [...data.portfolio].sort((a, b) => (b.move_pct ?? -1e9) - (a.move_pct ?? -1e9));
+  return (
+    <>
+      <div className="mt-6 flex items-center justify-between gap-3 px-4">
+        <h2 className="text-[17px] font-semibold">
+          Your portfolio <span className="tabular text-[15px] font-normal text-muted">{data.portfolio.length}</span>
+        </h2>
+        <Segmented
+          label="Order"
+          className="w-[190px] bg-card"
+          options={[
+            { value: "sector", label: "By sector" },
+            { value: "move", label: "Day's move" },
+          ]}
+          value={sort}
+          onChange={setSort}
+        />
+      </div>
+      {day && (
+        <div className="mt-3 px-4">
+          <p className="text-[12px] text-muted">
+            {up} up, {down} down on {istDay(`${day}T15:30:00`)}. Results are the latest quarter's growth.
+          </p>
+          <div className="mt-1.5 flex h-1 gap-[2px]" aria-hidden>
+            <span className="rounded-full" style={{ flexGrow: up, background: "var(--viz-up)" }} />
+            <span className="rounded-full" style={{ flexGrow: down, background: "var(--viz-down)" }} />
+          </div>
+        </div>
+      )}
+      <div className="mx-4 mt-3 overflow-hidden rounded-[12px] bg-card">
+        {sort === "sector"
+          ? sectors.map((sec) => {
+              const rows = data.portfolio.filter((c) => c.sector === sec);
+              return (
+                <div key={sec}>
+                  <p className="border-t border-line bg-base/40 px-4 py-1.5 text-[12px] font-semibold text-muted first:border-0">
+                    {sec} <span className="tabular font-normal">{rows.length}</span>
+                  </p>
+                  {rows.map((c) => (
+                    <WatchRow key={c.ticker} c={c} onClick={() => go(c.ticker)} />
+                  ))}
+                </div>
+              );
+            })
+          : byMove.map((c) => <WatchRow key={c.ticker} c={c} onClick={() => go(c.ticker)} />)}
+      </div>
+
+      <SectionTitle count={data.adhoc.length}>Also prepared</SectionTitle>
+      <p className="-mt-1 mb-2 px-4 text-[12px] text-muted">Outside the portfolio, built in full for this challenge. Any NSE company works through the search above.</p>
+      <div className="mx-4 overflow-hidden rounded-[12px] bg-card">
+        {data.adhoc.map((c) => (
+          <WatchRow key={c.ticker} c={c} onClick={() => go(c.ticker)} />
+        ))}
+      </div>
+      <div className="h-6" />
+    </>
+  );
+}
+
+/** One company: ticker and name, the latest quarter's growth, a 30-day line, the close and the day's move. */
+function WatchRow({ c, onClick }: { c: Glance; onClick: () => void }) {
+  const r = c.results;
+  return (
+    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 border-t border-line px-4 py-3 text-left first:border-0">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-baseline gap-2">
+          <span className="font-semibold">{c.ticker}</span>
+          <span className="truncate text-[12px] text-muted">{c.name}</span>
+        </p>
+        {r && (
+          <p className="mt-0.5 truncate text-[12px] text-muted" title={`${r.quarter}, ${r.basis === "YOY" ? "on a year earlier" : "on the quarter before"}`}>
+            Rev <Pct value={r.revenue} /> · {r.profit_label} <Pct value={r.profit} /> {r.basis === "YOY" ? "YoY" : "QoQ"}
+          </p>
+        )}
+      </div>
+      {c.spark.length > 1 && <Sparkline values={c.spark} width={52} height={22} />}
+      <div className="w-[68px] shrink-0 text-right">
+        {c.close != null ? (
+          <>
+            <p className="tabular text-[14px] font-medium">{inr(c.close, 2)}</p>
+            <p className="text-[12px]">
+              <Pct value={c.move_pct} digits={2} />
+            </p>
+          </>
+        ) : (
+          <span className="text-faint">
+            <Icon.chevron />
+          </span>
+        )}
+      </div>
+    </button>
   );
 }
 

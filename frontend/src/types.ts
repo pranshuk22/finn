@@ -309,8 +309,19 @@ export interface Answer {
   unverified_dropped?: number;
 }
 
+/** What a watchlist row shows. Prices are kept for the portfolio only, so ad-hoc companies have none. */
+export interface Glance {
+  ticker: string;
+  name: string;
+  close: number | null;
+  move_pct: number | null;
+  date: string | null;
+  spark: number[];
+  results: { quarter: string; basis: "YOY" | "QOQ"; revenue: number | null; profit_label: string; profit: number | null } | null;
+}
+
 export interface Companies {
-  portfolio: { ticker: string; name: string; sector: string; size: string }[];
-  adhoc: { ticker: string; name: string }[];
+  portfolio: (Glance & { sector: string; size: string })[];
+  adhoc: Glance[];
   aliases: Record<string, string>;
 }
