@@ -13,6 +13,8 @@ from backend.config import CATEGORIES, LABEL_MAP
 
 # Ordered: the first matching rule wins, so narrow patterns come before broad ones.
 _RULES: list[tuple[str, str]] = [
+    # The reference glossary files results decks and "ads confirming results were published" under results.
+    ("results", r"(newspaper|advertisement|publication)[^.]{0,120}results|results[^.]{0,120}(newspaper|advertisement)"),
     (
         "unclassified",
         r"newspaper|clipping|advertisement|publication of|esop|stock option|"
@@ -24,7 +26,11 @@ _RULES: list[tuple[str, str]] = [
         r"transcript|recording|earnings call|conference call|con\.? call|concall|webcast|"
         r"call with (media|analysts)",
     ),
-    ("results", r"financial results|results for the (quarter|period|half|year)|shareholders?'? ?letter"),
+    (
+        "results",
+        r"financial results|results for the (quarter|period|half|year)|shareholders?'? ?letter|"
+        r"(investor|analyst|earnings|results) presentation|presentation on (the )?(un)?audited financial",
+    ),
     (
         "investor_meetings",
         r"investor meet|analysts? meet|institutional investor|one-on-one|"

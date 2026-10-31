@@ -22,6 +22,8 @@ export interface ResultsCard {
   unit: string;
   rows: ResultRow[];
   ebitda_margin: number | null;
+  margins: { label: string; now: number | null; prev: number | null; year_ago: number | null; qoq_bps: number | null; yoy_bps: number | null }[];
+  other_income_pct_of_pbt: number | null;
   source_url: string | null;
   broadcast_at: string | null;
   has_prev: boolean;
@@ -40,15 +42,22 @@ export interface Person {
   senior: boolean;
   effective?: string | null;
   entity?: string | null;
+  level?: "top" | "board" | "staff";
   profile_from_filing?: string | null;
   bio?: { lines: string[]; confident: boolean; sources: Source[] } | null;
 }
 
 export interface Scale {
   amount_cr: number;
-  annual_revenue_cr: number;
-  pct_of_revenue: number;
+  annual_revenue_cr: number | null;
+  pct_of_revenue: number | null;
+  market_cap_cr: number | null;
+  pct_of_market_cap: number | null;
 }
+
+export type Reaction =
+  | { pending: true; session: string }
+  | { pending: false; date: string; session: string; move_pct: number; vol_mult: number | null };
 
 export interface FilingRef {
   id: number;
@@ -73,6 +82,9 @@ export interface BriefCard {
   results: ResultsCard | null;
   people: Person[] | null;
   scale: Scale | null;
+  first_at: string;
+  reaction: Reaction | null;
+  ledger: { counts: Record<string, number>; promises: number } | null;
 }
 
 export interface Move {
@@ -84,6 +96,7 @@ export interface Move {
   vol_mult: number;
   reasons: string[];
   spark: number[];
+  filed: { category_label: string; summary: string; at: string }[];
 }
 
 export interface Freshness {

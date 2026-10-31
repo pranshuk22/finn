@@ -18,10 +18,22 @@ export function tone(x: number | null | undefined): "up" | "down" | "flat" {
   return x > 0 ? "up" : "down";
 }
 
-/** "Rs 56 crore, under 0.01% of yearly revenue" */
-export function scaleLine(amountCr: number, pct: number): string {
-  const share = pct < 0.01 ? "under 0.01%" : pct < 1 ? `${pct.toFixed(2)}%` : `${pct.toFixed(1)}%`;
-  return `Rs ${inr(amountCr, amountCr < 10 ? 2 : 0)} crore, ${share} of yearly revenue`;
+function share(pct: number): string {
+  return pct < 0.01 ? "under 0.01%" : pct < 1 ? `${pct.toFixed(2)}%` : `${pct.toFixed(1)}%`;
+}
+
+/** "Rs 56 crore, under 0.01% of yearly revenue"; with market cap first for raises and deals. */
+export function scaleLine(amountCr: number, pctRevenue: number | null, pctMarketCap: number | null = null): string {
+  const parts = [];
+  if (pctMarketCap != null) parts.push(`${share(pctMarketCap)} of market cap`);
+  if (pctRevenue != null) parts.push(`${share(pctRevenue)} of yearly revenue`);
+  return `Rs ${inr(amountCr, amountCr < 10 ? 2 : 0)} crore${parts.length ? `, ${parts.join(", ")}` : ""}`;
+}
+
+/** Basis points with a sign: 140 -> "+140 bps" */
+export function bps(x: number | null | undefined): string {
+  if (x == null) return "n/a";
+  return `${x > 0 ? "+" : ""}${x} bps`;
 }
 
 // The backend stores exchange timestamps as IST wall time without an offset ("2026-10-30T19:47:12"),

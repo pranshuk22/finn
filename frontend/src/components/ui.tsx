@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { ago, inr, signedPct, tone } from "../format";
+import { ago, bps, inr, signedPct, tone } from "../format";
 import type { ResultsCard } from "../types";
 
 // ---------- layout ----------
@@ -171,6 +171,11 @@ export function Pct({ value, digits = 1, className = "" }: { value: number | nul
   );
 }
 
+export function Bps({ value }: { value: number | null | undefined }) {
+  const t = tone(value);
+  return <span className={`tabular text-[13px] ${t === "up" ? "text-up" : t === "down" ? "text-down" : "text-muted"}`}>{bps(value)}</span>;
+}
+
 export function Sparkline({ values, width = 72, height = 24 }: { values: number[]; width?: number; height?: number }) {
   if (values.length < 2) return <span style={{ width, height }} />;
   const lo = Math.min(...values);
@@ -211,8 +216,26 @@ export function ResultsTable({ r }: { r: ResultsCard }) {
               <td className="py-[7px] text-right">{r.has_year_ago ? <Pct value={row.yoy} /> : <span className="text-muted">n/a</span>}</td>
             </tr>
           ))}
+          {r.margins?.map((m, i) => (
+            <tr key={m.label} className={i === 0 ? "border-t-2 border-line" : "border-t border-line"}>
+              <td className="py-[7px] text-muted">{m.label}</td>
+              <td className="tabular py-[7px] text-right">{m.now != null ? `${m.now.toFixed(1)}%` : "n/a"}</td>
+              <td className="py-[7px] text-right">
+                <Bps value={r.has_prev ? m.qoq_bps : null} />
+              </td>
+              <td className="py-[7px] text-right">
+                <Bps value={r.has_year_ago ? m.yoy_bps : null} />
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
+      {r.other_income_pct_of_pbt != null && (
+        <p className={`mt-2 text-[12px] ${r.other_income_pct_of_pbt >= 25 ? "text-needs" : "text-muted"}`}>
+          Other income is {r.other_income_pct_of_pbt.toFixed(0)}% of PBT
+          {r.other_income_pct_of_pbt >= 25 && ": a large part of profit does not come from operations"}.
+        </p>
+      )}
       {r.rows.some((x) => x.check) && (
         <p className="mt-2 text-[12px] text-muted">
           {r.rows
@@ -223,7 +246,8 @@ export function ResultsTable({ r }: { r: ResultsCard }) {
       )}
       <p className="mt-2 text-[12px] leading-relaxed text-muted">
         {r.consolidated ? "Consolidated" : "Standalone"}
-        {r.rows.some((x) => x.derived) && (r.is_bank ? ". *PPOP computed from the filed lines" : ". *EBITDA = PBT + finance costs + depreciation - other income")}
+        {r.rows.some((x) => x.derived) &&
+          (r.is_bank ? ". *PPOP computed from the filed lines" : ". *Operating EBITDA = PBT + finance costs + depreciation - other income")}
         {r.source_url && (
           <>
             {". "}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useStored } from "../api";
 import { Card, ErrorState, ExtLink, Icon, Pct, ResultsTable, SectionTitle, Segmented, Sheet, Skeleton, Sparkline, StaleNote, TextAction, Toast } from "../components/ui";
-import { ago, inr, istDay, scaleLine, when } from "../format";
+import { ago, dayMonthYear, inr, istDay, scaleLine, when } from "../format";
 import { summarize } from "../summary";
 import { navigate } from "../router";
 import type { Brief, BriefCard, Move, Person } from "../types";
@@ -282,11 +282,21 @@ function BriefCardView({ card, onOpen, onDone }: { card: BriefCard; onOpen: () =
 
       {card.results && <ResultsTable r={card.results} />}
       {!card.results && card.people && <People people={card.people} named={card.people.length === 1} />}
-      {card.scale && <p className="mt-2 text-[14px] text-muted">{scaleLine(card.scale.amount_cr, card.scale.pct_of_revenue)}</p>}
+      {card.scale && (
+        <p className="mt-2 text-[14px] text-muted">
+          {scaleLine(
+            card.scale.amount_cr,
+            card.scale.pct_of_revenue,
+            ["fund_raise", "M&A"].includes(card.category) ? card.scale.pct_of_market_cap : null,
+          )}
+        </p>
+      )}
+
+      <Facts card={card} />
 
       <div className="mt-3 flex items-center border-t border-line">
         <TextAction onClick={onOpen} icon={<Icon.doc />}>
-          {card.filings.length === 1 ? "1 filing" : `${card.filings.length} filings`}
+          {filingSpan(card)}
         </TextAction>
         <span className="flex-1" />
         <TextAction onClick={onDone} icon={<Icon.check />}>
@@ -301,6 +311,58 @@ function BriefCardView({ card, onOpen, onDone }: { card: BriefCard; onOpen: () =
     </Card>
   );
 }
+
+function filingSpan(card: BriefCard): string {
+  const n = card.filings.length;
+  if (n === 1) return "1 filing";
+  const first = istDay(card.first_at);
+  return first === istDay(card.latest_at) ? `${n} filings` : `${n} filings since ${first}`;
+}
+
+const STATUS_WORD: Record<string, string> = {
+  missed: "missed",
+  off_track: "off track",
+  revised: "revised",
+  dropped: "dropped",
+  delivered: "delivered",
+  on_track: "on track",
+  pending: "pending",
+  unclear: "unclear",
+};
+
+/** The context a professional checks next: how the stock took it, and whether management is keeping its word. */
+function Facts({ card }: { card: BriefCard }) {
+  const r = card.reaction;
+  const led = card.results ? card.ledger : null;
+  if (!r && !led) return null;
+  return (
+    <div className="mt-3 space-y-1.5 text-[13px]">
+      {r && !r.pending && (
+        <p className="text-muted">
+          Stock {r.session === "same day" ? "that day" : "next session"}: <Pct value={r.move_pct} className="font-semibold" />
+          {r.vol_mult != null && (
+            <span className={r.vol_mult >= 2 ? "text-ink" : ""}>, {r.vol_mult.toFixed(1)}x usual volume</span>
+          )}
+        </p>
+      )}
+      {r?.pending && <p className="text-muted">Stock reaction: the {r.session === "same day" ? "session" : "next session"} has not closed yet.</p>}
+      {led && (
+        <button type="button" onClick={() => navigate(`/research/${card.ticker}#ledger`)} className="flex min-h-9 items-center gap-1 text-left text-accent-ink">
+          Promise ledger:{" "}
+          {Object.entries(led.counts)
+            .sort((a, b) => ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]))
+            .map(([k, n]) => `${n} ${STATUS_WORD[k] ?? k}`)
+            .join(", ")}
+          <Icon.chevron />
+        </button>
+      )}
+    </div>
+  );
+}
+
+const ORDER = ["missed", "off_track", "revised", "dropped", "delivered", "on_track", "pending", "unclear"];
+
+const LEVEL: Record<string, string> = { top: "Top management", board: "Board", staff: "Senior staff" };
 
 function People({ people, named }: { people: Person[]; named: boolean }) {
   return (
@@ -333,7 +395,15 @@ function People({ people, named }: { people: Person[]; named: boolean }) {
                 </p>
               )}
             </div>
-          ) : p.profile_from_filing ? (
+          ) : null}
+          {(p.level || p.effective) && (
+            <p className="mt-1.5 text-[12px] text-muted">
+              {p.level && LEVEL[p.level]}
+              {p.entity && `, at ${p.entity}`}
+              {p.effective && `${p.level ? " · " : ""}effective ${dayMonthYear(p.effective)}`}
+            </p>
+          )}
+          {p.bio?.confident && p.bio.lines.length > 0 ? null : p.profile_from_filing ? (
             <p className="mt-1.5 border-l-2 border-line pl-3 text-[14px] text-muted">{p.profile_from_filing}</p>
           ) : (
             p.senior && <p className="mt-1 text-[13px] text-muted">No profile we could verify against this company.</p>
@@ -378,6 +448,9 @@ function Moves({ moves }: { moves: Move[] }) {
                 <span className="block text-[15px] font-semibold">{m.ticker}</span>
                 <span className="tabular block truncate text-[12px] text-muted">
                   Rs {inr(m.close, 0)} · {when(`${m.date}T15:30:00`).replace(/ 15:30$/, "")}
+                </span>
+                <span className={`block truncate text-[12px] ${m.filed.length ? "text-accent-ink" : "text-muted"}`}>
+                  {m.filed.length ? `Filed: ${[...new Set(m.filed.map((f) => f.category_label))].join(", ")}` : "No filing explains it"}
                 </span>
               </span>
               <Sparkline values={m.spark} />

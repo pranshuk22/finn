@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ago, dayMonthYear, inr, plain, scaleLine, signedPct, tone, when } from "./format";
+import { ago, bps, dayMonthYear, inr, plain, scaleLine, signedPct, tone, when } from "./format";
 
 describe("inr", () => {
   it("groups digits the Indian way", () => {
@@ -30,6 +30,9 @@ describe("signedPct and tone", () => {
 describe("scaleLine", () => {
   it("never shows a tiny amount as 0.00%", () => {
     expect(scaleLine(56, 0.0047)).toBe("Rs 56 crore, under 0.01% of yearly revenue");
+  });
+  it("leads with market cap when it is known", () => {
+    expect(scaleLine(4264.6, 25.38, 4.24)).toBe("Rs 4,265 crore, 4.2% of market cap, 25.4% of yearly revenue");
   });
   it("keeps small amounts exact, and uses two decimals below 1% and one above", () => {
     expect(scaleLine(2.79, 0.28)).toBe("Rs 2.79 crore, 0.28% of yearly revenue");
@@ -64,5 +67,13 @@ describe("plain", () => {
   it("replaces PDF ligature glyphs in quotes", () => {
     expect(plain("we don't provide any speciﬁc revenue")).toBe("we don't provide any specific revenue");
     expect(plain("eﬀect")).toBe("effect");
+  });
+});
+
+describe("bps", () => {
+  it("signs a margin change in basis points", () => {
+    expect(bps(-110)).toBe("-110 bps");
+    expect(bps(40)).toBe("+40 bps");
+    expect(bps(null)).toBe("n/a");
   });
 });

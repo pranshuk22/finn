@@ -91,3 +91,27 @@ def test_portfolio_day_breadth_and_extremes(client):
         "best": {"ticker": "AAA", "move_pct": 5.0},
         "worst": {"ticker": "BBB", "move_pct": -2.0},
     }
+
+
+def test_reaction_uses_the_first_session_after_the_filing(client):
+    from backend import analytics as A
+
+    _, db = client
+    days = [("2026-10-26", 100.0, 1000), ("2026-10-27", 102.0, 1000), ("2026-10-28", 96.9, 3000)]
+    with db.session() as c:
+        c.executemany("INSERT INTO eod(ticker, date, close, volume) VALUES('ZZZ',?,?,?)", days)
+        before_close = A.reaction(c, "ZZZ", "2026-10-27T11:00:00")
+        after_close = A.reaction(c, "ZZZ", "2026-10-27T17:30:00")
+        not_yet = A.reaction(c, "ZZZ", "2026-10-28T18:00:00")
+    assert before_close["session"] == "same day" and before_close["move_pct"] == 2.0
+    assert after_close["session"] == "next session" and after_close["move_pct"] == -5.0
+    assert after_close["vol_mult"] == 3.0
+    assert not_yet == {"pending": True, "session": "next session"}
+
+
+def test_people_levels():
+    from backend.main import _level
+
+    assert _level("Managing Director & CEO") == "top"
+    assert _level("Non-executive Independent Director") == "board"
+    assert _level("Chief Product Officer") == "staff"

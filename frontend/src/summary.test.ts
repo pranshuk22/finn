@@ -12,6 +12,8 @@ function results(ticker: string, patYoy: number | null): ResultsCard {
     unit: "Rs crore",
     rows: [{ label: "PAT", value: 100, prev: 90, year_ago: 80, qoq: 11.1, yoy: patYoy, derived: false, check: null }],
     ebitda_margin: null,
+    margins: [],
+    other_income_pct_of_pbt: null,
     source_url: null,
     broadcast_at: null,
     has_prev: true,
@@ -34,6 +36,9 @@ function card(id: string, ticker: string, category: string, r: ResultsCard | nul
     results: r,
     people: null,
     scale: null,
+    first_at: "2026-10-30T19:47:12",
+    reaction: null,
+    ledger: null,
   };
 }
 

@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from datetime import date
+from datetime import date, datetime, time
 
 from backend.config import FINANCIALS
 
@@ -101,6 +101,33 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
     margin = None
     if not is_bank and rows[0]["value"] and rows[1]["value"] is not None:
         margin = round(100 * rows[1]["value"] / rows[0]["value"], 1)
+
+    # Margin = profit / revenue (reference glossary). Changes in basis points, so 15.6% vs 17.0% reads as -140 bps.
+    def share(num, den):
+        return round(100 * num / den, 1) if num is not None and den else None
+
+    by = {r["label"]: r for r in rows}
+    margins = []
+    for label, src in (("EBITDA margin", "EBITDA"), ("PAT margin", "PAT")):
+        if src not in by or "Revenue" not in by:
+            continue
+        n, q1, y1 = (share(by[src][k], by["Revenue"][k]) for k in ("value", "prev", "year_ago"))
+        margins.append(
+            {
+                "label": label,
+                "now": n,
+                "prev": q1,
+                "year_ago": y1,
+                "qoq_bps": round(100 * (n - q1)) if n is not None and q1 is not None else None,
+                "yoy_bps": round(100 * (n - y1)) if n is not None and y1 is not None else None,
+            }
+        )
+    # Profit that leans on interest and investment income is lower quality than profit from operations.
+    other_income_share = (
+        round(100 * cur["other_income"] / cur["pbt"], 1)
+        if not is_bank and cur["other_income"] is not None and cur["pbt"] and cur["pbt"] > 0
+        else None
+    )
     return {
         "ticker": ticker,
         "period_end": cur["period_end"],
@@ -110,6 +137,8 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
         "unit": "Rs crore",
         "rows": rows,
         "ebitda_margin": margin,
+        "margins": margins,
+        "other_income_pct_of_pbt": other_income_share,
         "source_url": cur["source_url"],
         "broadcast_at": cur["broadcast_at"],
         "has_prev": prev is not None,
@@ -367,13 +396,43 @@ def cash_quality(c: sqlite3.Connection, ticker: str) -> dict:
 
 
 def scale(c: sqlite3.Connection, ticker: str, amount_cr: float) -> dict:
-    """An amount from a filing as a share of annual revenue, so 'Rs 500 crore' means something."""
+    """An amount from a filing as a share of annual revenue and of market cap, so 'Rs 500 crore' means something.
+    Market cap matters for fund raises and acquisitions: it is roughly the dilution or the bet's size."""
     _, sales = _series(c, ticker, "profit-loss", ["Sales", "Revenue"])
     ttm = next((r["value"] for r in sales if r["period"] == "TTM"), None)
     if ttm is None and _annual(sales):
         ttm = _annual(sales)[-1]["value"]
+    co = c.execute("SELECT ratios FROM companies WHERE ticker=?", (ticker,)).fetchone()
+    mcap = json.loads(co["ratios"] or "{}").get("Market Cap") if co else None
     return {
         "amount_cr": amount_cr,
         "annual_revenue_cr": ttm,
         "pct_of_revenue": round(100 * amount_cr / ttm, 2) if ttm else None,
+        "market_cap_cr": mcap,
+        "pct_of_market_cap": round(100 * amount_cr / mcap, 2) if mcap else None,
+    }
+
+
+def reaction(c: sqlite3.Connection, ticker: str, at: str, lookback: int = 20) -> dict | None:
+    """How the stock traded in the first session after a filing: the same day if filed before the 15:30 IST
+    close, else the next trading day. Move against the previous close; volume against the prior 20 sessions."""
+    filed = datetime.fromisoformat(at)
+    after_close = filed.time() >= time(15, 30)
+    rows = c.execute("SELECT date, close, volume FROM eod WHERE ticker=? ORDER BY date", (ticker,)).fetchall()
+    if not rows:
+        return None
+    day = filed.date().isoformat()
+    i = next((k for k, r in enumerate(rows) if (r["date"] > day if after_close else r["date"] >= day)), None)
+    if i is None:
+        return {"pending": True, "session": "next session" if after_close else "same day"}
+    if i == 0 or not rows[i - 1]["close"]:
+        return None
+    window = [r["volume"] for r in rows[max(0, i - lookback) : i]]
+    avg = sum(window) / len(window) if window else None
+    return {
+        "pending": False,
+        "date": rows[i]["date"],
+        "session": "same day" if rows[i]["date"] == day else "next session",
+        "move_pct": round(100 * (rows[i]["close"] / rows[i - 1]["close"] - 1), 2),
+        "vol_mult": round(rows[i]["volume"] / avg, 2) if avg else None,
     }

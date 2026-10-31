@@ -3,7 +3,7 @@
 import json
 import os
 import threading
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -103,6 +103,34 @@ def _name(ticker: str) -> str:
     return PORTFOLIO[ticker][0] if ticker in PORTFOLIO else ticker
 
 
+def _level(role: str) -> str:
+    """top: CEO, CFO, MD, executive directors, chair, KMP. board: other directors. staff: senior management."""
+    if enrich.is_senior(role):
+        return "top"
+    return "board" if "director" in (role or "").lower() else "staff"
+
+
+def _filed_before(c, ticker: str, day: str) -> list[dict]:
+    """What the company filed between the previous close and this session's close: the likely explanation
+    for a price or volume move, or, if empty, a sign that nothing on record explains it. One entry per
+    category, most important first: Trent's results must not hide behind four later management filings."""
+    d = date.fromisoformat(day)
+    prev = d - timedelta(days=3 if d.weekday() == 0 else 1)
+    rows = c.execute(
+        "SELECT category, summary, priority, an_dt FROM filings WHERE ticker=? AND an_dt >= ? AND an_dt < ?"
+        " AND priority != 'routine'",
+        (ticker, f"{prev.isoformat()}T15:30:00", f"{day}T15:30:00"),
+    ).fetchall()
+    rows = sorted(rows, key=lambda r: (PRIORITY_ORDER[r["priority"]], CATEGORY_ORDER.get(r["category"], 99)))
+    out, seen = [], set()
+    for r in rows:
+        if r["category"] not in seen:
+            seen.add(r["category"])
+            label = CATEGORY_LABEL.get(r["category"], r["category"])
+            out.append({"category_label": label, "summary": r["summary"], "at": r["an_dt"]})
+    return out[:3]
+
+
 def _people_headline(people: list[dict]) -> str | None:
     """Lead with who matters most: a senior change at the company, then a senior change at a subsidiary (named),
     then anyone joining or leaving. ICICI Bank's filing on ICICI Life's new CEO otherwise led with a staff exit."""
@@ -159,6 +187,9 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                 "results": None,
                 "people": None,
                 "scale": None,
+                "first_at": fs[-1]["an_dt"],
+                "reaction": None,
+                "ledger": None,
             }
             if cat == "results":
                 rc = A.results_card(c, ticker)
@@ -175,6 +206,8 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                     people.setdefault((p["name"].lower().replace(".", ""), p["change"]), p)
                 amount = amount or e.get("amount_rs_crore")
             if people:
+                for p in people.values():
+                    p["level"] = _level(p["role"])
                 card["people"] = list(people.values())
                 # a board meeting can file results and an appointment together; the results line stays the headline
                 if not card["results"]:
@@ -182,6 +215,12 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             # Only where a size means something; an appointment filing once yielded "Rs 1,143 crore" from a profile.
             if amount and cat in AMOUNT_CATEGORIES:
                 card["scale"] = A.scale(c, ticker, amount)
+            if ticker in PORTFOLIO:  # prices are kept for the portfolio only
+                at = card["results"]["broadcast_at"] if card["results"] else best["an_dt"]
+                card["reaction"] = A.reaction(c, ticker, at)
+            led = pull.get_section(c, ticker, "ledger")
+            if led and led.get("status") == "ok":
+                card["ledger"] = {"counts": led["counts"], "promises": len(led["items"])}
             cards.append(card)
         # newest first within the same priority and category (two stable sorts)
         cards.sort(key=lambda k: k["latest_at"], reverse=True)
@@ -192,6 +231,7 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
         for m in moves:
             m["name"] = _name(m["ticker"])
             m["spark"] = A.sparkline(c, m["ticker"], 30)
+            m["filed"] = _filed_before(c, m["ticker"], m["date"])
 
         routine_by_cat: dict[str, int] = {}
         for r in routine:

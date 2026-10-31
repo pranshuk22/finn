@@ -280,6 +280,28 @@ Strict: category 51/60, priority 47/60. One label was wrong, not FINN: an HDFC B
 
 **After both rounds** (in-sample now, so optimistic): the 60 agree on 58 priorities, the 30 on 29. The two disagreements left in the 60 are judgment calls: a GST show-cause notice to ICICI Bank (FINN Needs you, labeller Worth knowing) and a postal ballot approving a share plan (FINN Worth knowing, labeller Routine). The labelled filings are a regression test in CI (`tests/test_classifier_eval.py`): the deterministic stages place 61 of the 90 and must keep agreeing with the labels. The owner's spot-check of 15 is in `eval/SPOTCHECK.md`.
 
+## E28. Beyond the brief's two examples: what each card adds, and the reference glossary
+
+**Against the reference document** (`2. ENAM_AI_Engineer_Build_Challenge_Reference.pdf`):
+- EBITDA is defined there as earnings before interest, tax, depreciation and amortisation, "a rough proxy for operating profitability, how profitable the core business is". FINN computes operating EBITDA, PBT + finance costs + depreciation - other income, so interest on cash and investment gains do not count as core business. The card labels it "Operating EBITDA" and prints the formula.
+- Margin is defined as profit / revenue. The results card now shows EBITDA and PAT margins with their change in basis points.
+- Its category table files "results decks and shareholder letters, and ads confirming results were published" under results. Results presentations and shareholder letters now go to results (Worth knowing); a results newspaper ad goes to results (Routine). ESOP allotments, compliance certificates and ESG reports stay unclassified, as the table says.
+
+**Added to the cards, all computed in Python from stored filings, results and prices** (`analytics.reaction`, `analytics.scale`, `results_card`, `main._filed_before`):
+
+| Card | Added | Example from the live data, 31 Oct |
+| --- | --- | --- |
+| Results | EBITDA and PAT margin, change in bps QoQ and YoY | DIXON EBITDA margin 2.7%, -110 bps YoY; PAT margin 1.9%, -310 bps YoY |
+| Results | Other income as a share of PBT, flagged at 25% or more | L&T 30%: "a large part of profit does not come from operations" |
+| Results, people, litigation, deals | The first session after the filing (same day if filed before 15:30 IST) | Sona BLW +8.95% on 8.1x usual volume after Q2; Tata Consumer +6.78% on 5.4x; TCS +3.85% on 3.5x |
+| Results | The company's promise ledger in one line, linked | TCS: 1 missed, 1 delivered, 5 pending, 1 unclear |
+| Management | Top management, board or senior staff (from the role, E27), entity, effective date | Pallavi Joshi Bakhru: Board, effective 1 Jan 2027 |
+| Fund raise, M&A | Size as a share of market cap as well as revenue | Persistent QIP Rs 4,265 crore: 4.2% of market cap |
+| Every card | How many filings and since when | Polycab litigation: 9 filings since 7 Oct |
+| Price and volume | What was filed between the previous close and that close, one line per category | Trent +5.4% on 30 Oct: Results, Management; Dixon -4.25%: no filing explains it (its results came at 16:19) |
+
+One bug found on the way: the move context first kept the two latest filings, so Trent's results (16:08) were hidden behind four Chairman-change filings (16:32). It now keeps one per category, most important first.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.
