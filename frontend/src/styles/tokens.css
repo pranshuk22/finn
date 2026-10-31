@@ -1,7 +1,7 @@
 /* FINN design tokens. Slate is sampled from the chosen reference (EVIDENCE E24); Paper is its light counterpart.
    Every theme and accent pairing was checked: all text colours pass WCAG AA (4.5:1) on bg, surface and raised,
    and on-accent passes on its accent (lowest pairing 5.02:1). Choices are curated so no setting can break that.
-   Attributes on <html>: data-theme (slate | paper), data-accent (taupe | sage | steel | ochre),
+   Attributes on <html>: data-theme (slate | paper | navy), data-accent (taupe | sage | steel | ochre),
    data-type (editorial | modern | classic), data-size (standard | large). */
 
 :root {
@@ -73,6 +73,28 @@
   --viz-down: #c8472a;
 }
 
+/* ---------- Navy: a cool dark theme in the manner of financial terminals ----------
+   Checked like the others: weakest text pairing 6.6:1 on bg, surface, raised and hero; on-accent 6.8:1 or more
+   on every accent; --viz-up / --viz-down pass the dataviz validator on surface and hero. */
+:root[data-theme="navy"] {
+  color-scheme: dark;
+  --bg: #0f1b2d;
+  --surface: #16253b;
+  --raised: #1c2d46;
+  --line: #2c3e59;
+  --backdrop: #0b1524;
+  --hero: #132238;
+  --text: #e8eef6;
+  --text-muted: #a7b4c6;
+  --text-faint: #7787a0;
+  --accent: #b3a49a;
+  --on-accent: #0f1b2d;
+  --accent-text: #d4c6bb;
+  --up: #8fd9b4;
+  --down: #f5a99c;
+  --needs-you: #e8c477;
+}
+
 /* ---------- accents ---------- */
 :root[data-accent="sage"] {
   --accent: #8faa9b;
@@ -115,4 +137,17 @@
 
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+:root[data-theme="navy"][data-accent="sage"] {
+  --accent: #8fb5a1;
+  --accent-text: #b5d6c4;
+}
+:root[data-theme="navy"][data-accent="steel"] {
+  --accent: #7fa6d1;
+  --accent-text: #b2cdeb;
+}
+:root[data-theme="navy"][data-accent="ochre"] {
+  --accent: #d0ad6a;
+  --accent-text: #e6c88e;
 }

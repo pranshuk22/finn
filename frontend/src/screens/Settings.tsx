@@ -42,8 +42,9 @@ export function SettingsScreen() {
             value={s.theme}
             onChange={(theme) => updateSettings({ theme })}
             options={[
-              { value: "slate", label: "Slate" },
               { value: "paper", label: "Paper" },
+              { value: "slate", label: "Slate" },
+              { value: "navy", label: "Navy" },
               { value: "system", label: "System" },
             ]}
             className="bg-base"
@@ -64,7 +65,7 @@ export function SettingsScreen() {
                 >
                   <span
                     className={`grid h-11 w-11 place-items-center rounded-full ring-offset-2 ring-offset-card transition ${on ? "ring-2 ring-ink" : ""}`}
-                    style={{ background: theme === "paper" ? a.paper : a.slate }}
+                    style={{ background: a[theme] }}
                   />
                   <span className={`text-[13px] ${on ? "font-semibold text-ink" : "text-muted"}`}>{a.label}</span>
                 </button>
