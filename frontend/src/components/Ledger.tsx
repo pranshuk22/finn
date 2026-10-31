@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
-import { ago, monthYear } from "../format";
+import { ago, monthYear, plain } from "../format";
 import type { Ledger, LedgerItem } from "../types";
 import { Button, Chip, ExtLink, Sheet } from "./ui";
 
@@ -105,7 +105,7 @@ export function LedgerView({ ledger }: { ledger: Ledger }) {
 function Quote({ text, who, source, page, url }: { text: string; who?: string | null; source: string; page: number | null | undefined; url?: string | null }) {
   return (
     <figure className="m-0 rounded-[14px] bg-base p-4">
-      <blockquote className="m-0 font-serif text-[16px] leading-relaxed text-ink">"{text}"</blockquote>
+      <blockquote className="m-0 font-serif text-[16px] leading-relaxed text-ink">"{plain(text)}"</blockquote>
       <figcaption className="mt-2 text-xs text-muted">
         {who && `${who}, `}
         {source} call{page ? `, page ${page}` : ""}

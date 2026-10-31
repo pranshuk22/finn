@@ -4,7 +4,7 @@ A mobile-first investing agent for Indian equities. It reads every NSE filing an
 
 Built for the ENAM Holdings AI Engineer Build Challenge (27 Oct to 1 Nov 2026).
 
-> **Status (31 Oct 2026):** the backend runs end to end on live data: ingestion, classification, results, management cards, alerts, research and the promise ledger, behind a FastAPI app. The mobile frontend and the deployment are in progress. Anything marked *(planned)* is not built yet; nothing here is described as done unless it runs. Claims about data sources and models link to [docs/EVIDENCE.md](docs/EVIDENCE.md), where each one was checked live. The build order and what is left are in [plan.md](plan.md).
+> **Status (31 Oct 2026):** FINN runs end to end on live data on an AWS Lightsail server in Mumbai: scheduled ingestion, classification, results, management cards, alerts, research, the promise ledger and Ask, behind a FastAPI app with a mobile web app installable to the home screen. Anything marked *(planned)* is not built yet; nothing here is described as done unless it runs. Claims about data sources and models link to [docs/EVIDENCE.md](docs/EVIDENCE.md), where each one was checked live. The build order and what is left are in [plan.md](plan.md).
 
 **Try it on your phone:** *(link goes here once deployed)*
 
@@ -31,7 +31,7 @@ Two things follow from that:
 | Results card | Revenue, EBITDA, PBT, PAT for the quarter, with QoQ and YoY change. Banks get pre-provision profit and provisions instead of EBITDA. | Parsed from the exchange's own iXBRL filing, not generated. Checked against Screener for all 22 companies: revenue within 0.02% for 20 of them, PAT within 0.8% for 21. Any line more than 1% off is marked "check" on the card ([E6](docs/EVIDENCE.md#e6-quarterly-results-numbers-are-available-as-structured-data), [E15](docs/EVIDENCE.md#e15-parsed-results-agree-with-screener-across-all-22-companies)). |
 | Management change card | Who joined or left, their role, and a 3-line career background with source links. | Name, role and the appointee's profile are read from the filing PDF, because the exchange summary does not name the person ([E4](docs/EVIDENCE.md#e4-management-change-filings-do-not-name-the-person-in-the-summary)). A web search for career history fills in the rest. A background counts as confident only if one of its sources names the appointing company; otherwise the card warns it may be a namesake ([E5](docs/EVIDENCE.md#e5-person-search-is-ambiguous-so-bios-need-disambiguation), [E18](docs/EVIDENCE.md#e18-model-mistakes-caught-while-enriching-filings-and-the-guards-added)). Changes at a subsidiary are labelled as such and ranked lower. |
 | Everything else | A one-line summary next to the filing, at the priority the category deserves (table below). When the filing states an amount (an order, a deal, a capex plan, a claim), the card shows it as a share of annual revenue. | The company's own one-liner where it is enough. When it is not ("General Updates", "Disclosure under Regulation 30"), Flash-Lite reads the first pages of the PDF. Example: Polycab's insolvency filings turned out to concern an alleged operational debt of Rs 2.79 crore, against about Rs 9,900 crore of revenue that quarter ([E18](docs/EVIDENCE.md#e18-model-mistakes-caught-while-enriching-filings-and-the-guards-added)). |
-| Threshold alerts | Price move beyond ±X% in a day, volume above Y times the 20-day average, and categories you always want to hear about. | You set X and Y. FINN replays the last 60 sessions and shows how many alerts those settings would have fired, so you tune "unusual" with real data. It matters: ±3% or 2x fires 119 alerts in 60 sessions across the portfolio, ±5% or 3x fires 25 ([E23](docs/EVIDENCE.md#e23-alert-thresholds-matter-and-research-works-on-a-ticker-finn-never-saw)). The replay runs in the API today; the slider screen is *(planned)* with the frontend. |
+| Threshold alerts | Price move beyond ±X% in a day, volume above Y times the 20-day average, and categories you always want to hear about. | You set X and Y. FINN replays the last 60 sessions and shows how many alerts those settings would have fired, so you tune "unusual" with real data. It matters: ±3% or 2x fires 119 alerts in 60 sessions across the portfolio, ±5% or 3x fires 25 ([E23](docs/EVIDENCE.md#e23-alert-thresholds-matter-and-research-works-on-a-ticker-finn-never-saw)). The count updates as you drag the sliders. |
 
 **How FINN decides what needs you.** This is a judgment call, so here it is in the open:
 
@@ -73,6 +73,10 @@ Search any NSE ticker. FINN builds a brief from primary sources only: exchange f
 - **Revised**: the same metric was guided again with a different target. Detected in Python.
 - **Dropped**: never mentioned again on a later call. Often the most telling one.
 - **Pending**: the timeframe has not ended.
+
+Every numbers check states its gap, so a near miss reads as one: HAL guided 7% to 8% revenue growth for FY26 and the card says "Revenue growth in FY26: 6.8%, 0.2 points below the 7% low end", next to HAL's own words that revenue rose "7%". After new results arrive, the checks on stored ledgers are rerun in Python with no model call.
+
+Ledgers are prebuilt for 11 companies ([E26](docs/EVIDENCE.md#e26-ledger-batch-for-11-companies-and-a-hand-check-of-hal)); any other ticker can build one from the app. TRENT shows none, correctly: in 12 months of NSE filings it published no earnings call transcript.
 
 Two real rows from TCS: in Jan 2026 management said international revenue growth in FY26 would beat FY25; the Apr 2026 call says "FY 2026 revenue declined by 2.4% in constant currency" (Missed, page 5). In Apr 2026 they guided a 150 to 200 bp margin hit from wage increments; the Jul 2026 call says "impacted margins by 170 bps" (Delivered, page 5).
 
@@ -118,7 +122,8 @@ flowchart LR
         SCR[Screener: financials + transcript links]
     end
 
-    subgraph Backend[FastAPI + SQLite]
+    subgraph Backend[FastAPI + SQLite on Lightsail Mumbai]
+        CRON[systemd timers]
         ING[Ingest jobs]
         CLS[Classifier: label map, rules, Flash-Lite]
         ENR[Filing reader: PDF summary, people, bios]
@@ -134,6 +139,7 @@ flowchart LR
         RESEARCH[Research]
     end
 
+    CRON --> ING & RES & ALR
     NSE --> ING
     IX --> RES
     YF --> ALR
@@ -147,9 +153,9 @@ flowchart LR
 ```
 
 - **Backend:** Python 3.12, FastAPI, Pydantic v2, SQLite. Ingestion writes to SQLite and the API only reads, so responses take 7 to 24 ms locally ([E21](docs/EVIDENCE.md#e21-api-speed-and-payload-and-what-that-says-about-caching)). SQLite is the cache: no Redis, because a server-side cache would save milliseconds nobody notices. Responses are gzipped (the 30-day brief goes from 157 KB to 29 KB). The only live work is research on a ticker FINN has not seen yet.
-- **Frontend** *(in progress)*: React, Vite, Tailwind CSS, installed as a PWA so it opens like an app from the home screen and shows the last brief instantly while it refreshes.
-- **Hosting** *(planned)*: an AWS Lightsail instance in Mumbai, always on, with a disk that keeps SQLite. Render's free tier sleeps after 15 minutes, takes about a minute to wake, and loses local files on restart ([E22](docs/EVIDENCE.md#e22-hosting-render-free-versus-aws-lightsail)).
-- **Demo resilience** *(planned)*: a pre-filled SQLite snapshot ships with the deploy. If NSE or Screener blocks the server during review, the app still runs on the snapshot and says how old the data is.
+- **Frontend:** React, Vite, Tailwind CSS, served by FastAPI from the same origin, 73 KB of JavaScript gzipped. An installable PWA: every screen draws the last copy saved on the phone at once, refreshes it in the background, and says how old it is when offline. Colours were sampled from the chosen design reference and every text colour passes WCAG AA contrast ([E24](docs/EVIDENCE.md#e24-colour-palette-sampled-from-the-chosen-reference-then-checked-for-contrast)).
+- **Hosting:** AWS Lightsail in Mumbai (2 vCPU, 1 GB), always on, with a disk that keeps SQLite. NSE, Screener, BSE, yfinance and Gemini all answer from it ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Caddy serves HTTPS with a Let's Encrypt certificate. Render's free tier was ruled out: it sleeps after 15 minutes, takes about a minute to wake, and loses local files on restart ([E22](docs/EVIDENCE.md#e22-hosting-render-free-versus-aws-lightsail)).
+- **Schedule:** systemd timers on the server, in IST: filings, results and filing reads every 30 minutes from 08:00 to 22:30; prices after the close on trading days; Screener once a night. One lock keeps two refreshes from overlapping. Files in `deploy/`.
 
 ## Data sources and what we learned about them
 
@@ -184,13 +190,16 @@ uv sync
 uv run python -m backend.jobs.refresh   # filings, EOD, results, Screener (about 3 minutes)
 uv run python -m backend.enrich         # read vague and management filings
 uv run uvicorn backend.main:app --port 8000
-uv run pytest                           # parser and quote-check tests
+uv run pytest                           # 15 tests: parser, quote check, verdicts, brief grouping
 
 # frontend
 cd frontend
 bun install
-bun run dev                     # http://localhost:5173
+bun run dev                     # http://localhost:5173, proxies /api to :8000
+bun run build                   # FastAPI then serves frontend/dist on :8000
 ```
+
+**Deploy** (Ubuntu 24.04): copy the repo and `.env` to `~/finn`, then run `deploy/setup.sh`. It installs Caddy, the app service and the timers.
 
 No `uv`? `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt` works too.
 

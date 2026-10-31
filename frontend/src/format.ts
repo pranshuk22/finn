@@ -73,3 +73,9 @@ export function crore(x: number | null | undefined): string {
   if (Math.abs(x) >= 100_000) return `${(x / 100_000).toLocaleString("en-IN", { maximumFractionDigits: 2 })} lakh cr`;
   return `${inr(x)} cr`;
 }
+
+// PDF text keeps typographic ligatures ("speciﬁc"); quotes are shown with plain letters.
+const LIGATURES: Record<string, string> = { "\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl", "\u01af": "ff" };
+export function plain(text: string): string {
+  return text.replace(/[\ufb00-\ufb04\u01af]/g, (c) => LIGATURES[c] ?? c);
+}

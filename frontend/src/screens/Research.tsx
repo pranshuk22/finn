@@ -3,7 +3,7 @@ import { api, ApiError, useQuery } from "../api";
 import { Bars } from "../components/Bars";
 import { LedgerBuilder, LedgerView } from "../components/Ledger";
 import { Card, ErrorState, ExtLink, Pct, ResultsTable, SectionTitle, Sheet, Skeleton, StaleNote } from "../components/ui";
-import { crore, inr, when } from "../format";
+import { crore, inr, plain, when } from "../format";
 import { navigate } from "../router";
 import type { Answer, Research, Trajectory } from "../types";
 
@@ -359,10 +359,10 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
             {answer.a && (
               <>
                 {!answer.a.covered && <p className="text-xs font-semibold tracking-[0.08em] text-needs uppercase">Not covered by the calls</p>}
-                <p className="text-[15px]">{answer.a.answer}</p>
+                <p className="text-[15px]">{plain(answer.a.answer)}</p>
                 {answer.a.citations.map((c) => (
                   <figure key={`${c.source}-${c.page}-${c.quote.slice(0, 20)}`} className="m-0 rounded-[14px] bg-base p-4">
-                    <blockquote className="m-0 font-serif text-[16px] leading-relaxed">"{c.quote}"</blockquote>
+                    <blockquote className="m-0 font-serif text-[16px] leading-relaxed">"{plain(c.quote)}"</blockquote>
                     <figcaption className="mt-2 text-xs text-muted">
                       {c.source} call, page {c.page} · <ExtLink href={`${c.url}#page=${c.page}`}>Open PDF</ExtLink>
                     </figcaption>
