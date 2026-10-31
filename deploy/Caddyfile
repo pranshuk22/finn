@@ -1,0 +1,5 @@
+# sslip.io maps 15-206-124-235.sslip.io to 15.206.124.235, which gives Let's Encrypt a hostname to certify.
+15-206-124-235.sslip.io {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8000
+}

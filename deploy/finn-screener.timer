@@ -1,0 +1,8 @@
+[Unit]
+Description=FINN Screener once a day
+
+[Timer]
+OnCalendar=*-*-* 21:15:00 Asia/Kolkata
+
+[Install]
+WantedBy=timers.target

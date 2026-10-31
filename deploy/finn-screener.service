@@ -1,0 +1,8 @@
+[Unit]
+Description=FINN: Screener financials and document links
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/finn
+ExecStart=/usr/bin/flock -w 900 /tmp/finn-refresh.lock /home/ubuntu/.local/bin/uv run --frozen python -m backend.jobs.refresh --only screener

@@ -1,0 +1,9 @@
+[Unit]
+Description=FINN filings every 30 minutes, 08:00 to 22:30 IST
+
+[Timer]
+OnCalendar=*-*-* 08..22:00,30:00 Asia/Kolkata
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=FINN EOD after the close on trading days (twice, Yahoo can lag)
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 16:45:00 Asia/Kolkata
+OnCalendar=Mon..Fri *-*-* 19:30:00 Asia/Kolkata
+
+[Install]
+WantedBy=timers.target
