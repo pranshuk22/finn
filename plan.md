@@ -38,10 +38,9 @@ The brief decides the trade-offs: "Thin-but-working beats broad-but-broken" and 
 
 Owner in brackets.
 
-### 1. Open the link to the world [you] 5 minutes
+### 1. Public link [done]
 
-- Lightsail, instance `finn`, Networking: add HTTPS (443) to the IPv4 and IPv6 firewalls. Only 22 and 80 are open (E25).
-- Decide on a real domain. Your network's Fortinet filter rewrites `sslip.io`; a reviewer's office filter could do the same. If you buy one, point an A record at 15.206.124.235 and send me the name. Changing Caddy takes 2 minutes.
+- Port 443 open; the app is live at https://finn-mu-three.vercel.app, with `/api` forwarded to Lightsail (E25). No domain needed.
 
 ### 2. Phone test [me, then you] 30 minutes, after 1
 
@@ -70,12 +69,12 @@ Owner in brackets.
 
 | When (IST) | Work |
 | --- | --- |
-| Sat afternoon | 1 (you), 2, 4 |
+| Sat afternoon | 2 (phone test), 4 |
 | Sat evening | 3 (eval, with your spot-check) |
 | Sun morning | Polish from your feedback |
 | Sun afternoon | 5 (submission) |
 
-**Checkpoint, Sat 23:00:** a phone can open the deployed link, see the brief, change thresholds, and open research with a ledger. Everything but the open port is in place.
+**Checkpoint, Sat 23:00:** a phone can open the deployed link, see the brief, change thresholds, and open research with a ledger. Met on Sat afternoon: the link works from a filtered network and a phone-sized browser.
 
 ## Cut order if time runs short
 
@@ -88,12 +87,11 @@ Last added, first cut: Ask UI, per-category overrides, bull and bear UI, alert r
 | NSE blocks the Lightsail IP | Checked: it does not (E25) | Refresh on your Mac, copy the database up |
 | Flash daily quota runs out during review | Medium | 1 call per ledger, stored ledgers, fallback to the other Flash model, clear message when both are out |
 | Free tier 503s ("high demand") | Seen on all three; 5 of 16 ledger requests on 31 Oct (E26) | Retries, then sibling model; nothing in the brief depends on a live model call |
-| A reviewer's network filters sslip.io | Seen on your network (E25) | A real domain |
+| A reviewer's network filters sslip.io | Seen on your network (E25) | Public link is on vercel.app |
 | Ledger quality varies by company | Medium | Quote check drops unsupported rows; show how many were dropped; hand-check one ledger |
 | Credits do not cover Lightsail | Not yet confirmed | $7 for the month on the card |
 
 ## Decisions waiting on you
 
-1. Open port 443 in Lightsail, and decide on a domain.
-2. GitHub: repo name, public or private until submission, and approval to push.
-3. Spot-check of the classifier labels (step 3).
+1. GitHub: repo name, public or private until submission, and approval to push.
+2. Spot-check of the classifier labels (step 3).

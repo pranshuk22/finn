@@ -6,7 +6,7 @@ Built for the ENAM Holdings AI Engineer Build Challenge (27 Oct to 1 Nov 2026).
 
 > **Status (31 Oct 2026):** FINN runs end to end on live data on an AWS Lightsail server in Mumbai: scheduled ingestion, classification, results, management cards, alerts, research, the promise ledger and Ask, behind a FastAPI app with a mobile web app installable to the home screen. Anything marked *(planned)* is not built yet; nothing here is described as done unless it runs. Claims about data sources and models link to [docs/EVIDENCE.md](docs/EVIDENCE.md), where each one was checked live. The build order and what is left are in [plan.md](plan.md).
 
-**Try it on your phone:** *(link goes here once deployed)*
+**Try it on your phone:** https://finn-mu-three.vercel.app (open in the phone browser, then Add to Home Screen)
 
 ---
 
@@ -154,7 +154,7 @@ flowchart LR
 
 - **Backend:** Python 3.12, FastAPI, Pydantic v2, SQLite. Ingestion writes to SQLite and the API only reads, so responses take 7 to 24 ms locally ([E21](docs/EVIDENCE.md#e21-api-speed-and-payload-and-what-that-says-about-caching)). SQLite is the cache: no Redis, because a server-side cache would save milliseconds nobody notices. Responses are gzipped (the 30-day brief goes from 157 KB to 29 KB). The only live work is research on a ticker FINN has not seen yet.
 - **Frontend:** React, Vite, Tailwind CSS, served by FastAPI from the same origin, 73 KB of JavaScript gzipped. An installable PWA: every screen draws the last copy saved on the phone at once, refreshes it in the background, and says how old it is when offline. Colours were sampled from the chosen design reference and every text colour passes WCAG AA contrast ([E24](docs/EVIDENCE.md#e24-colour-palette-sampled-from-the-chosen-reference-then-checked-for-contrast)).
-- **Hosting:** AWS Lightsail in Mumbai (2 vCPU, 1 GB), always on, with a disk that keeps SQLite. NSE, Screener, BSE, yfinance and Gemini all answer from it ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Caddy serves HTTPS with a Let's Encrypt certificate. Render's free tier was ruled out: it sleeps after 15 minutes, takes about a minute to wake, and loses local files on restart ([E22](docs/EVIDENCE.md#e22-hosting-render-free-versus-aws-lightsail)).
+- **Hosting:** AWS Lightsail in Mumbai (2 vCPU, 1 GB), always on, with a disk that keeps SQLite. NSE, Screener, BSE, yfinance and Gemini all answer from it ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Caddy serves HTTPS with a Let's Encrypt certificate. The public link is on Vercel's free plan, which serves the app and forwards `/api` to the server (`frontend/vercel.json`), so the address is a mainstream domain rather than an IP-based one that office web filters block ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Render's free tier was ruled out: it sleeps after 15 minutes, takes about a minute to wake, and loses local files on restart ([E22](docs/EVIDENCE.md#e22-hosting-render-free-versus-aws-lightsail)).
 - **Schedule:** systemd timers on the server, in IST: filings, results and filing reads every 30 minutes from 08:00 to 22:30; prices after the close on trading days; Screener once a night. One lock keeps two refreshes from overlapping. Files in `deploy/`.
 
 ## Data sources and what we learned about them
