@@ -139,11 +139,17 @@ def generate(
             return r.parsed if schema else r.text
         except errors.APIError as e:
             _log(task, model, None, t0, ok=False)
+            # Say why: a per-day refusal and a per-minute one need different responses (EVIDENCE E33).
+            quota = ", ".join(sorted(set(re.findall(r"quotaId'?\"?:\s*'?\"?([\w-]+)", str(e))))) or "none named"
+            print(f"llm: {task} on {model} refused, {e.code} ({quota}): {str(e)[:160]}", flush=True)
             if e.code == 429 and "PerDay" in str(e):
                 _exhausted[model] = _pacific_day()
                 return fallback()
             if e.code in (429, 500, 503) and attempt < retries - 1:
-                time.sleep(min(90, _retry_after(e) or 5 * 2**attempt))
+                # A ledger call sends about 160k tokens. Retrying a 503 after 5 s sent three of them inside a
+                # minute and the third tripped the per-minute token limit (RELIANCE, 31 Oct). Big calls wait longer.
+                big = len(str(contents)) > 200_000
+                time.sleep(min(120, _retry_after(e) or (60 if big else 5) * 2**attempt))
                 continue
             if e.code in (429, 500, 503):
                 return fallback()

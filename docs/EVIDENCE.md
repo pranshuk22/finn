@@ -386,6 +386,16 @@ Not reproduced: "Reload wipes Done marks". Reload clears only saved `/api/` resp
 
 Tests: backend 47, frontend 30.
 
+## E33. Why the Reliance ledger rebuild failed, and the rebuild
+
+The refusal was not the daily quota (a TITAN ledger call succeeded 15 minutes later). With the reason now logged (`llm.generate` prints the code and the quota named):
+- Attempts 1 and 2: `503 UNAVAILABLE`, "This model is currently experiencing high demand".
+- Attempt 3, 5 to 10 s later: `429 RESOURCE_EXHAUSTED`. Each attempt resends about 160k tokens of transcripts, so three inside a minute trip the per-minute input-token limit (the free tier names it `GenerateContentInputTokensPerModelPerMinute-FreeTier`).
+
+Fix: calls over 200k characters wait 60 s, then 120 s, between retries. Retried at 21:06 IST: one 503 on the fallback model, then success.
+
+RELIANCE ledger, before and after (same four calls, Oct 2025 to Jul 2026, segment numbers now in the numbers table): 8 promises to 12, 0 quotes dropped. New: petchem customs duty (not mentioned again), solar, battery and polysilicon commissioning, Kutch power supply, Retail absolute EBITDA "double over the next three years". Jio IPO timing moved from unclear to revised. Bull and bear rebuilt from it.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.
