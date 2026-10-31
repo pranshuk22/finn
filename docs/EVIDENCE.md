@@ -256,8 +256,32 @@ Built 2026-10-31 between 13:24 and 13:36 IST, one company at a time.
 - **Ask, run on TCS** (gemini-3.5-flash-lite, 2026-10-31): "deal wins and TCV in the latest quarter" answered in 9.7 s with 2 citations ("TCV for the quarter was US$9.6 billion", Oct 2026 call, page 3); "guidance on operating margin" in 9.2 s, citing that TCS gives no formal guidance (Jan 2026, page 3) and the "26%-28%" band (Oct 2026, page 27); "plan for entering the electric vehicle battery business" in 7.3 s returned covered = false with no citations. No quote was dropped in the three answers.
 - **Bull and bear wording:** Flash-Lite wrote "Net profit grew 23% over 5 years" for a 23% five-year CAGR, and kept doing so after a prompt rule against it. The phrase is now rewritten in code to "a year over 5 years", and facts carry their units ("ROCE: 37% in Mar 2022").
 
+## E27. Classifier eval: 60 blind-labelled filings, then 30 held out
+
+**Method** (`eval/`). 20 filings per sorting stage (exchange label, text rule, model), fixed seed 2027, drawn from the 301 October filings. The labeller (Claude) saw only what the exchange published: the label, the summary text and the attachment from its subject line, with the stage and FINN's answer hidden and the order shuffled. Category and priority were labelled against the README priority table. For filings that honestly fit two categories (a trading-window notice as unclassified or insider trading), acceptable alternatives were written down before scoring; "strict" ignores them, "lenient" accepts them. `eval/score.py` joins FINN's stored answer only after the labels are saved.
+
+**Result before any fixes (the headline):**
+
+| Stage | Category, lenient | Priority, lenient |
+| --- | --- | --- |
+| Exchange label | 18/20 | 19/20 |
+| Text rule | 20/20 | 15/20 |
+| Model | 19/20 | 14/20 |
+| All | 57/60 (95.0%) | 48/60 (80.0%) |
+
+Strict: category 51/60, priority 47/60. One label was wrong, not FINN: an HDFC Bank filing re-appointing an independent director also records the Deputy Managing Director ceasing, which sits beyond the excerpt the labeller saw; FINN's filing reader had found it. With that label corrected, priority before fixes is 49/60 (81.7%). The correction is recorded in the label file.
+
+**What the misses showed, and the fixes:**
+- A Rs 4,265 crore QIP allocation (7.68 million shares at Rs 5,550) came under the exchange label "Committee Meeting Updates", which the label map treated as always routine. That label, and "Shareholders meeting" (also used for postal ballots), now go to rules and the model. Re-sorting them found five Persistent QIP filings, now fund raises.
+- Press releases were judged on a short keyword list, so a facility opening, a market entry, a client collaboration, a revenue update and a completed takeover ("Secures Strong Majority Stake", about 94% of Nagarro) were all Routine. Takeovers and stakes now count as M&A, facility openings as capex, and the press-release list covers entries, collaborations, wins and business updates.
+- Companion documents (a results press release, a shareholders' letter) were Needs you next to the results filing itself; they are now Worth knowing, keyed on the exchange's "Press Release" label rather than the words "press release", which also appear in genuine results announcements.
+
+**Held out: 30 filings** (seed 2028, 10 per stage, none from the first 60), drawn and labelled after those fixes. Category 30/30 lenient (27/30 strict); **priority 25/30 (83.3%)**. This is the out-of-sample figure to quote. Two of the five misses contradicted the README: a CEO change at subsidiary ICICI Life and an independent director at Bajaj Auto were Needs you because the filing reader's model marks almost every person "senior". Seniority is now decided in code from the role (CEO, CFO, COO, MD, whole-time or executive director, chair, KMP; never independent or non-executive directors). Also fixed: an analyst presentation of a quarter is Worth knowing, and "award" means a contract award, not an awards ceremony. Still missed: an Infosys client adopting Finacle, filed with no keyword a rule could use.
+
+**After both rounds** (in-sample now, so optimistic): the 60 agree on 58 priorities, the 30 on 29. The two disagreements left in the 60 are judgment calls: a GST show-cause notice to ICICI Bank (FINN Needs you, labeller Worth knowing) and a postal ballot approving a share plan (FINN Worth knowing, labeller Routine). The labelled filings are a regression test in CI (`tests/test_classifier_eval.py`): the deterministic stages place 61 of the 90 and must keep agreeing with the labels. The owner's spot-check of 15 is in `eval/SPOTCHECK.md`.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.
 - Free tier RPM and RPD for our key. Check in AI Studio.
-- Rule precision on the 76 text-rule classifications in E3.
+- Rule precision: measured in E27.

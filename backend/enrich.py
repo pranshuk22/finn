@@ -198,10 +198,26 @@ def run(days: int = 35, limit: int | None = None) -> None:
     print(f"enrich: done, {len(reads)} read")
 
 
+_SENIOR = re.compile(
+    r"\b(ceo|cfo|coo|md)\b|chief (executive|financial|operating) officer|managing director|"
+    r"chair(man|person)?\b|whole[- ]?time director|executive director|key managerial",
+    re.I,
+)
+_NOT_SENIOR = re.compile(r"independent|non-?executive|nominee", re.I)
+
+
+def is_senior(role: str) -> bool:
+    """Seniority is a rule, not the model's call: it marked independent directors and senior-management staff
+    as senior, which put routine board changes into Needs you (classifier eval, E27)."""
+    return bool(_SENIOR.search(role or "")) and not _NOT_SENIOR.search(role or "")
+
+
 def management_priority(people: list[dict]) -> str:
     """Needs you only for a senior arrival or exit at the listed company itself."""
+    if not people:
+        return "worth_knowing"  # nothing could be read: do not bury it, do not escalate it
     own = [p for p in people if not p.get("entity")]
-    if any(p["senior"] and p["change"] in ("joining", "leaving") for p in own):
+    if any(is_senior(p["role"]) and p["change"] in ("joining", "leaving") for p in own):
         return "needs_you"
     if all(p["change"] == "reappointed" for p in people):
         return "routine"

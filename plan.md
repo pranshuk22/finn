@@ -32,6 +32,7 @@ The brief decides the trade-offs: "Thin-but-working beats broad-but-broken" and 
 | Hosting | Lightsail Mumbai: every source answers from it; app, Caddy HTTPS and timers running (`deploy/`) | E22, E25 |
 | Ledgers | 11 companies built, TRENT correctly empty; HAL read against its quotes; checks state their gap and rerun on new results | E26 |
 | Ask | Tested on TCS: 2 cited answers, 1 refusal, no quote dropped | E26 |
+| Classifier eval | 60 blind-labelled, 30 held out; fixes for a hidden QIP, press releases, seniority | E27 |
 | Frontend | Brief with a computed summary and portfolio breadth, Research (ledger, quote sheets, charts, Ask), Alerts with live replay, Search, Settings (theme, accent, typeface, size); PWA with on-device cache; every pairing AA | E24 |
 
 ## Left, in order
@@ -46,10 +47,10 @@ Owner in brackets.
 
 - Open the link on a real phone over mobile data, install to the home screen, go through every screen. Fix what breaks.
 
-### 3. Classifier eval [me, then you] about 45 min plus 10 min of yours
+### 3. Classifier eval [done, your spot-check pending]
 
-- 60 October filings, picked so every stage is represented. I label them from the filing text; you spot-check at least 15.
-- Accuracy per stage (label, rules, model) and for priority. Saved as `eval/filings_labelled.json`, results as E27 and in the README.
+- 60 blind-labelled plus 30 held out: priority 80% before fixes, 83% held out; fixes and method in E27. Regression test in CI.
+- You: `eval/SPOTCHECK.md`, 15 rows, reply with the numbers you disagree with.
 
 ### 4. Polish [me]
 

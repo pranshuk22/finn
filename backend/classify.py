@@ -24,7 +24,7 @@ _RULES: list[tuple[str, str]] = [
         r"transcript|recording|earnings call|conference call|con\.? call|concall|webcast|"
         r"call with (media|analysts)",
     ),
-    ("results", r"financial results|results for the (quarter|period|half|year)"),
+    ("results", r"financial results|results for the (quarter|period|half|year)|shareholders?'? ?letter"),
     (
         "investor_meetings",
         r"investor meet|analysts? meet|institutional investor|one-on-one|"
@@ -50,7 +50,7 @@ _RULES: list[tuple[str, str]] = [
     (
         "M&A",
         r"acqui|merger|amalgamat|demerg|joint venture|scheme of arrangement|divest|"
-        r"disinvest|sale of (stake|shares|business|undertaking)|incorporation of",
+        r"disinvest|sale of (stake|shares|business|undertaking)|incorporation of|takeover|majority stake|stake in",
     ),
     (
         "fund_raise",
@@ -61,12 +61,14 @@ _RULES: list[tuple[str, str]] = [
     (
         "capex",
         r"capital expenditure|\bcapex\b|capacity expansion|greenfield|brownfield|"
-        r"new (plant|facility|manufacturing)|commercial production|commissioning",
+        r"new (plant|facility|manufacturing)|commercial production|commissioning|"
+        r"\bopens?\b.{0,40}\b(facility|plant|centre|center|campus)\b|"
+        r"expansion of .{0,40}\b(facility|plant|centre|center|campus)\b",
     ),
     (
         "press_release",
         r"press release|media release|media statement|order|contract|launch|"
-        r"partnership|clarification|rumou?r|verification|award",
+        r"partnership|collaborat|clarification|rumou?r|verification|award|update for q[1-4]|business update",
     ),
 ]
 _RULES_RE = [(cat, re.compile(p, re.I)) for cat, p in _RULES]
@@ -82,6 +84,8 @@ AMBIGUOUS_LABELS = {
     "Analysts/Institutional Investor Meet/Con. Call Updates",
     "Record Date",
     "Allotment of Securities",
+    "Committee Meeting Updates",  # carried a Rs 4,265 crore QIP allocation (eval, E27)
+    "Shareholders meeting",  # also used for postal ballot notices
     "Agreements",
     "Agreement",
     "Others",
@@ -114,7 +118,8 @@ def priority(category: str, text: str, label: str = "") -> str:
             return "routine"
         if _has(t, r"to consider|intimation of (the )?board meeting|will be held|is scheduled|trading window"):
             return "routine"
-        if label == "Investor Presentation" or _has(t, r"presentation"):
+        # Companion documents: the numbers are in the results filing itself (eval, E27).
+        if label in ("Investor Presentation", "Press Release") or _has(t, r"presentation|shareholders?'? ?letter"):
             return "worth_knowing"
         return "needs_you"
     if category == "management_change":
@@ -128,7 +133,7 @@ def priority(category: str, text: str, label: str = "") -> str:
             _has(
                 t,
                 r"\bceo\b|\bcfo\b|chief executive|chief financial|managing director|chairman|"
-                r"whole-?time director|key managerial|\bkmp\b",
+                r"whole[- ]?time director|key managerial|\bkmp\b",
             )
             or label == "Change in Management"
         ):
@@ -158,10 +163,21 @@ def priority(category: str, text: str, label: str = "") -> str:
         return "worth_knowing"
     if category in ("M&A", "fund_raise", "capex", "bonus_split"):
         return "worth_knowing"
+    if (
+        category == "investor_meetings"
+        and _has(t, r"presentation")
+        and _has(t, r"\bq[1-4]\b|quarter|results|financials")
+    ):
+        return "worth_knowing"  # the deck that explains a quarter's numbers (eval, E27)
     if category == "press_release":
         return (
             "worth_knowing"
-            if _has(t, r"order|contract|award|launch|acqui|clarification|rumou?r|verification")
+            if _has(
+                t,
+                r"order|contract|awarded|award of|letter of award|launch|acqui|clarification|rumou?r|verification|"
+                r"enters?|entry|collaborat|partner|wins?\b|selected|opens?\b|facility|expan|"
+                r"update for q[1-4]|business update|revenue",
+            )
             else "routine"
         )
     return "routine"

@@ -1,0 +1,678 @@
+{
+ "labeller": "Claude, blind to FINN's output, from the exchange label, summary and attachment text",
+ "labelled_on": "2026-10-31",
+ "policy": "README priority table",
+ "items": [
+  {
+   "n": 1,
+   "id": "106806144",
+   "ticker": "PERSISTENT",
+   "category": "unclassified",
+   "category_alt": [
+    "fund_raise"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ESOP allotment to the ESOP trust"
+  },
+  {
+   "n": 2,
+   "id": "106829696",
+   "ticker": "ICICIBANK",
+   "category": "unclassified",
+   "category_alt": [
+    "fund_raise"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ESOP allotment"
+  },
+  {
+   "n": 3,
+   "id": "106821354",
+   "ticker": "ICICIBANK",
+   "category": "earnings_call",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "audio recording link of the results call"
+  },
+  {
+   "n": 4,
+   "id": "106811186",
+   "ticker": "TCS",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results and interim dividend"
+  },
+  {
+   "n": 5,
+   "id": "106830354",
+   "ticker": "INFY",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [
+    "worth_knowing"
+   ],
+   "why": "client delivery announcement, not an order win"
+  },
+  {
+   "n": 6,
+   "id": "106811825",
+   "ticker": "GRAVITA",
+   "category": "M&A",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "step-down subsidiary incorporated"
+  },
+  {
+   "n": 7,
+   "id": "106834725",
+   "ticker": "BAJAJ-AUTO",
+   "category": "investor_meetings",
+   "category_alt": [
+    "earnings_call"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "schedule of meet"
+  },
+  {
+   "n": 8,
+   "id": "106818536",
+   "ticker": "ICICIBANK",
+   "category": "unclassified",
+   "category_alt": [
+    "fund_raise"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ESOP allotment"
+  },
+  {
+   "n": 9,
+   "id": "106805363",
+   "ticker": "TCS",
+   "category": "M&A",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "acquires 100% of BBY Services India LLP"
+  },
+  {
+   "n": 10,
+   "id": "106818494",
+   "ticker": "POLYCAB",
+   "category": "results",
+   "category_alt": [
+    "investor_meetings",
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "earnings presentation"
+  },
+  {
+   "n": 11,
+   "id": "106821698",
+   "ticker": "TCS",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "product enters Sri Lanka with a bank client"
+  },
+  {
+   "n": 12,
+   "id": "106819742",
+   "ticker": "PERSISTENT",
+   "category": "fund_raise",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "NCDs and CP to fund the Nagarro acquisition"
+  },
+  {
+   "n": 13,
+   "id": "106820776",
+   "ticker": "PERSISTENT",
+   "category": "unclassified",
+   "category_alt": [
+    "results"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "newspaper publication"
+  },
+  {
+   "n": 14,
+   "id": "106834418",
+   "ticker": "TRENT",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 15,
+   "id": "106800525",
+   "ticker": "DIXON",
+   "category": "agm_egm",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "AGM scrutiniser report and voting results"
+  },
+  {
+   "n": 16,
+   "id": "106823131",
+   "ticker": "HDFCBANK",
+   "category": "postal_ballot",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "notice of postal ballot"
+  },
+  {
+   "n": 17,
+   "id": "106802824",
+   "ticker": "RELIANCE",
+   "category": "unclassified",
+   "category_alt": [
+    "insider_trading"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "trading window closure"
+  },
+  {
+   "n": 18,
+   "id": "106819301",
+   "ticker": "PERSISTENT",
+   "category": "earnings_call",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "outcome and recording of the results call"
+  },
+  {
+   "n": 19,
+   "id": "106818693",
+   "ticker": "PERSISTENT",
+   "category": "results",
+   "category_alt": [
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "press release on results; numbers are in the results filing"
+  },
+  {
+   "n": 20,
+   "id": "106822195",
+   "ticker": "SONACOMS",
+   "category": "earnings_call",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "earnings call rescheduled"
+  },
+  {
+   "n": 21,
+   "id": "106818635",
+   "ticker": "POLYCAB",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [
+    "worth_knowing"
+   ],
+   "why": "interim condensed financial statements"
+  },
+  {
+   "n": 22,
+   "id": "106817628",
+   "ticker": "DIXON",
+   "category": "unclassified",
+   "category_alt": [
+    "credit_rating",
+    "press_release"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ESG rating assigned"
+  },
+  {
+   "n": 23,
+   "id": "106821332",
+   "ticker": "RELIANCE",
+   "category": "unclassified",
+   "category_alt": [
+    "fund_raise",
+    "results"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "newspaper clippings"
+  },
+  {
+   "n": 24,
+   "id": "106837197",
+   "ticker": "INFY",
+   "category": "capex",
+   "category_alt": [
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "development centre expansion"
+  },
+  {
+   "n": 25,
+   "id": "106822342",
+   "ticker": "TATACONSUM",
+   "category": "investor_meetings",
+   "category_alt": [
+    "earnings_call"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "schedule of meet"
+  },
+  {
+   "n": 26,
+   "id": "106806590",
+   "ticker": "LT",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "mega orders, power T&D"
+  },
+  {
+   "n": 27,
+   "id": "106837394",
+   "ticker": "RELIANCE",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 28,
+   "id": "106812074",
+   "ticker": "INFY",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "newspaper ad on lost share certificates"
+  },
+  {
+   "n": 29,
+   "id": "106821168",
+   "ticker": "HDFCBANK",
+   "category": "management_change",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "re-appointment of an independent director (README: re-appointments only are Routine)",
+   "corrected_after_scoring": "Original label 'routine' read only the re-appointment in the attachment excerpt. The same filing also records Kaizad Bharucha ceasing as Deputy Managing Director, a senior exit, which FINN's filing reader found. Label corrected; the scorer reports both.",
+   "original_priority": "routine"
+  },
+  {
+   "n": 30,
+   "id": "106805372",
+   "ticker": "TCS",
+   "category": "M&A",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "acquires 100% of BBY Services India LLP"
+  },
+  {
+   "n": 31,
+   "id": "106827783",
+   "ticker": "RELIANCE",
+   "category": "fund_raise",
+   "category_alt": [
+    "M&A"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [
+    "needs_you"
+   ],
+   "why": "subsidiary Jio Platforms IPO subscription update"
+  },
+  {
+   "n": 32,
+   "id": "106815788",
+   "ticker": "PERSISTENT",
+   "category": "capex",
+   "category_alt": [
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "third Hyderabad facility opened"
+  },
+  {
+   "n": 33,
+   "id": "106835393",
+   "ticker": "MAXHEALTH",
+   "category": "litigation",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "NCLT petitions concerning Kalinga Hospital"
+  },
+  {
+   "n": 34,
+   "id": "106805014",
+   "ticker": "ICICIBANK",
+   "category": "litigation",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "GST show cause notice"
+  },
+  {
+   "n": 35,
+   "id": "106821066",
+   "ticker": "HDFCBANK",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 36,
+   "id": "106812277",
+   "ticker": "SONACOMS",
+   "category": "earnings_call",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "earnings call schedule"
+  },
+  {
+   "n": 37,
+   "id": "106818788",
+   "ticker": "PERSISTENT",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [
+    "worth_knowing"
+   ],
+   "why": "audited financial statements for the quarter"
+  },
+  {
+   "n": 38,
+   "id": "106834970",
+   "ticker": "GRAVITA",
+   "category": "investor_meetings",
+   "category_alt": [
+    "earnings_call"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "analyst meetings schedule"
+  },
+  {
+   "n": 39,
+   "id": "106822468",
+   "ticker": "MAXHEALTH",
+   "category": "postal_ballot",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "postal ballot results"
+  },
+  {
+   "n": 40,
+   "id": "106808935",
+   "ticker": "PERSISTENT",
+   "category": "agm_egm",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "EGM voting results"
+  },
+  {
+   "n": 41,
+   "id": "106828588",
+   "ticker": "TATACONSUM",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 42,
+   "id": "106836523",
+   "ticker": "DIXON",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 43,
+   "id": "106823937",
+   "ticker": "RELIANCE",
+   "category": "credit_rating",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ICRA AAA/Stable assigned, no change in standing"
+  },
+  {
+   "n": 44,
+   "id": "106829991",
+   "ticker": "LT",
+   "category": "unclassified",
+   "category_alt": [
+    "fund_raise"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ESOP allotment"
+  },
+  {
+   "n": 45,
+   "id": "106821932",
+   "ticker": "INFY",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "client collaboration to build a GCC"
+  },
+  {
+   "n": 46,
+   "id": "106825480",
+   "ticker": "GRAVITA",
+   "category": "investor_meetings",
+   "category_alt": [
+    "earnings_call"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "investor conference"
+  },
+  {
+   "n": 47,
+   "id": "106823380",
+   "ticker": "ETERNAL",
+   "category": "results",
+   "category_alt": [
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "shareholders' letter with the results"
+  },
+  {
+   "n": 48,
+   "id": "106831536",
+   "ticker": "POLYCAB",
+   "category": "litigation",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "NCLAT order in an insolvency appeal"
+  },
+  {
+   "n": 49,
+   "id": "106813000",
+   "ticker": "PERSISTENT",
+   "category": "M&A",
+   "category_alt": [
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [
+    "needs_you"
+   ],
+   "why": "Nagarro takeover offer closes at about 94%"
+  },
+  {
+   "n": 50,
+   "id": "106829106",
+   "ticker": "PERSISTENT",
+   "category": "fund_raise",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "QIP closed and allocated"
+  },
+  {
+   "n": 51,
+   "id": "106828599",
+   "ticker": "TATACONSUM",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 52,
+   "id": "106831143",
+   "ticker": "BAJAJ-AUTO",
+   "category": "earnings_call",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "recording of the results call"
+  },
+  {
+   "n": 53,
+   "id": "106807380",
+   "ticker": "TRENT",
+   "category": "press_release",
+   "category_alt": [
+    "results"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "Q2 revenue and store update ahead of results"
+  },
+  {
+   "n": 54,
+   "id": "106805600",
+   "ticker": "TCS",
+   "category": "investor_meetings",
+   "category_alt": [
+    "earnings_call"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "analyst meetings schedule"
+  },
+  {
+   "n": 55,
+   "id": "106828647",
+   "ticker": "TATACONSUM",
+   "category": "results",
+   "category_alt": [
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "press release on results"
+  },
+  {
+   "n": 56,
+   "id": "106814880",
+   "ticker": "LT",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "Regulation 74(5) depository certificate"
+  },
+  {
+   "n": 57,
+   "id": "106828783",
+   "ticker": "TATACONSUM",
+   "category": "management_change",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [
+    "needs_you"
+   ],
+   "why": "senior management (not KMP) appointment and retirement"
+  },
+  {
+   "n": 58,
+   "id": "106806942",
+   "ticker": "TRENT",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "Regulation 74(5) depository certificate"
+  },
+  {
+   "n": 59,
+   "id": "106823873",
+   "ticker": "PERSISTENT",
+   "category": "fund_raise",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "QIP opened"
+  },
+  {
+   "n": 60,
+   "id": "106821513",
+   "ticker": "LT",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "ultra-mega airport project"
+  }
+ ]
+}

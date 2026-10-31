@@ -49,3 +49,20 @@ def test_numbers_are_written_the_way_people_read_them():
     assert pull._n(14.4) == "14.4"
     assert pull._n(5515.17) == "5,515"
     assert pull._n(None) == "n/a"
+
+
+def test_people_headline_leads_with_the_senior_change():
+    from backend.main import _people_headline
+
+    def p(name, role, change, entity=None):
+        return {"name": name, "role": role, "change": change, "entity": entity}
+
+    icici = [
+        p("Anup Bagchi", "Managing Director & CEO", "leaving", "ICICI Life Insurance Limited"),
+        p("Sidharatha Mishra", "Managing Director & CEO", "joining", "ICICI Life Insurance Limited"),
+        p("Sidharatha Mishra", "Senior Management Personnel", "leaving"),
+    ]
+    assert _people_headline(icici).startswith("ICICI Life Insurance Limited: Anup Bagchi leaves as Managing Director")
+    assert _people_headline([p("Prithvi Vachani", "Executive Director", "joining")]) == (
+        "Prithvi Vachani joins as Executive Director"
+    )

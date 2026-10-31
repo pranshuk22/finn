@@ -15,7 +15,7 @@ const WINDOWS = [
 
 const SORTED_BY: Record<string, string> = {
   label: "Sorted by the exchange's own label",
-  rules: "Sorted by a text rule",
+  rule: "Sorted by a text rule",
   model: "Sorted by Flash-Lite",
 };
 

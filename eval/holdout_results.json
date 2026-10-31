@@ -1,0 +1,115 @@
+{
+ "by_stage": {
+  "label": {
+   "cat_strict": {
+    "correct": 10,
+    "of": 10,
+    "pct": 100.0
+   },
+   "cat_lenient": {
+    "correct": 10,
+    "of": 10,
+    "pct": 100.0
+   },
+   "pri_strict": {
+    "correct": 10,
+    "of": 10,
+    "pct": 100.0
+   },
+   "pri_lenient": {
+    "correct": 10,
+    "of": 10,
+    "pct": 100.0
+   }
+  },
+  "rule": {
+   "cat_strict": {
+    "correct": 8,
+    "of": 10,
+    "pct": 80.0
+   },
+   "cat_lenient": {
+    "correct": 10,
+    "of": 10,
+    "pct": 100.0
+   },
+   "pri_strict": {
+    "correct": 9,
+    "of": 10,
+    "pct": 90.0
+   },
+   "pri_lenient": {
+    "correct": 10,
+    "of": 10,
+    "pct": 100.0
+   }
+  },
+  "model": {
+   "cat_strict": {
+    "correct": 9,
+    "of": 10,
+    "pct": 90.0
+   },
+   "cat_lenient": {
+    "correct": 10,
+    "of": 10,
+    "pct": 100.0
+   },
+   "pri_strict": {
+    "correct": 9,
+    "of": 10,
+    "pct": 90.0
+   },
+   "pri_lenient": {
+    "correct": 9,
+    "of": 10,
+    "pct": 90.0
+   }
+  },
+  "all": {
+   "cat_strict": {
+    "correct": 27,
+    "of": 30,
+    "pct": 90.0
+   },
+   "cat_lenient": {
+    "correct": 30,
+    "of": 30,
+    "pct": 100.0
+   },
+   "pri_strict": {
+    "correct": 28,
+    "of": 30,
+    "pct": 93.3
+   },
+   "pri_lenient": {
+    "correct": 29,
+    "of": 30,
+    "pct": 96.7
+   }
+  }
+ },
+ "priority_errors": {
+  "too low": 1
+ },
+ "disagreements": [
+  {
+   "n": 30,
+   "id": "106832566",
+   "ticker": "INFY",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "client adopts Finacle",
+   "stage": "model",
+   "pred_category": "press_release",
+   "pred_priority": "routine",
+   "cat_strict": true,
+   "cat_lenient": true,
+   "pri_strict": false,
+   "pri_lenient": false,
+   "pri_error": "too low"
+  }
+ ]
+}

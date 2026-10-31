@@ -103,6 +103,20 @@ def _name(ticker: str) -> str:
     return PORTFOLIO[ticker][0] if ticker in PORTFOLIO else ticker
 
 
+def _people_headline(people: list[dict]) -> str | None:
+    """Lead with who matters most: a senior change at the company, then a senior change at a subsidiary (named),
+    then anyone joining or leaving. ICICI Bank's filing on ICICI Life's new CEO otherwise led with a staff exit."""
+    moves = [p for p in people if p["change"] in ("joining", "leaving")]
+    own = [p for p in moves if not p.get("entity")]
+    senior_own = [p for p in own if enrich.is_senior(p["role"])]
+    senior_sub = [p for p in moves if p.get("entity") and enrich.is_senior(p["role"])]
+    if senior_own:
+        return enrich.people_line(senior_own)
+    if senior_sub:
+        return f"{senior_sub[0]['entity']}: {enrich.people_line(senior_sub)}"
+    return enrich.people_line(own or people)
+
+
 @app.get("/api/brief")
 def brief(hours: int = Query(24, ge=1, le=24 * 90)):
     since = _now() - timedelta(hours=hours)
@@ -162,10 +176,9 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                 amount = amount or e.get("amount_rs_crore")
             if people:
                 card["people"] = list(people.values())
-                own = [p for p in card["people"] if not p.get("entity") and p["change"] in ("joining", "leaving")]
                 # a board meeting can file results and an appointment together; the results line stays the headline
                 if not card["results"]:
-                    card["headline"] = enrich.people_line(own or card["people"]) or card["headline"]
+                    card["headline"] = _people_headline(card["people"]) or card["headline"]
             # Only where a size means something; an appointment filing once yielded "Rs 1,143 crore" from a profile.
             if amount and cat in AMOUNT_CATEGORIES:
                 card["scale"] = A.scale(c, ticker, amount)

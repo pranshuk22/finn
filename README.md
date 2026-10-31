@@ -33,6 +33,8 @@ Two things follow from that:
 | Everything else | A one-line summary next to the filing, at the priority the category deserves (table below). When the filing states an amount (an order, a deal, a capex plan, a claim), the card shows it as a share of annual revenue. | The company's own one-liner where it is enough. When it is not ("General Updates", "Disclosure under Regulation 30"), Flash-Lite reads the first pages of the PDF. Example: Polycab's insolvency filings turned out to concern an alleged operational debt of Rs 2.79 crore, against about Rs 9,900 crore of revenue that quarter ([E18](docs/EVIDENCE.md#e18-model-mistakes-caught-while-enriching-filings-and-the-guards-added)). |
 | Threshold alerts | Price move beyond ±X% in a day, volume above Y times the 20-day average, and categories you always want to hear about. | You set X and Y. FINN replays the last 60 sessions and shows how many alerts those settings would have fired, so you tune "unusual" with real data. It matters: ±3% or 2x fires 119 alerts in 60 sessions across the portfolio, ±5% or 3x fires 25 ([E23](docs/EVIDENCE.md#e23-alert-thresholds-matter-and-research-works-on-a-ticker-finn-never-saw)). The count updates as you drag the sliders. |
 
+**How well it sorts.** On 60 filings labelled blind (20 per stage), FINN's category matched on 57 and its priority on 48 before any fixes. On 30 more held out from those fixes, category matched on all 30 and priority on 25 (83%). The misses traced to code, not to the model's reading: one exchange label hid a Rs 4,265 crore QIP, press releases were judged on too few keywords, and the model's "senior" flag let independent directors into Needs you. Seniority is now a rule on the role. The labelled filings run as a regression test in CI ([E27](docs/EVIDENCE.md#e27-classifier-eval-60-blind-labelled-filings-then-30-held-out)).
+
 **How FINN decides what needs you.** This is a judgment call, so here it is in the open:
 
 | Category | Default priority | What the card adds |
@@ -190,7 +192,8 @@ uv sync
 uv run python -m backend.jobs.refresh   # filings, EOD, results, Screener (about 3 minutes)
 uv run python -m backend.enrich         # read vague and management filings
 uv run uvicorn backend.main:app --port 8000
-uv run pytest                           # 16 tests: parser, quote check, verdicts, brief grouping, breadth
+uv run pytest                           # 27 tests, including the classifier regression on 90 labelled filings
+uv run python -m eval.score             # re-score the classifier against eval/filings_labelled.json
 
 # frontend
 cd frontend

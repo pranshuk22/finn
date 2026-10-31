@@ -1,0 +1,340 @@
+{
+ "labeller": "Claude, blind to FINN's output",
+ "labelled_on": "2026-10-31",
+ "policy": "README priority table",
+ "note": "Held-out: drawn after the rule fixes, from filings not in filings_labelled.json",
+ "items": [
+  {
+   "n": 1,
+   "id": "106820133",
+   "ticker": "MAXHEALTH",
+   "category": "unclassified",
+   "category_alt": [
+    "credit_rating",
+    "press_release"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "unsolicited ESG rating"
+  },
+  {
+   "n": 2,
+   "id": "106812495",
+   "ticker": "SUZLON",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "Regulation 74(5) certificate"
+  },
+  {
+   "n": 3,
+   "id": "106810410",
+   "ticker": "RELIANCE",
+   "category": "litigation",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [
+    "routine"
+   ],
+   "why": "customs penalty of Rs 18.7 lakh"
+  },
+  {
+   "n": 4,
+   "id": "106806060",
+   "ticker": "ICICIBANK",
+   "category": "management_change",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "MD & CEO change at subsidiary ICICI Life"
+  },
+  {
+   "n": 5,
+   "id": "106817804",
+   "ticker": "RELIANCE",
+   "category": "fund_raise",
+   "category_alt": [
+    "M&A"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [
+    "needs_you"
+   ],
+   "why": "Jio Platforms IPO price band"
+  },
+  {
+   "n": 6,
+   "id": "106830479",
+   "ticker": "LT",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 7,
+   "id": "106816873",
+   "ticker": "POLYCAB",
+   "category": "litigation",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "NCLAT insolvency appeal listing"
+  },
+  {
+   "n": 8,
+   "id": "106817672",
+   "ticker": "GRAVITA",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "Regulation 74(5) certificate"
+  },
+  {
+   "n": 9,
+   "id": "106831130",
+   "ticker": "SONACOMS",
+   "category": "unclassified",
+   "category_alt": [
+    "fund_raise"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ESOP allotment"
+  },
+  {
+   "n": 10,
+   "id": "106813060",
+   "ticker": "PERSISTENT",
+   "category": "management_change",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [
+    "needs_you"
+   ],
+   "why": "senior management (SMP) resignation"
+  },
+  {
+   "n": 11,
+   "id": "106833040",
+   "ticker": "GRAVITA",
+   "category": "investor_meetings",
+   "category_alt": [
+    "earnings_call"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "analyst meeting schedule"
+  },
+  {
+   "n": 12,
+   "id": "106830896",
+   "ticker": "GRAVITA",
+   "category": "results",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "results investor presentation"
+  },
+  {
+   "n": 13,
+   "id": "106801893",
+   "ticker": "LT",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "twin contracts in Dubai"
+  },
+  {
+   "n": 14,
+   "id": "106800816",
+   "ticker": "DIXON",
+   "category": "management_change",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "re-appointment of WTD and MD"
+  },
+  {
+   "n": 15,
+   "id": "106800968",
+   "ticker": "PERSISTENT",
+   "category": "investor_meetings",
+   "category_alt": [
+    "earnings_call"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "investor sessions"
+  },
+  {
+   "n": 16,
+   "id": "106810636",
+   "ticker": "PERSISTENT",
+   "category": "earnings_call",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "results call schedule"
+  },
+  {
+   "n": 17,
+   "id": "106809813",
+   "ticker": "HDFCBANK",
+   "category": "postal_ballot",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "postal ballot notice"
+  },
+  {
+   "n": 18,
+   "id": "106834353",
+   "ticker": "SUZLON",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 19,
+   "id": "106826524",
+   "ticker": "TRENT",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "IEPF transfer reminder"
+  },
+  {
+   "n": 20,
+   "id": "106817358",
+   "ticker": "BAJAJ-AUTO",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "Regulation 74(5) certificate"
+  },
+  {
+   "n": 21,
+   "id": "106830633",
+   "ticker": "GRAVITA",
+   "category": "results",
+   "category_alt": [],
+   "priority": "needs_you",
+   "priority_alt": [],
+   "why": "Q2 results"
+  },
+  {
+   "n": 22,
+   "id": "106834284",
+   "ticker": "TATACONSUM",
+   "category": "unclassified",
+   "category_alt": [
+    "fund_raise"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "ESOP allotment"
+  },
+  {
+   "n": 23,
+   "id": "106821121",
+   "ticker": "HDFCBANK",
+   "category": "results",
+   "category_alt": [
+    "investor_meetings"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [
+    "routine"
+   ],
+   "why": "results presentation (attachment unreadable)"
+  },
+  {
+   "n": 24,
+   "id": "106830809",
+   "ticker": "LT",
+   "category": "results",
+   "category_alt": [
+    "investor_meetings",
+    "press_release"
+   ],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "analyst presentation Q2"
+  },
+  {
+   "n": 25,
+   "id": "106819733",
+   "ticker": "PERSISTENT",
+   "category": "fund_raise",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "NCDs and CP for the Nagarro acquisition"
+  },
+  {
+   "n": 26,
+   "id": "106797965",
+   "ticker": "BAJAJ-AUTO",
+   "category": "unclassified",
+   "category_alt": [
+    "insider_trading"
+   ],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "trading window closure"
+  },
+  {
+   "n": 27,
+   "id": "106834219",
+   "ticker": "INFY",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "industry awards announced; not an order or launch"
+  },
+  {
+   "n": 28,
+   "id": "106830195",
+   "ticker": "BAJAJ-AUTO",
+   "category": "management_change",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "director appointment"
+  },
+  {
+   "n": 29,
+   "id": "106810293",
+   "ticker": "MAXHEALTH",
+   "category": "unclassified",
+   "category_alt": [],
+   "priority": "routine",
+   "priority_alt": [],
+   "why": "Regulation 74(5) certificate"
+  },
+  {
+   "n": 30,
+   "id": "106832566",
+   "ticker": "INFY",
+   "category": "press_release",
+   "category_alt": [],
+   "priority": "worth_knowing",
+   "priority_alt": [],
+   "why": "client adopts Finacle"
+  }
+ ]
+}
