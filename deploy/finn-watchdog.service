@@ -1,0 +1,7 @@
+[Unit]
+Description=FINN watchdog: restart the API if it stops answering
+
+[Service]
+Type=oneshot
+# Restart=always covers a crash; this covers a process that is running but hung. Two tries before acting.
+ExecStart=/bin/sh -c 'curl -fsS -m 10 -o /dev/null http://127.0.0.1:8000/api/health || { sleep 5; curl -fsS -m 10 -o /dev/null http://127.0.0.1:8000/api/health; } || { echo "health check failed, restarting finn"; systemctl restart finn; }'

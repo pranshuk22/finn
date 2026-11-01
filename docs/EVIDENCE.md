@@ -463,6 +463,21 @@ Tests: backend 47, frontend 34.
 
 **Swipe to done, re-tested the same way:** the earlier failure (E34) was the same test flaw, a touch below the visible screen. With the card on screen, a right swipe marked DIXON done, the next card moved up and Undo appeared; a vertical drag over a card scrolled the page 301px and marked nothing.
 
+## E38. Keeping the server up through evaluation
+
+**Question:** the app looked off. Was the server down?
+
+**Checked 1 Nov, 06:23 UTC:** no. The instance had been up 22 hours and the API had run without a restart since the last deploy (31 Oct 16:18 UTC, `NRestarts=0`). Every endpoint answered through the live app in 0.2 to 0.4s. Across the previous 20 hours Caddy logged exactly one 502 ("connection refused"), at 31 Oct 15:31 UTC, which is when a deploy was restarting the API, and an Android phone on /research hit it in that window.
+
+**Gaps found:** `Restart=always` covers a crash but not a process that is running and hung, and the 1 GB instance had no swap, so a heavy job could get the API killed for memory.
+
+**Added:**
+- `/api/health`, which runs one query on the database.
+- `finn-watchdog.timer`, which checks it every 2 minutes and restarts the API after two failed checks 5 seconds apart.
+- A 1 GB swap file, also added to `deploy/setup.sh`.
+
+**Tested on the server:** we froze the API processes with `SIGSTOP`, and health requests then timed out. The watchdog restarted the API (06:26:12 UTC, new PID), and it answered `{"ok":true}` 4 seconds later. The public `/api/health` through Vercel returns 200.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

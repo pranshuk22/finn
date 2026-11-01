@@ -514,6 +514,14 @@ def ask(raw: str, q: Question):
     return pull.ask(resolve_ticker(raw), q.question)
 
 
+@app.get("/api/health")
+def health():
+    # The watchdog (deploy/finn-watchdog.service) restarts the API when this stops answering.
+    with db.session() as c:
+        c.execute("SELECT 1").fetchone()
+    return {"ok": True}
+
+
 @app.get("/api/meta")
 def meta():
     with db.session() as c:
