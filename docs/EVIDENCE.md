@@ -478,6 +478,11 @@ Tests: backend 47, frontend 34.
 
 **Tested on the server:** we froze the API processes with `SIGSTOP`, and health requests then timed out. The watchdog restarted the API (06:26:12 UTC, new PID), and it answered `{"ok":true}` 4 seconds later. The public `/api/health` through Vercel returns 200.
 
+**Then, 1 Nov 06:28 UTC:** an Ask ("What are the profits?" on RELIANCE) returned "Request failed (502)". Caddy logged it at 06:28:52 as "connection refused", and the API was restarting from 06:28:48 to 06:28:53. Nobody deployed then. Ubuntu's automatic security updates had started at 06:25:20, and needrestart restarted every service using an updated library, FINN's API included: 3 restarts in 3 minutes. The fixes:
+- `deploy/needrestart-finn.conf` leaves FINN out of those restarts. On the server, needrestart reports `finn=0`.
+- The app sends a request again after 1.5s and then 4s when the proxy answers 502 or 503. The request never reached the API, so a POST is safe to repeat. Two tests in `frontend/src/api.test.ts` cover this.
+- The same question, asked again, returned a cited answer in 5.7s.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

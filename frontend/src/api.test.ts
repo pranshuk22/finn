@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { clearSaved, readSaved, writeSaved } from "./api";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { api, clearSaved, readSaved, writeSaved } from "./api";
 
 // Node has no localStorage; a Map behind the Storage methods api.ts uses is enough.
 const store = new Map<string, string>();
@@ -37,5 +37,40 @@ describe("saved responses", () => {
     store.set("finn:done", "[]");
     clearSaved();
     expect([...store.keys()].sort()).toEqual(["finn:done", "finn:settings"]);
+  });
+});
+
+describe("requests during an API restart", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  const reply = (status: number, body: unknown = {}) => new Response(JSON.stringify(body), { status });
+
+  it("sends a 502 again and returns the answer once the API is back", async () => {
+    // The Ask that failed on 1 Nov landed while security updates were restarting the API.
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValueOnce(reply(502)).mockResolvedValueOnce(reply(200, { answer: "ok" }));
+    vi.stubGlobal("fetch", fetch);
+    const p = api.post("/api/research/RELIANCE/ask", { question: "What are the profits?" });
+    await vi.runAllTimersAsync();
+    await expect(p).resolves.toEqual({ answer: "ok" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up after two retries, and never retries other errors", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValue(reply(502));
+    vi.stubGlobal("fetch", fetch);
+    const p = api.get("/api/brief").catch((e) => e.status);
+    await vi.runAllTimersAsync();
+    expect(await p).toBe(502);
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    const once = vi.fn().mockResolvedValue(reply(500, { detail: "boom" }));
+    vi.stubGlobal("fetch", once);
+    await expect(api.get("/api/brief")).rejects.toThrow("boom");
+    expect(once).toHaveBeenCalledTimes(1);
   });
 });

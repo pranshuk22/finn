@@ -19,6 +19,7 @@ fi
 ~/.local/bin/uv sync --frozen
 
 sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+sudo cp deploy/needrestart-finn.conf /etc/needrestart/conf.d/finn.conf
 sudo cp deploy/finn*.service deploy/finn*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now finn.service finn-filings.timer finn-eod.timer finn-screener.timer finn-watchdog.timer

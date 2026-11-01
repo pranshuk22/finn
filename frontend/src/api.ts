@@ -42,12 +42,20 @@ export class ApiError extends Error {
   }
 }
 
+// 502 and 503 come from the proxy when the API is not listening, for the few seconds a restart takes. The
+// request never reached the API, so even a POST is safe to send again.
+const RETRY_AFTER_MS = [1500, 4000];
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
-  try {
-    res = await fetch(path, { ...init, headers: { "Content-Type": "application/json", ...init?.headers } });
-  } catch {
-    throw new ApiError(0, "You are offline or the server is unreachable.");
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(path, { ...init, headers: { "Content-Type": "application/json", ...init?.headers } });
+    } catch {
+      throw new ApiError(0, "You are offline or the server is unreachable.");
+    }
+    if ((res.status !== 502 && res.status !== 503) || attempt >= RETRY_AFTER_MS.length) break;
+    await new Promise((r) => setTimeout(r, RETRY_AFTER_MS[attempt]));
   }
   if (!res.ok) {
     let detail = `Request failed (${res.status}).`;
