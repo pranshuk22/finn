@@ -161,7 +161,7 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
         alone = [r for r in rows if r.get("consolidated") in ("Standalone", "Non-Consolidated")]
         # Consolidated when it is current. JYOTHYLAB filed consolidated results only up to Mar 2025 and standalone
         # since, so preferring any consolidated row showed an 18-month-old quarter as the latest (review, 3 Nov).
-        if cons and alone and _qe(cons[0]) < _qe(alone[0]):
+        if cons and alone and max(map(_qe, cons)) < max(map(_qe, alone)):  # NSE's list is not always in date order
             cons = []
         rows = cons or alone
         # One filing per quarter, newest first. A revised filing lists the quarter twice, and those duplicates
