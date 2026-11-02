@@ -3,7 +3,7 @@ import { api, ApiError, useQuery } from "../api";
 import { HelpButton } from "../components/Help";
 import { Button, Card, ErrorState, Header, Pct, SectionTitle, Skeleton, Switch } from "../components/ui";
 import { when } from "../format";
-import { pushState, sendTest, turnOff, turnOn, type PushState } from "../push";
+import { prefetchKey, pushState, turnOff, turnOn, type PushState } from "../push";
 import type { AlertRules, Scan } from "../types";
 
 const CATEGORIES: [string, string][] = [
@@ -187,16 +187,20 @@ function PushCard() {
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => {
     pushState().then(setState, () => setState("unsupported"));
+    prefetchKey(); // so turning on does not wait for the server too
   }, []);
   if (!state) return null;
-  const run = async (f: () => Promise<PushState | void>, done?: string) => {
+  // The switch moves at once; registering with the browser's push service takes a second or two behind it.
+  const toggle = async (on: boolean) => {
+    if (busy) return;
+    const before = state;
+    setState(on ? "on" : "off");
     setBusy(true);
     setMsg(null);
     try {
-      const next = await f();
-      if (next) setState(next);
-      if (done) setMsg(done);
+      setState(await (on ? turnOn() : turnOff()));
     } catch (e) {
+      setState(before);
       setMsg(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);
@@ -207,15 +211,12 @@ function PushCard() {
     <Card>
       <div className="flex items-center justify-between gap-3">
         <p className="text-[15px] font-semibold">Notify this phone</p>
-        {canToggle && <Switch label="Notify this phone" on={state === "on"} onChange={(v) => !busy && run(v ? turnOn : turnOff)} />}
+        {canToggle && <Switch label="Notify this phone" on={state === "on"} onChange={toggle} />}
       </div>
-      <p className="mt-1.5 text-[13px] text-muted">{PUSH_NOTE[state]}</p>
-      {state === "on" && (
-        <Button kind="ghost" className="mt-3" disabled={busy} onClick={() => run(sendTest, "Sent. It should arrive in a few seconds.")}>
-          Send a test
-        </Button>
-      )}
-      {msg && <p className="mt-2 text-[13px] text-muted" aria-live="polite">{msg}</p>}
+      <p className="mt-1.5 text-[13px] text-muted" aria-live="polite">
+        {busy ? (state === "on" ? "Turning on..." : "Turning off...") : PUSH_NOTE[state]}
+      </p>
+      {msg && <p className="mt-2 text-[13px] text-down">{msg}</p>}
     </Card>
   );
 }

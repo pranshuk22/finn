@@ -563,16 +563,6 @@ def push_unsubscribe(sub: PushSub):
     return {"ok": True}
 
 
-@app.post("/api/push/test")
-def push_test(sub: PushSub):
-    """Sends to the phone that asked, so a reader can see a real notification arrive."""
-    body = "You will get a note like this when a filing or price move crosses your rules."
-    ok = push.send(sub.model_dump(), "FINN alerts are on", body)
-    if not ok:
-        raise HTTPException(502, "The push service did not accept the message. Turn alerts off and on again.")
-    return {"ok": True}
-
-
 @app.get("/api/health")
 def health():
     # The watchdog (deploy/finn-watchdog.service) restarts the API when this stops answering.

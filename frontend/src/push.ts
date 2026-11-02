@@ -26,11 +26,19 @@ export async function pushState(): Promise<PushState> {
   return sub ? "on" : "off";
 }
 
+let key: Promise<string> | null = null;
+
+/** Fetch the server's key ahead of the tap, once per page load. */
+export function prefetchKey(): Promise<string> {
+  key ??= api.get<{ key: string }>("/api/push/key").then((r) => r.key);
+  key.catch(() => (key = null)); // try again on the next tap
+  return key;
+}
+
 export async function turnOn(): Promise<PushState> {
   if ((await Notification.requestPermission()) !== "granted") return "denied";
-  const reg = await navigator.serviceWorker.ready;
-  const { key } = await api.get<{ key: string }>("/api/push/key");
-  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
+  const [reg, k] = await Promise.all([navigator.serviceWorker.ready, prefetchKey()]);
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(k) });
   await api.post("/api/push/subscribe", sub.toJSON());
   return "on";
 }
@@ -43,11 +51,4 @@ export async function turnOff(): Promise<PushState> {
     await sub.unsubscribe();
   }
   return "off";
-}
-
-export async function sendTest(): Promise<void> {
-  const reg = await navigator.serviceWorker.getRegistration();
-  const sub = await reg?.pushManager.getSubscription();
-  if (!sub) throw new Error("Alerts are off on this device.");
-  await api.post("/api/push/test", sub.toJSON());
 }

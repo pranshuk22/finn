@@ -563,7 +563,8 @@ Result: 15 of 101 are decided by numbers. Examples: INFY 21.0% EBIT margin, on t
 
 **Push notifications.** Web Push with the server's own VAPID key (P-256, kept in `data/`, out of git). After each refresh, new filings that need you or are in a flagged category, and the latest session's moves past the thresholds, go once to every subscribed phone. Each is keyed, so it is never sent twice.
 - `tests/test_push.py` stands up a local push endpoint. It decrypts the received body with the phone's key (RFC 8291) and verifies the token's signature with the server's public key (RFC 8292).
-- Headless Chrome refuses push subscriptions ("Registration failed - permission denied"), so delivery to a real phone is checked by hand after deploy.
+- Headless Chrome refuses push subscriptions ("Registration failed - permission denied"), so delivery was checked by hand: after deploy on 3 Nov, a test notification from the live server reached the owner's phone (not an iPhone; iPhone delivery is untested). The test button was then removed from the app.
+- Turning on felt slow on the phone: most of it is the browser registering with its push service. The switch now moves at once and says "Turning on..." while that finishes, and the server key is fetched before the tap.
 - iPhones allow web push only for apps added to the Home Screen; the Alerts tab says so.
 
 ## Open questions (not yet verified)
