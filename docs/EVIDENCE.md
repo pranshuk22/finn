@@ -511,6 +511,37 @@ The prompt says that for a number question it starts from those figures and then
 | HDFCBANK: How did net profit change this quarter? | Q2 FY27 PAT Rs 20,700 crore, up 1.6% QoQ and 5.6% YoY | 2 figures | 1 sentence ("12.7%"; its quote was not found in the PDF) |
 | RELIANCE: What did management say about Jio tariff hikes? | no plans to change base tariffs | 1 quote | 0 |
 
+## E40. Second blind review: what held up and what changed
+
+**Setup, 2 Nov:** a reviewer agent was given only the two problem-statement PDFs and the live app, with no code or docs. Each finding was checked against the data before anything was changed.
+
+**Not true:** "prices look seeded" (RELIANCE 1,300.00, HDFCBANK 700.00, POLYCAB 7,920.00, KAYNES 3,210.00). NSE's own bhavcopy for 2 Nov (`BhavCopy_NSE_CM_0_0_0_20261102_F_0000.csv`) has exactly those closes: RELIANCE 1,300.00, previous close 1,164.90, on 88.1 million shares. They are real prices that happen to be round.
+
+**Confirmed and fixed:**
+
+| Finding | Checked | Fix |
+|---|---|---|
+| On a Monday, "24 hours" hid Friday's results | At 22:37 on 2 Nov, 24h started Sunday 22:37, so DIXON and RELIANCE results (30 Oct, 16:07 to 21:32) were missing. The 3-day view started Friday 22:37 | One window rule, `_window`: N trading sessions of price moves, plus every filing since the close of the session before them, never shorter than the hours. 24h now starts 30 Oct 15:30 and shows both under Needs you. The Brief says where its window starts |
+| Track record counted revised and unmentioned promises as misses | DIXON "0 of 2, Often misses" came from 2 revised promises. RELIANCE "1 of 6" included 2 revised, 2 not mentioned again and 1 unclear | Only promises a result settled are counted, at least 3 of them, and the rest are named as not counted |
+| "Cheap for its growth" the week profit fell | DIXON P/E 48.6 on 86.1% 3-year profit CAGR, with Q2 FY27 PAT -44.9% YoY | "Growth in doubt" when the latest PAT is down 20% or more YoY |
+| Bank pages used the industrial template | HDFCBANK "margin" from Screener ran -2% to -17% a quarter; CWIP Rs 0 cr; D/E 0.98 | Lenders get a credit cost tile (provisions over pre-provision profit, 12.8% for Q2 FY27). Their operating margin is left out of trajectory, and their balance sheet shows assets, borrowings and equity |
+| Company blurb is not a primary source | HDFCBANK: "tenth-largest bank ... as of May 2024" | Labelled "Screener's profile, not from a filing" |
+| Results card missed DIXON's biggest anomaly | Other income Rs 495.74 cr in Q2 FY26 against Rs 68.73 cr now. EBITDA +6.3%, PBT -42.6% | `below_ebitda` names the line between EBITDA and PBT that moved most. The summary quotes EBITDA when that note is present |
+| Priority inversions | BAJAJ-AUTO "Sales for the month of October 2026" was Routine; TATACONSUM's ESG score was Worth knowing | Monthly sales are Worth knowing, ESG ratings Routine. 4 stored filings were reclassified, and the labelled eval test still passes |
+| A due promise read "Not due yet" | DIXON "20% to 25% QoQ" phone volumes, due Q2 FY27 | New status "Due, not settled" once the date passes with nothing to settle it. 4 stored ledgers were rechecked |
+| Summary repeated a company | "HDFCBANK's MD and CEO, HDFCBANK's MD" (the second was the Deputy MD) | Exits grouped per company; "Deputy MD" named |
+| CEO change card led with a group head | HDFCBANK listed Sanjay D'Souza first, and "Mr. Anup Bagchi" and "Anup Bagchi" separately | Top management first; honorifics ignored when merging names |
+| AI encyclopedia cited for a bio | grokipedia.com on 1 stored HDFCBANK filing | Filtered from bio search; the stored source removed |
+
+**Swipe:** the reviewer could not swipe a card. E37 verified the swipe with on-screen touch events. The help sheet did not mention it, and now does.
+
+**Not fixed, still open:**
+- Annual reports are listed but not read.
+- Alerts are thresholds in the app, with no push notification.
+- There are no bank-specific KPIs (NIM, GNPA, CASA).
+- Ledgers built before the Nov 2026 calls have not been rebuilt (rebuilding costs reasoning-model quota).
+- Bull and bear points can read as restated metrics.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

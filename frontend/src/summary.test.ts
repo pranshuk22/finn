@@ -119,6 +119,9 @@ describe("summarize", () => {
       "Two filings need you. Two leadership changes, at HDFCBANK and DIXON; HDFCBANK's MD and CEO is leaving.",
     );
     expect(shortRole("Chairman and Director")).toBe("Chair");
+    // the 30-day brief once read "HDFCBANK's MD and CEO, HDFCBANK's MD"
+    hdfc.people.push({ name: "Kaizad Bharucha", role: "Deputy Managing Director", change: "leaving", senior: true, level: "top" });
+    expect(summarize(brief([hdfc]), new Set())).toBe("One filing needs you. One leadership change, at HDFCBANK; HDFCBANK's MD and CEO and Deputy MD are leaving.");
   });
 
   it("counts filings outside results and people", () => {

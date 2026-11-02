@@ -25,7 +25,10 @@ export function growthTile(r: Research): Tile {
   return { ...base, value: `${n1(g)}%`, verdict, detail: "Revenue a year, last 3 years", tone };
 }
 
+const row = (r: Research, label: string) => r.results?.rows.find((x) => x.label === label);
+
 export function marginTile(r: Research): Tile {
+  if (r.snapshot.is_financial) return creditCostTile(r);
   const q = (r.trajectory?.quarterly["Margin %"] ?? []).filter((p) => p.value != null);
   const base = { key: "margins", label: "Margins", section: "trajectory" };
   if (q.length < 5) return { ...base, value: "n/a", verdict: "No history", detail: "Fewer than five quarters", tone: "neutral" };
@@ -33,6 +36,18 @@ export function marginTile(r: Research): Tile {
   const change = now - q[q.length - 5].value!;
   const [verdict, tone]: [string, Tone] = change >= 1 ? ["Expanding", "good"] : change <= -1 ? ["Slipping", "weak"] : ["Stable", "neutral"];
   return { ...base, value: `${n1(now)}%`, verdict, detail: `${change >= 0 ? "+" : ""}${n1(change)} pts vs a year ago`, tone };
+}
+
+// A lender has no operating margin worth the name (Screener's "financing margin" for HDFCBANK ran -2% to -17%).
+// What eats a lender's profit is bad loans, so the tile shows provisions against pre-provision profit.
+export function creditCostTile(r: Research): Tile {
+  const base = { key: "margins", label: "Credit cost", section: "results" };
+  const prov = row(r, "Provisions");
+  const ppop = row(r, "Pre-provision profit");
+  if (!prov?.value || !ppop?.value) return { ...base, value: "n/a", verdict: "No data", detail: "Provisions against pre-provision profit", tone: "neutral" };
+  const share = (100 * prov.value) / ppop.value;
+  const [verdict, tone]: [string, Tone] = share <= 15 ? ["Low", "good"] : share <= 30 ? ["Moderate", "mixed"] : ["High", "weak"];
+  return { ...base, value: `${n1(share)}%`, verdict, detail: `Of pre-provision profit went to provisions, ${r.results!.quarter}`, tone };
 }
 
 export function cashTile(r: Research): Tile {
@@ -70,12 +85,16 @@ export function trackTile(r: Research): Tile {
   const base = { key: "track", label: "Track record", section: "ledger" };
   const l = r.ledger;
   if (!l || l.status !== "ok") return { ...base, value: "n/a", verdict: "Not built", detail: "Build the promise ledger below", tone: "neutral" };
-  const judged = l.items.filter((i) => i.status !== "pending");
+  // Only promises a later result settled count. Revised, not mentioned again and unclear are not misses: DIXON
+  // once read "0 of 2, Often misses" from two revised targets.
+  const judged = l.items.filter((i) => ["delivered", "on_track", "missed", "off_track"].includes(i.status));
   const kept = judged.filter((i) => i.status === "delivered" || i.status === "on_track").length;
-  if (judged.length < 2) return { ...base, value: `${kept} of ${judged.length}`, verdict: "Too early", detail: "Few promises have come due", tone: "neutral" };
+  const aside = l.items.filter((i) => i.status === "revised" || i.status === "dropped").length;
+  const note = aside ? `; ${aside} revised or not mentioned again, not counted` : "";
+  if (judged.length < 3) return { ...base, value: `${kept} of ${judged.length}`, verdict: "Too early", detail: `Fewer than 3 promises checked so far${note}`, tone: "neutral" };
   const share = kept / judged.length;
   const [verdict, tone]: [string, Tone] = share >= 0.6 ? ["Reliable", "good"] : share >= 0.4 ? ["Mixed", "mixed"] : ["Often misses", "weak"];
-  return { ...base, value: `${kept} of ${judged.length}`, verdict, detail: "Promises kept, of those that could be checked", tone };
+  return { ...base, value: `${kept} of ${judged.length}`, verdict, detail: `Promises kept, of those checked against results${note}`, tone };
 }
 
 export function valuationTile(r: Research): Tile {
@@ -86,6 +105,10 @@ export function valuationTile(r: Research): Tile {
   if (g == null) return { ...base, value: `P/E ${n1(pe)}`, verdict: "No history", detail: "No profit growth to compare with", tone: "neutral" };
   if (g <= 0) return { ...base, value: `P/E ${n1(pe)}`, verdict: "Rich", detail: "Profit shrank over the last 3 years", tone: "weak" };
   const peg = pe / g;
+  // Past growth only justifies a P/E while it lasts: DIXON read "Cheap for its growth" the week its PAT fell 45%.
+  const pat = row(r, "PAT");
+  if (peg <= 2 && pat?.yoy != null && pat.yoy <= -20)
+    return { ...base, value: `P/E ${n1(pe)}`, verdict: "Growth in doubt", detail: `${n1(peg)}x its 3-year profit growth, but PAT fell ${n1(-pat.yoy)}% YoY in ${r.results!.quarter}`, tone: "mixed" };
   const [verdict, tone]: [string, Tone] = peg <= 1 ? ["Cheap for its growth", "good"] : peg <= 2 ? ["Fair", "mixed"] : ["Rich", "weak"];
   return { ...base, value: `P/E ${n1(pe)}`, verdict, detail: `${n1(peg)}x its 3-year profit growth`, tone };
 }

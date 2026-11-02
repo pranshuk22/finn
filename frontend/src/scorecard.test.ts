@@ -38,9 +38,33 @@ describe("scorecard rules", () => {
   it("judges the track record only once enough promises have come due", () => {
     const ledger = (st: string[]) => ({ status: "ok", items: st.map(promise) });
     expect(trackTile(research({ ledger: ledger(["pending", "delivered"]) }))).toMatchObject({ verdict: "Too early", tone: "neutral" });
+    // DIXON on 2 Nov: two revised targets once read "0 of 2, Often misses"
+    expect(trackTile(research({ ledger: ledger(["pending", "revised", "revised"]) }))).toMatchObject({ value: "0 of 0", verdict: "Too early" });
+    // RELIANCE: revised, not mentioned again and unclear are left out, not counted as misses
+    const rel = ["delivered", "revised", "unclear", "dropped", "revised", "dropped", "pending"];
+    expect(trackTile(research({ ledger: ledger(rel) })).detail).toContain("4 revised or not mentioned again, not counted");
     // HAL: 2 kept of 8 checked
     const hal = ["delivered", "on_track", "missed", "missed", "missed", "missed", "missed", "missed", "pending"];
     expect(trackTile(research({ ledger: ledger(hal) }))).toMatchObject({ value: "2 of 8", verdict: "Often misses", tone: "weak" });
+  });
+
+  it("does not call a stock cheap for growth that just reversed", () => {
+    // DIXON: P/E 48.6 on 86% a year of profit growth, but Q2 FY27 PAT fell 44.9% YoY
+    const r = research({
+      snapshot: { is_financial: false, ratios: { "Stock P/E": 48.6 } },
+      trajectory: { growth: { "Net profit": { cagr_3y: 86.1 } }, quarterly: {} },
+      results: { quarter: "Q2 FY27", rows: [{ label: "PAT", yoy: -44.9 }] },
+    });
+    expect(valuationTile(r)).toMatchObject({ verdict: "Growth in doubt", tone: "mixed" });
+    expect(valuationTile(r).detail).toContain("PAT fell 44.9% YoY in Q2 FY27");
+  });
+
+  it("shows a lender's credit cost instead of a margin", () => {
+    const r = research({
+      snapshot: { is_financial: true, ratios: {} },
+      results: { quarter: "Q2 FY27", rows: [{ label: "Pre-provision profit", value: 32872 }, { label: "Provisions", value: 4209 }] },
+    });
+    expect(marginTile(r)).toMatchObject({ label: "Credit cost", value: "12.8%", verdict: "Low", tone: "good" });
   });
 
   it("says rich when profit shrank, whatever the P/E", () => {

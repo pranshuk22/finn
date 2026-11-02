@@ -391,6 +391,10 @@ def _verdict(p: dict) -> dict:
         status, judged_by = check["status"], "numbers"
     elif p.get("revised_by") and status not in ("delivered", "missed"):
         status, judged_by = "revised", "later guidance"
+    if status == "pending" and (p.get("due") or "9999") < date.today().isoformat():
+        # DIXON's "20% to 25% QoQ" mobile volumes for Q2 FY27 still read "Not due yet" after Q2 was reported.
+        # Phone volumes are not in the filings, so only the next call can settle it; until then it is due, open.
+        status, judged_by = "awaiting", "due date"
     return {"status": status, "judged_by": judged_by}
 
 

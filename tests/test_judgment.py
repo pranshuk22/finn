@@ -30,6 +30,13 @@ def test_revision_only_replaces_an_open_verdict():
     assert pull._verdict(item(status="missed", revised_by="P7"))["status"] == "missed"
 
 
+def test_a_promise_past_its_date_is_not_shown_as_not_due():
+    # DIXON: "20% to 25% QoQ" phone volumes for Q2 FY27, still "Not due yet" after Q2 was reported
+    assert pull._verdict({**item("other"), "due": "2026-09-30"})["status"] == "awaiting"
+    assert pull._verdict({**item("other"), "due": "2099-03-31"})["status"] == "pending"
+    assert pull._verdict(item("other"))["status"] == "pending"  # no date given
+
+
 def test_shortfall_states_the_gap():
     assert pull._shortfall(6.8, 7.0) == ", 0.2 points below the 7% low end"
     assert pull._shortfall(7.0, 7.0) == ""

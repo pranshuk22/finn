@@ -80,6 +80,11 @@ export function BriefScreen() {
 
       <div className="mt-3">
         <Segmented label="Time window" options={WINDOWS} value={hours} onChange={setHours} />
+        {b?.sessions && (
+          <p className="mx-4 mt-1.5 text-[12px] text-muted">
+            Filings since {when(b.since)}, price moves from the last {b.sessions === 1 ? "session" : `${b.sessions} sessions`}
+          </p>
+        )}
       </div>
 
       {b && <Hero b={b} done={doneSet} finished={finished.length} total={cards.length} />}
@@ -104,7 +109,7 @@ export function BriefScreen() {
                 <p className="font-display text-[22px] font-semibold">You're caught up</p>
                 <p className="mx-auto mt-2 max-w-[300px] text-[14px] text-muted">
                   {cards.length === 0
-                    ? `Nothing in the last ${WINDOWS.find((w) => w.value === hours)?.label ?? `${hours} hours`} needs your attention.`
+                    ? "Nothing in this window needs your attention."
                     : "Everything in this window is marked done."}
                   {b.freshness.filings_refreshed_at && ` Last checked ${when(b.freshness.filings_refreshed_at)}.`}
                 </p>
@@ -385,6 +390,7 @@ const STATUS_WORD: Record<string, string> = {
   on_track: "on track",
   pending: "pending",
   unclear: "unclear",
+  awaiting: "due, not settled",
 };
 
 /** The context a professional checks next: how the stock took it, and whether management is keeping its word. */
@@ -421,7 +427,7 @@ function Facts({ card }: { card: BriefCard }) {
   );
 }
 
-const ORDER = ["missed", "off_track", "revised", "dropped", "delivered", "on_track", "pending", "unclear"];
+const ORDER = ["missed", "off_track", "revised", "dropped", "delivered", "on_track", "awaiting", "pending", "unclear"];
 
 const LEVEL: Record<string, string> = { top: "Top management", board: "Board", staff: "Senior staff" };
 

@@ -155,6 +155,7 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
         "derived": cur["derived"] if "derived" in cur.keys() else None,
         "suspect": suspect,
         "tax_note": _tax_note(cur, yago),
+        "below_ebitda": None if is_bank else _below_ebitda(cur, yago, rows),
         "history": history,
         "consolidated": bool(cur["consolidated"]),
         "is_bank": is_bank,
@@ -190,6 +191,31 @@ def _tax_note(cur, yago) -> str | None:
         else f"tax took {tax_then}% of PBT a year ago"
     )
     return f"PAT {pat_yoy:+.1f}% YoY, but PBT {pbt_yoy:+.1f}%: {then}, {tax_now}% now. PBT shows the trend better."
+
+
+def _below_ebitda(cur, yago, rows: list[dict]) -> str | None:
+    """When PBT and EBITDA move far apart, name the line between them that did it. DIXON Q2 FY27: EBITDA +6.3% YoY,
+    PBT -42.6%, because other income fell from Rs 496 crore to Rs 69 crore; the card showed both and said nothing."""
+    yoy = {r["label"]: r["yoy"] for r in rows}
+    e, p = yoy.get("EBITDA"), yoy.get("PBT")
+    if yago is None or e is None or p is None or abs(p - e) < 20:
+        return None
+    # each line's effect on PBT, YoY: other income adds to it, interest and depreciation take from it
+    effects = {
+        "other income": ("other_income", 1),
+        "interest cost": ("finance_costs", -1),
+        "depreciation": ("depreciation", -1),
+    }
+    moves = {name: sign * (cur[k] - yago[k]) for name, (k, sign) in effects.items() if None not in (cur[k], yago[k])}
+    if not moves:
+        return None
+    name = max(moves, key=lambda n: abs(moves[n]))
+    k = effects[name][0]
+    went = "rose" if cur[k] > yago[k] else "fell"
+    return (
+        f"EBITDA {e:+.1f}% YoY while PBT {p:+.1f}%: {name} {went} from Rs {yago[k]:,.0f} crore to "
+        f"Rs {cur[k]:,.0f} crore. The business itself moved with EBITDA."
+    )
 
 
 def quarter_label(period_end: str) -> str:
@@ -357,12 +383,17 @@ def snapshot(c: sqlite3.Connection, ticker: str) -> dict | None:
 
 def trajectory(c: sqlite3.Connection, ticker: str) -> dict:
     out = {"annual": {}, "quarterly": {}, "growth": {}}
-    for label, items in [
+    lines = [
         ("Revenue", ["Sales", "Revenue"]),
-        ("Operating profit", ["Operating Profit", "Financing Profit"]),
-        ("Margin %", ["OPM %", "Financing Margin %"]),
+        ("Operating profit", ["Operating Profit"]),
+        ("Margin %", ["OPM %"]),
         ("Net profit", ["Net Profit"]),
-    ]:
+    ]
+    if ticker in FINANCIALS or _series(c, ticker, "profit-loss", ["Financing Profit"])[1]:
+        # Screener's "financing profit" and "financing margin" for a lender come out of a cost split that does not
+        # fit lending: HDFCBANK's margin ran -2% to -17%, read as "Margins -6%" and "down 25 points". Left out.
+        lines = [line for line in lines if line[0] in ("Revenue", "Net profit")]
+    for label, items in lines:
         _, s = _series(c, ticker, "profit-loss", items)
         a = _annual(s)[-6:]
         out["annual"][label] = a

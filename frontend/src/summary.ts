@@ -14,10 +14,11 @@ export function list(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
-/** The profit line worth quoting: PBT when tax explains the PAT change, none when the figures look wrong. */
+/** The profit line worth quoting: PBT when tax explains the PAT change, EBITDA when other income or a cost below
+ * it does (ETERNAL's "PBT rose 150.4%" leaned on other income at 109% of PBT), none when the figures look wrong. */
 function profitYoy(c: BriefCard): { label: string; y: number } | null {
   if (!c.results?.has_year_ago || c.results.suspect?.length) return null;
-  const label = c.results.tax_note ? "PBT" : "PAT";
+  const label = c.results.below_ebitda ? "EBITDA" : c.results.tax_note ? "PBT" : "PAT";
   const y = c.results.rows.find((r) => r.label === label)?.yoy;
   return y == null ? null : { label, y };
 }
@@ -50,8 +51,13 @@ export function summarize(b: Brief, done: Set<string>): string {
   const people = open.filter((c) => c.category === "management_change");
   if (people.length) {
     // A CEO or chair leaving is the news; name it rather than fold it into a count.
-    const exits = people.flatMap((c) => (c.people ?? []).filter((p) => p.level === "top" && p.change === "leaving").map((p) => `${c.ticker}'s ${shortRole(p.role)}`));
-    const exitClause = exits.length ? `; ${list([...new Set(exits)])} ${exits.length === 1 ? "is" : "are"} leaving` : "";
+    // Grouped per company: HDFCBANK once read "HDFCBANK's MD and CEO, HDFCBANK's MD".
+    const exits = people.flatMap((c) => {
+      const roles = [...new Set((c.people ?? []).filter((p) => p.level === "top" && p.change === "leaving").map((p) => shortRole(p.role)))];
+      return roles.length ? [{ text: `${c.ticker}'s ${list(roles)}`, n: roles.length }] : [];
+    });
+    const leaving = exits.reduce((n, e) => n + e.n, 0);
+    const exitClause = exits.length ? `; ${list(exits.map((e) => e.text))} ${leaving === 1 ? "is" : "are"} leaving` : "";
     sentences.push(`${count(people.length, "leadership change", "leadership changes")}, at ${list([...new Set(people.map((c) => c.ticker))])}${exitClause}.`);
   }
 
@@ -65,7 +71,7 @@ export function shortRole(role: string): string {
   const r = role.toLowerCase();
   const md = /managing director/.test(r);
   if (/chief executive/.test(r)) return md ? "MD and CEO" : "CEO";
-  if (md) return "MD";
+  if (md) return /deputy/.test(r) ? "Deputy MD" : /joint/.test(r) ? "Joint MD" : "MD";
   if (/chief financial/.test(r)) return "CFO";
   if (/chair(man|person)?\b/.test(r)) return "Chair";
   return role.split(/ and |,/)[0].trim();

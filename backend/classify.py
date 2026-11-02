@@ -19,7 +19,9 @@ _RULES: list[tuple[str, str]] = [
         "unclassified",
         r"newspaper|clipping|advertisement|publication of|esop|stock option|"
         r"regulation 74\s*\(5\)|trading window|loss of share|duplicate share|"
-        r"secretarial compliance|sustainability report|brsr|investor grievance",
+        r"secretarial compliance|sustainability report|brsr|investor grievance|"
+        # an ESG score from a rating agency moves nothing; TATACONSUM's sat in Worth knowing (review, 2 Nov)
+        r"\besg\b|environmental,? social,? (and|&) governance",
     ),
     (
         "earnings_call",
@@ -184,7 +186,9 @@ def priority(category: str, text: str, label: str = "") -> str:
                 t,
                 r"order|contract|awarded|award of|letter of award|launch|acqui|clarification|rumou?r|verification|"
                 r"enters?|entry|collaborat|partner|wins?\b|selected|opens?\b|facility|expan|"
-                r"update for q[1-4]|business update|revenue",
+                r"update for q[1-4]|business update|revenue|"
+                # an automaker's monthly volumes are its first read on the quarter; BAJAJ-AUTO's sat in Routine
+                r"sales for the month|monthly sales|(sales|production) (volumes?|numbers|performance)",
             )
             else "routine"
         )

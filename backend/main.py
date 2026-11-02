@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import threading
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -197,16 +198,37 @@ def _weight(card: dict) -> float:
     return 0
 
 
+_HONORIFIC = re.compile(r"^(mr|mrs|ms|dr|shri|smt|prof)\s+")
+
+
 def _immaterial(scale: dict) -> bool:
     """Under 0.1% of both revenue and market cap: worth knowing at most, never an alert."""
     rev, cap = scale.get("pct_of_revenue"), scale.get("pct_of_market_cap")
     return all(x is not None and x < 0.1 for x in (rev, cap)) or (rev is None and cap is not None and cap < 0.1)
 
 
+def _window(c, hours: int) -> tuple[datetime, int]:
+    """Where a brief window starts, and how many trading sessions of price moves it covers.
+
+    Filings and prices share one rule: the window holds the last N sessions (N from the calendar span, weekends
+    excluded) and every filing since the close of the session before them, so the news behind each move shown is
+    in the same brief. On Monday 2 Nov, "24 hours" started Sunday night: DIXON's +12% and RELIANCE's +11.6% were
+    listed, but the results that moved them, filed Friday evening, were not. It never starts later than `hours` ago.
+    """
+    sessions = max(1, round(hours / 24 * 5 / 7))
+    dates = [r[0] for r in c.execute("SELECT DISTINCT date FROM eod ORDER BY date DESC LIMIT ?", (sessions + 1,))]
+    since = _now() - timedelta(hours=hours)
+    if len(dates) > sessions:
+        close = datetime.combine(date.fromisoformat(dates[sessions]), datetime.min.time()).replace(hour=15, minute=30)
+        if close >= since - timedelta(days=4):  # a long weekend at most; stale prices must not stretch the window
+            since = min(since, close)
+    return since, sessions
+
+
 @app.get("/api/brief")
 def brief(hours: int = Query(24, ge=1, le=24 * 90)):
-    since = _now() - timedelta(hours=hours)
     with db.session() as c:
+        since, sessions = _window(c, hours)
         rules = _rules(c)
         rows = c.execute("SELECT * FROM filings WHERE an_dt >= ? ORDER BY an_dt DESC", (since.isoformat(),)).fetchall()
 
@@ -261,12 +283,16 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
                     continue
                 e = json.loads(f["enrichment"])
                 for p in e.get("people") or []:
-                    people.setdefault((p["name"].lower().replace(".", ""), p["change"]), p)
+                    # "Mr. Anup Bagchi" in one filing and "Anup Bagchi" in the next are one person
+                    key = _HONORIFIC.sub("", p["name"].lower().replace(".", "")).strip()
+                    people.setdefault((key, p["change"]), p)
                 amount = amount or e.get("amount_rs_crore")
             if people:
                 for p in people.values():
                     p["level"] = _level(p["role"])
-                card["people"] = list(people.values())
+                # the CEO before a group head: HDFCBANK's card once opened with a business-banking head leaving
+                rank = {"top": 0, "board": 1}
+                card["people"] = sorted(people.values(), key=lambda p: rank.get(p["level"], 2))
                 # a board meeting can file results and an appointment together; the results line stays the headline
                 if not card["results"]:
                     card["headline"] = _people_headline(card["people"]) or card["headline"]
@@ -286,8 +312,7 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
         cards.sort(key=lambda k: k["latest_at"], reverse=True)
         cards.sort(key=lambda k: (PRIORITY_ORDER[k["priority"]], CATEGORY_ORDER.get(k["category"], 99), -_weight(k)))
 
-        trading_days = max(1, round(hours / 24))
-        moves = A.eod_scan(c, list(PORTFOLIO), rules.price_pct, rules.vol_mult, days=trading_days)
+        moves = A.eod_scan(c, list(PORTFOLIO), rules.price_pct, rules.vol_mult, days=sessions)
         for m in moves:
             m["name"] = _name(m["ticker"])
             m["spark"] = A.sparkline(c, m["ticker"], 30)
@@ -308,6 +333,7 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
         return {
             "window_hours": hours,
             "since": since.isoformat(),
+            "sessions": sessions,
             "needs_you": [k for k in cards if k["priority"] == "needs_you"],
             "worth_knowing": [k for k in cards if k["priority"] == "worth_knowing"],
             "moves": moves,

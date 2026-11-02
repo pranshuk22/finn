@@ -139,3 +139,48 @@ def test_people_levels():
     assert _level("Managing Director & CEO") == "top"
     assert _level("Non-executive Independent Director") == "board"
     assert _level("Chief Product Officer") == "staff"
+
+
+def test_a_monday_brief_starts_at_fridays_close(client, monkeypatch):
+    # 2 Nov 2026: "24 hours" started Sunday night, so Friday evening's results behind Monday's moves were missing.
+    from datetime import datetime
+
+    from backend import main
+
+    _, db = client
+    with db.session() as c:
+        c.executemany(
+            "INSERT INTO eod(ticker, date, close, volume) VALUES('AAA',?,100,1000)",
+            [("2026-10-29",), ("2026-10-30",), ("2026-11-02",)],
+        )
+        monkeypatch.setattr(main, "_now", lambda: datetime(2026, 11, 2, 22, 30))
+        assert main._window(c, 24) == (datetime(2026, 10, 30, 15, 30), 1)  # Monday's session, news since Friday
+        assert main._window(c, 72) == (datetime(2026, 10, 29, 15, 30), 2)
+        # prices a week stale do not drag the window back with them
+        monkeypatch.setattr(main, "_now", lambda: datetime(2026, 11, 12, 22, 30))
+        assert main._window(c, 24) == (datetime(2026, 11, 11, 22, 30), 1)
+
+
+def test_one_person_named_two_ways_is_listed_once(client):
+    tc, db = client
+    p = {"role": "Managing Director and Chief Executive Officer", "change": "joining"}
+    add(
+        db,
+        1,
+        "HDFCBANK",
+        "management_change",
+        "needs_you",
+        recent(30),
+        enrichment={"people": [{**p, "name": "Anup Bagchi"}]},
+    )
+    add(
+        db,
+        2,
+        "HDFCBANK",
+        "management_change",
+        "needs_you",
+        recent(20),
+        enrichment={"people": [{**p, "name": "Mr. Anup Bagchi"}]},
+    )
+    card = tc.get("/api/brief?hours=24").json()["needs_you"][0]
+    assert len(card["people"]) == 1

@@ -287,11 +287,15 @@ function TopBar({ ticker }: { ticker: string }) {
   );
 }
 
+// The one piece of text on the page that is not from a filing or a call (HDFCBANK's read "tenth-largest bank ... as
+// of May 2024"), so it says where it came from.
 function About({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   return (
     <button type="button" onClick={() => setOpen(!open)} className="mt-3 block text-left text-[13px] text-muted" aria-expanded={open}>
-      <span className={open ? "" : "line-clamp-2"}>{text}</span>
+      <span className={open ? "" : "line-clamp-2"}>
+        <span className="font-medium">Screener's profile, not from a filing:</span> {text}
+      </span>
     </button>
   );
 }
@@ -441,14 +445,21 @@ const MIX: [keyof BalanceSheet["years"][number]["mix"], string][] = [
 function Balance({ bs, wc }: { bs: BalanceSheet; wc: Record<string, { period: string; value: number | null }[]> }) {
   const y = bs.years[bs.years.length - 1];
   const first = bs.years[0];
-  const stats: [string, string][] = [
-    ["Borrowings", `Rs ${inr(y.debt)} cr`],
-    ["Debt to equity", `${y.debt_to_equity ?? "n/a"}`],
-    bs.interest_coverage
-      ? ["Interest coverage", `${bs.interest_coverage.value}x (${bs.interest_coverage.period})`]
-      : ["Interest coverage", bs.is_financial ? "not used for lenders" : "n/a"],
-    ["Capital work in progress", y.cwip != null ? `Rs ${inr(y.cwip)} cr` : "n/a"],
-  ];
+  // Debt to equity, interest cover and capital work in progress describe a company that borrows to build; a
+  // lender borrows to lend, so its page showed "Capital work in progress Rs 0 cr" and a D/E of 0.98 that means nothing.
+  const stats: [string, string][] = bs.is_financial
+    ? [
+        ["Total assets", `Rs ${inr(y.total)} cr`],
+        ["Borrowings", `Rs ${inr(y.debt)} cr`],
+        ["Equity", `Rs ${inr(y.equity)} cr`],
+        ["Equity to assets", y.mix.equity != null ? `${y.mix.equity}%` : "n/a"],
+      ]
+    : [
+        ["Borrowings", `Rs ${inr(y.debt)} cr`],
+        ["Debt to equity", `${y.debt_to_equity ?? "n/a"}`],
+        ["Interest coverage", bs.interest_coverage ? `${bs.interest_coverage.value}x (${bs.interest_coverage.period})` : "n/a"],
+        ["Capital work in progress", y.cwip != null ? `Rs ${inr(y.cwip)} cr` : "n/a"],
+      ];
   return (
     <Card className="space-y-6">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -473,7 +484,7 @@ function Balance({ bs, wc }: { bs: BalanceSheet; wc: Record<string, { period: st
           ))}
         </ul>
       </div>
-      {first !== y && first.debt_to_equity != null && y.debt_to_equity != null && (
+      {!bs.is_financial && first !== y && first.debt_to_equity != null && y.debt_to_equity != null && (
         <p className="text-[13px] text-muted">
           Debt to equity went from {first.debt_to_equity} in {first.period} to {y.debt_to_equity} in {y.period}.
         </p>

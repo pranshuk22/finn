@@ -114,6 +114,9 @@ def _company_key(company: str) -> str:
     return words[0] if words else company.lower()
 
 
+_GENERATED = re.compile(r"grokipedia\.|ai-generated|aiwiki", re.I)
+
+
 def search_bio(name: str, company: str, role: str) -> dict | None:
     from ddgs import DDGS
 
@@ -133,6 +136,8 @@ def search_bio(name: str, company: str, role: str) -> dict | None:
             time.sleep(3.0 * (attempt + 1))
         if results:
             break
+    # AI-written encyclopedias are a model's guess presented as a reference; one was cited for a bio (review, 2 Nov).
+    results = [r for r in results if not _GENERATED.search(r.get("href", ""))]
     if not results:
         return None
     listing = "\n".join(f"[{i + 1}] {r['title']} | {r['href']}\n{r['body']}" for i, r in enumerate(results))

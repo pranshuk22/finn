@@ -42,7 +42,7 @@ function Term({ name, children }: { name: string; children: ReactNode }) {
   );
 }
 
-const PROMISE = ["delivered", "on_track", "missed", "off_track", "revised", "dropped", "unclear", "pending"];
+const PROMISE = ["delivered", "on_track", "missed", "off_track", "revised", "dropped", "unclear", "awaiting", "pending"];
 const PROMISE_MEANS: Record<string, string> = {
   delivered: "Reported numbers or a later call show it happened.",
   on_track: "Not due yet, and the latest numbers are at or above the target.",
@@ -51,6 +51,7 @@ const PROMISE_MEANS: Record<string, string> = {
   revised: "A later call changed the target or the date.",
   dropped: "No later call brings it up. Not proof it was abandoned.",
   unclear: "Later calls mention it but do not settle it.",
+  awaiting: "Its date has passed, but no reported number or later call settles it yet.",
   pending: "Said on the latest call, or not due yet. Shown under Guidance.",
 };
 
@@ -66,7 +67,7 @@ export function HelpContent() {
         </dl>
         <p className="text-muted">
           FINN sorts a filing by the exchange's own label first, then fixed text rules, and only when neither fits does a small model read it. Tap a
-          card to see its filings. Mark it done when you have read it; you can undo.
+          card to see its filings. Mark it done when you have read it, or swipe it right on a phone; you can undo.
         </p>
       </Part>
 
@@ -105,11 +106,11 @@ export function HelpContent() {
         <p className="text-muted">The six tiles at the top of a company page are fixed rules on the numbers below them:</p>
         <dl className="space-y-2">
           <Term name="Growth">Revenue a year over 3 years: 15% or more strong, 8% steady, 0% slow, below that shrinking.</Term>
-          <Term name="Margins">Latest quarter against a year earlier: up a point or more expanding, down a point or more slipping.</Term>
+          <Term name="Margins">Latest quarter against a year earlier: up a point or more expanding, down a point or more slipping. Lenders show credit cost instead: provisions as a share of pre-provision profit, 15% or less low, 30% moderate.</Term>
           <Term name="Cash">Cash from operations over operating profit, 3 years: 90% or more strong, 70% fair. Lenders show return on equity: 15% strong, 10% fair.</Term>
           <Term name="Balance sheet">Debt to equity: 0.3 or less light, up to 1 moderate, above 1 heavy.</Term>
-          <Term name="Track record">Promises kept of those checked: 60% or more reliable, 40% mixed.</Term>
-          <Term name="Valuation">P/E against 3-year profit growth a year: up to 1x cheap for its growth, up to 2x fair, above rich.</Term>
+          <Term name="Track record">Promises kept of those a later result settled: 60% or more reliable, 40% mixed. Revised and not mentioned again are not counted as misses, and fewer than 3 settled is too early to say.</Term>
+          <Term name="Valuation">P/E against 3-year profit growth a year: up to 1x cheap for its growth, up to 2x fair, above rich. If PAT fell 20% or more YoY in the latest quarter, growth is in doubt.</Term>
         </dl>
       </Part>
 

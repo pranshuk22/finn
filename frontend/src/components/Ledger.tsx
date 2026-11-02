@@ -14,9 +14,10 @@ export const STATUS: Record<string, { label: string; color: string }> = {
   dropped: { label: "Not mentioned again", color: "var(--needs-you)" }, // no later call brings it up
   pending: { label: "Pending", color: "var(--text-muted)" },
   unclear: { label: "Unclear", color: "var(--text-muted)" },
+  awaiting: { label: "Due, not settled", color: "var(--text-muted)" },
 };
 
-const ORDER = ["missed", "off_track", "revised", "dropped", "delivered", "on_track", "pending", "unclear"];
+const ORDER = ["missed", "off_track", "revised", "dropped", "delivered", "on_track", "awaiting", "pending", "unclear"];
 
 const JUDGED: Record<string, string> = {
   numbers: "Decided by reported numbers",

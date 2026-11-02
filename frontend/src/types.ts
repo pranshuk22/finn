@@ -27,6 +27,7 @@ export interface ResultsCard {
   derived: string | null; // the filing gave only six, nine or twelve months; the quarter was worked out
   suspect: string[]; // lines more than 10% away from Screener: not headlined
   tax_note: string | null; // tax, not the business, explains most of the PAT change
+  below_ebitda?: string | null; // other income, interest or depreciation, not the business, explains the PBT change
   history: ({ quarter: string } & Record<string, number | null | string>)[]; // up to five quarters, oldest first
   source_url: string | null;
   broadcast_at: string | null;
@@ -111,7 +112,8 @@ export interface Freshness {
 
 export interface Brief {
   window_hours: number;
-  since: string;
+  since: string; // the close of the session before the window's first one, when that is earlier than the hours
+  sessions?: number; // trading sessions of price moves in the window
   needs_you: BriefCard[];
   worth_knowing: BriefCard[];
   moves: Move[];

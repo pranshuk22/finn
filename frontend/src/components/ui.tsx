@@ -253,6 +253,7 @@ export function ResultsNotes({ r }: { r: ResultsCard }) {
         </p>
       )}
       {r.tax_note && <p className="mt-2 text-[12px] text-needs">{r.tax_note}</p>}
+      {r.below_ebitda && <p className="mt-2 text-[12px] text-needs">{r.below_ebitda}</p>}
       {r.suspect?.length > 0 && (
         <p className="mt-2 text-[12px] text-needs">
           Check the filing: {r.suspect.join(" and ")} {r.suspect.length > 1 ? "differ" : "differs"} from Screener by more than 10%, so

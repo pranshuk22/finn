@@ -99,3 +99,16 @@ def test_tax_note_when_tax_explains_the_profit_change():
     assert note.startswith("PAT -69.2% YoY, but PBT -7.9%: a year ago tax was a credit (PAT was 227% of PBT), 24% now")
     # TCS: tax steady, PAT and PBT move together
     assert _tax_note({"pbt": 18638, "pat": 13934}, {"pbt": 16200, "pat": 12130}) is None
+
+
+def test_a_gap_between_ebitda_and_pbt_is_explained():
+    from backend.analytics import _below_ebitda
+
+    # DIXON Q2 FY27 against Q2 FY26, from the NSE filings
+    cur = {"other_income": 68.73, "finance_costs": 25.95, "depreciation": 110.06}
+    yago = {"other_income": 495.74, "finance_costs": 38.35, "depreciation": 96.28}
+    rows = [{"label": "EBITDA", "yoy": 6.3}, {"label": "PBT", "yoy": -42.6}]
+    assert _below_ebitda(cur, yago, rows).startswith(
+        "EBITDA +6.3% YoY while PBT -42.6%: other income fell from Rs 496 crore to Rs 69 crore."
+    )
+    assert _below_ebitda(cur, yago, [{"label": "EBITDA", "yoy": 6.3}, {"label": "PBT", "yoy": 10}]) is None
