@@ -41,9 +41,13 @@ export function summarize(b: Brief, done: Set<string>): string {
       return p ? [{ c, ...p }] : [];
     });
     if (moves.length) {
-      const big = moves.reduce((a, x) => (Math.abs(x.y) > Math.abs(a.y) ? x : a));
-      const what = big.label === "PBT" ? "profit before tax" : "profit";
-      s += `; ${big.c.ticker}'s ${what} ${big.y >= 0 ? "rose" : "fell"} ${Math.abs(big.y).toFixed(1)}% from a year ago`;
+      // The biggest rise and the biggest fall, so the line never reads only the good news (the 24-hour brief once
+      // named RELIANCE's +33.8% and not DIXON's -44.9%). EBITDA is called EBITDA, never "profit".
+      const what = (m: { label: string }) => (m.label === "PBT" ? "profit before tax" : m.label === "EBITDA" ? "EBITDA" : "profit");
+      const say = (m: (typeof moves)[number]) => `${m.c.ticker}'s ${what(m)} ${m.y >= 0 ? "rose" : "fell"} ${Math.abs(m.y).toFixed(1)}%`;
+      const up = moves.filter((m) => m.y >= 0).sort((a, b) => b.y - a.y)[0];
+      const down = moves.filter((m) => m.y < 0).sort((a, b) => a.y - b.y)[0];
+      s += `; ${[up, down].filter(Boolean).map((m) => say(m!)).join(" and ")} from a year ago`;
     }
     sentences.push(`${s}.`);
   }

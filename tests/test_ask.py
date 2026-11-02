@@ -48,6 +48,15 @@ def test_numbers_must_come_from_a_cited_source():
     assert pull.unmatched_numbers("Revenue grew 39.7% YoY", ["Revenue YoY 40.2%"]) == ["39.7"]
 
 
+def test_small_decimals_are_checked_and_lakh_crore_only_when_said():
+    # ICICIBANK, 3 Nov: "NIM was 4.18%" stayed on screen after its quote failed. Numbers under 10 were skipped as
+    # counts, and 4.18 also matched a Rs 4,18,000 crore figure read as lakh crore.
+    sources = ["Total assets Rs 4,18,000 crore"]
+    assert pull.unmatched_numbers("NIM was 4.18% against 4.36%.", sources) == ["4.18", "4.36"]
+    assert pull.unmatched_numbers("Assets are Rs 4.18 lakh crore.", sources) == []
+    assert pull.unmatched_numbers("It reported 3 segments on two calls.", []) == []  # a small whole number is a count
+
+
 def test_a_sentence_with_an_unbacked_number_is_removed():
     answer = 'Q2 FY27 PAT was Rs 195 crore. Management said "margins hit 18.5%" on the call. Demand was strong.'
     assert pull._drop_unbacked(answer, ["18.5"]) == ("Q2 FY27 PAT was Rs 195 crore. Demand was strong.", 1)

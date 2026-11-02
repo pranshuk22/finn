@@ -82,7 +82,16 @@ describe("summarize", () => {
       card("c", "DIXON", "management_change"),
     ]);
     expect(summarize(b, new Set())).toBe(
-      "Three filings need you. RELIANCE and DIXON reported Q2 FY27; DIXON's profit fell 44.9% from a year ago. One leadership change, at DIXON.",
+      "Three filings need you. RELIANCE and DIXON reported Q2 FY27; RELIANCE's profit rose 33.8% and DIXON's profit fell 44.9% from a year ago. One leadership change, at DIXON.",
+    );
+  });
+
+  it("calls EBITDA EBITDA, not profit", () => {
+    // ETERNAL, 30-day brief on 3 Nov: "ETERNAL's profit rose 214.6%" was its EBITDA
+    const rows = [{ label: "EBITDA", value: 300, prev: 200, year_ago: 95, qoq: 50, yoy: 214.6, derived: true, check: null }];
+    const r = results("ETERNAL", 92.3, { rows, below_ebitda: "other income moved" });
+    expect(summarize(brief([card("a", "ETERNAL", "results", r)]), new Set())).toBe(
+      "One filing needs you. ETERNAL reported Q2 FY27; ETERNAL's EBITDA rose 214.6% from a year ago.",
     );
   });
 

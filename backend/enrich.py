@@ -29,6 +29,9 @@ class Person(BaseModel):
     entity: str | None = Field(
         None, description="The subsidiary or group company where the role is, if it is not the filing company"
     )
+    relationship: str | None = Field(
+        None, description="Relationship to an existing director or promoter, as the filing states it, else null"
+    )
     effective: str | None = None
 
 
@@ -45,6 +48,11 @@ If the change is at a subsidiary or group company, set entity to that company's 
 (for example "Subsidiary ICICI Life: MD and CEO resigns"). Never present a subsidiary's role as the parent's.
 amount_rs_crore: convert lakh to crore (100 lakh = 1 crore) and millions to crore (10 million = 1 crore)
 only if the filing states an amount in rupees. Otherwise null.
+relationship: SEBI requires appointment filings to disclose relationships between directors. Copy it when stated
+(for example "Son of Mr. Sunil Vachani, Executive Chairman"); null when the filing says there is none.
+For a credit rating, one_line names the agency, the instrument, the rating and outlook, and whether it was upgraded,
+reaffirmed or downgraded. For monthly sales or production, one_line gives total units and the change from a year
+earlier when the filing states them.
 Use only the text given."""
 
 
@@ -62,8 +70,19 @@ If the results may describe a different person with the same name, set confident
 Do not add anything that is not in the results."""
 
 
+_NO_NUMBER = re.compile(r"^\D*$")
+
+
 def _needs_read(f) -> bool:
-    if f["priority"] == "routine" or f["enrichment"] or not f["pdf_url"]:
+    if f["enrichment"] or not f["pdf_url"]:
+        return False
+    # A rating filing that only says "Credit Rating" may be an upgrade or a downgrade: SUZLON's ICRA outlook upgrade
+    # sat in Routine unread. Monthly sales filings say "Sales for the month" with no numbers (review, 3 Nov).
+    if f["category"] == "credit_rating" and len(f["summary"] or "") < 40:
+        return True
+    if re.search(r"sales for the month|monthly sales|production (volumes?|numbers)", f["summary"] or "", re.I):
+        return bool(_NO_NUMBER.match(f["summary"] or ""))
+    if f["priority"] == "routine":
         return False
     if f["category"] == "management_change":
         return True
@@ -197,6 +216,8 @@ def run(days: int = 35, limit: int | None = None) -> None:
             prio = management_priority(r["people"])
         elif f["category"] == "litigation" and prio == "needs_you" and _ADJOURNED.search(summary):
             prio = "worth_knowing"  # a hearing moved to another date decides nothing (MAXHEALTH, 29 and 30 Oct)
+        elif f["category"] == "credit_rating":
+            prio = classify.priority("credit_rating", summary, f["nse_label"] or "")
         with db.session() as c:
             c.execute(
                 "UPDATE filings SET summary=?, priority=?, enrichment=? WHERE id=?",

@@ -54,8 +54,9 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
     if not cur:
         return None
     d = date.fromisoformat(cur["period_end"])
-    prev = c.execute("SELECT * FROM results WHERE ticker=? AND period_end=?", (ticker, _quarter_back(d, 1))).fetchone()
-    yago = c.execute("SELECT * FROM results WHERE ticker=? AND period_end=?", (ticker, _quarter_back(d, 4))).fetchone()
+    same = "SELECT * FROM results WHERE ticker=? AND period_end=? AND consolidated=?"  # never mix bases
+    prev = c.execute(same, (ticker, _quarter_back(d, 1), cur["consolidated"])).fetchone()
+    yago = c.execute(same, (ticker, _quarter_back(d, 4), cur["consolidated"])).fetchone()
     is_bank = bool(cur["is_bank"]) or ticker in FINANCIALS
 
     def ebitda(r):
@@ -105,20 +106,24 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
 
     # Margin = profit / revenue (reference glossary). Changes in basis points, so 15.6% vs 17.0% reads as -140 bps.
     def share(num, den):
-        return round(100 * num / den, 1) if num is not None and den else None
+        return 100 * num / den if num is not None and den else None
+
+    def r1(x):
+        return round(x, 1) if x is not None else None
 
     by = {r["label"]: r for r in rows}
     margins = []
     for label, src in (("EBITDA margin", "EBITDA"), ("PAT margin", "PAT")):
         if src not in by or "Revenue" not in by:
             continue
+        # bps from the unrounded margins: DIXON's EBITDA margin moved -104 bps YoY, which rounding first showed as -110
         n, q1, y1 = (share(by[src][k], by["Revenue"][k]) for k in ("value", "prev", "year_ago"))
         margins.append(
             {
                 "label": label,
-                "now": n,
-                "prev": q1,
-                "year_ago": y1,
+                "now": r1(n),
+                "prev": r1(q1),
+                "year_ago": r1(y1),
                 "qoq_bps": round(100 * (n - q1)) if n is not None and q1 is not None else None,
                 "yoy_bps": round(100 * (n - y1)) if n is not None and y1 is not None else None,
             }
@@ -131,8 +136,8 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
     )
     # Up to five quarters ending with this one, for the small trend under each figure on the card.
     hist_rows = c.execute(
-        "SELECT * FROM results WHERE ticker=? AND period_end<=? ORDER BY period_end DESC LIMIT 5",
-        (ticker, cur["period_end"]),
+        "SELECT * FROM results WHERE ticker=? AND period_end<=? AND consolidated=? ORDER BY period_end DESC LIMIT 5",
+        (ticker, cur["period_end"], cur["consolidated"]),
     ).fetchall()[::-1]
     history = [
         {
@@ -168,6 +173,9 @@ def results_card(c: sqlite3.Connection, ticker: str, period_end: str | None = No
         "broadcast_at": cur["broadcast_at"],
         "has_prev": prev is not None,
         "has_year_ago": yago is not None,
+        # Results are due within 45 days of a quarter's end (60 for the fourth). Older than about 140 days means a
+        # newer quarter should exist and was not found, so the card says so instead of passing it off as current.
+        "stale": (date.today() - d).days > 140,
     }
 
 

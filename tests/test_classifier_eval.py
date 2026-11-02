@@ -80,3 +80,16 @@ def test_management_priority_follows_the_readme_policy():
     assert management_priority([p("C", "Non-executive Independent Director", "joining")]) == "worth_knowing"
     assert management_priority([p("D", "Whole Time Director", "reappointed")]) == "routine"
     assert management_priority([]) == "worth_knowing"
+
+
+def test_a_subsidiary_listing_is_not_a_results_notice():
+    # RELIANCE, 27 Oct: the listing filing also mentions JPL's coming board meeting on results (review, 3 Nov)
+    from backend import classify
+
+    text = (
+        "Trading in equity shares of Jio Platforms Limited (JPL) will commence from October 28, 2026.Further, a "
+        "meeting of board of directors of JPL is scheduled to be held on Friday, October 30, 2026, inter alia, to "
+        "consider and approve the standalone and consolidated unaudited financial results"
+    )
+    assert classify.by_rules(text) == "fund_raise"
+    assert classify.priority("fund_raise", text, "General Updates") == "worth_knowing"

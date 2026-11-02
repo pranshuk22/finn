@@ -33,6 +33,7 @@ export interface ResultsCard {
   broadcast_at: string | null;
   has_prev: boolean;
   has_year_ago: boolean;
+  stale?: boolean; // the quarter is over about 140 days old: a newer one should exist
 }
 
 export interface Source {
@@ -49,6 +50,7 @@ export interface Person {
   entity?: string | null;
   level?: "top" | "board" | "staff";
   profile_from_filing?: string | null;
+  relationship?: string | null; // to an existing director or promoter, as the filing states it
   bio?: { lines: string[]; confident: boolean; sources: Source[] } | null;
 }
 
@@ -90,6 +92,7 @@ export interface BriefCard {
   first_at: string;
   reaction: Reaction | null;
   ledger: { counts: Record<string, number>; promises: number } | null;
+  note?: string; // e.g. a press release whose figures are on another basis than the filed results
 }
 
 export interface Move {

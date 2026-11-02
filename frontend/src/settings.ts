@@ -15,7 +15,7 @@ export interface Settings {
   size: TextSize;
 }
 
-export const DEFAULTS: Settings = { theme: "paper", accent: "taupe", type: "modern", size: "standard" };
+export const DEFAULTS: Settings = { theme: "paper", accent: "steel", type: "modern", size: "standard" };
 
 // Swatch colours shown in Settings, per resolved theme (same values as tokens.css).
 export const ACCENTS: { value: Accent; label: string; slate: string; paper: string; navy: string }[] = [

@@ -71,7 +71,7 @@ Checks were run between 31 Oct and 3 Nov 2026 (IST), from a home connection in I
 - **Screener's transcript links can be wrong.** Its "Jul 2026" TCS link pointed to the call from a year earlier, and tcs.com answered 403. FINN takes transcripts from the company's own NSE filings first. All four TCS calls then loaded from NSE's archive.
 - **BSE serves PDFs only with a BSE Referer** header.
 - **Ad-hoc picks have the sources Pull needs:** ASIANPAINT, HAL, PIDILITIND and BAJFINANCE each have 16 to 19 transcripts on Screener. BAJFINANCE is an NBFC, which tests that nothing assumes EBITDA exists.
-- **Annual reports** are 187 (RELIANCE) to 756 (LT) pages: too long for one call. All 22 were read once and stored, about 32 MB of text. Ask picks the five pages that best match the question by keyword weight. "Who is the statutory auditor?" on TITAN: "M/s. BSR & Co., LLP", quoted from page 136 and checked against the PDF.
+- **Annual reports** are 187 (RELIANCE) to 756 (LT) pages: too long for one call. All 22 were read once and stored, about 32 MB of text. Ask picks the six pages that best match the question by keyword weight, and two question words side by side on a page count far more. "Who is the statutory auditor?" on TITAN: "M/s. BSR & Co., LLP", quoted from page 136 and checked against the PDF. On DIXON the page naming its auditor (152) first ranked third behind audit committee pages; with the phrase weight it ranks second, and Ask answers "S.N. Dhawan & Co. LLP".
 
 ## R8. Prices, and how many alerts a threshold fires
 

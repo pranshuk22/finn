@@ -142,6 +142,10 @@ def to_quarter(c, ticker: str, consolidated: int, p: dict) -> dict | None:
     return out
 
 
+def _qe(r: dict) -> date:
+    return datetime.strptime(r["qe_Date"], "%d-%b-%Y").date()
+
+
 def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
     """Latest `quarters` results per ticker: enough for QoQ and YoY."""
     with db.session() as c:
@@ -154,9 +158,20 @@ def refresh_results(nse: NSE, tickers: list[str], quarters: int = 5) -> None:
             log(f"results: {t} list failed: {e}")
             continue
         cons = [r for r in rows if r.get("consolidated") == "Consolidated"]
-        rows = cons or [r for r in rows if r.get("consolidated") in ("Standalone", "Non-Consolidated")]
+        alone = [r for r in rows if r.get("consolidated") in ("Standalone", "Non-Consolidated")]
+        # Consolidated when it is current. JYOTHYLAB filed consolidated results only up to Mar 2025 and standalone
+        # since, so preferring any consolidated row showed an 18-month-old quarter as the latest (review, 3 Nov).
+        if cons and alone and _qe(cons[0]) < _qe(alone[0]):
+            cons = []
+        rows = cons or alone
+        # One filing per quarter, newest first. A revised filing lists the quarter twice, and those duplicates
+        # once pushed the year-ago quarter out of the last five (ASIANPAINT, GRAVITA, KAYNES: QoQ only).
+        latest: dict[date, dict] = {}
+        for r in rows:
+            latest.setdefault(_qe(r), r)
+        rows = [latest[k] for k in sorted(latest, reverse=True)[:quarters]]
         # oldest first, so a six-month filing finds the quarter before it already stored
-        for r in sorted(rows[:quarters], key=lambda r: datetime.strptime(r["qe_Date"], "%d-%b-%Y")):
+        for r in sorted(rows, key=_qe):
             qe = datetime.strptime(r["qe_Date"], "%d-%b-%Y").date().isoformat()
             if (t, qe) in have or not r.get("ixbrl"):
                 continue

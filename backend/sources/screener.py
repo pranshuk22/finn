@@ -2,6 +2,7 @@
 
 import re
 import time
+from datetime import date, datetime
 
 import httpx
 from bs4 import BeautifulSoup
@@ -17,10 +18,15 @@ class NotFound(Exception):
 
 
 def fetch(ticker: str, client: httpx.Client | None = None) -> dict:
-    """Parsed company page. Consolidated first, standalone if consolidated has no numbers."""
+    """Parsed company page. Consolidated first; standalone if consolidated has no numbers or stopped earlier.
+
+    JYOTHYLAB's consolidated quarters end at Mar 2025 while its standalone ones run to Jun 2026, because it
+    stopped filing consolidated results. Consolidated alone left its trajectory and margins 15 months stale.
+    """
     own = client is None
     client = client or httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30, follow_redirects=True)
     try:
+        found = None
         for mode in ("consolidated", "standalone"):
             path = f"/company/{ticker}/consolidated/" if mode == "consolidated" else f"/company/{ticker}/"
             r = client.get(BASE + path)
@@ -28,17 +34,22 @@ def fetch(ticker: str, client: httpx.Client | None = None) -> dict:
                 raise NotFound(ticker)
             r.raise_for_status()
             page = parse(r.text)
+            page["statement_mode"], page["url"] = mode, BASE + path
             if page["tables"].get("quarters"):
-                page["statement_mode"] = mode
-                page["url"] = BASE + path
-                return page
+                if found is None or _last_quarter(page) > _last_quarter(found):
+                    found = page
+                if mode == "consolidated" and (date.today() - _last_quarter(page)).days <= 200:
+                    return page  # current, so standalone is not needed
             time.sleep(1)
-        page["statement_mode"] = "standalone"
-        page["url"] = BASE + path
-        return page
+        return found or page
     finally:
         if own:
             client.close()
+
+
+def _last_quarter(page: dict) -> date:
+    ends = [datetime.strptime(q["period"], "%b %Y").date() for q in page["tables"]["quarters"] if q.get("period")]
+    return max(ends, default=date.min)
 
 
 def _num(s: str) -> float | None:

@@ -345,25 +345,23 @@ function BriefCardView({ card, onOpen, onDone, onNote }: { card: BriefCard; onOp
           </p>
         )}
 
+        {card.note && <p className="mt-2 text-[12px] text-muted">{card.note}</p>}
         <Facts card={card} />
 
-        <div className="mt-3 flex items-center border-t border-line" data-noshare>
+        {/* wraps whole actions, never mid-label: Large text once broke "2 filings" over two lines (review, 3 Nov) */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 border-t border-line" data-noshare>
           <TextAction onClick={onOpen} icon={<Icon.doc />}>
             {filingSpan(card)}
           </TextAction>
           <span className="flex-1" />
           {card.results && (
-            <>
-              <TextAction onClick={share} icon={<Icon.share />}>
-                Share
-              </TextAction>
-              <span className="w-4" />
-            </>
+            <TextAction onClick={share} icon={<Icon.share />}>
+              Share
+            </TextAction>
           )}
           <TextAction onClick={onDone} icon={<Icon.check />}>
             Done
           </TextAction>
-          <span className="w-4" />
           <TextAction onClick={() => navigate(dig)} strong>
             Research
             <Icon.arrow />
@@ -463,6 +461,7 @@ function People({ people, named }: { people: Person[]; named: boolean }) {
               )}
             </div>
           ) : null}
+          {p.relationship && <p className="mt-1 text-[13px] font-medium">{p.relationship}, as the filing states</p>}
           {(p.level || p.effective) && (
             <p className="mt-1.5 text-[12px] text-muted">
               {p.level && LEVEL[p.level]}

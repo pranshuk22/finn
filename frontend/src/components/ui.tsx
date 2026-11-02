@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ago, bps, inr, signedPct, tone } from "../format";
+import { ago, bps, dayMonthYear, inr, signedPct, tone } from "../format";
 import type { ResultsCard } from "../types";
 
 // ---------- layout ----------
@@ -139,7 +139,7 @@ export function Button({
 /** A quiet action inside a card: icon and label, full 44 px tap height. */
 export function TextAction({ children, onClick, icon, strong }: { children: ReactNode; onClick: () => void; icon?: ReactNode; strong?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={`flex h-11 items-center gap-1.5 text-[14px] ${strong ? "font-semibold text-accent-ink" : "text-muted"}`}>
+    <button type="button" onClick={onClick} className={`flex h-11 items-center gap-1.5 text-[14px] whitespace-nowrap ${strong ? "font-semibold text-accent-ink" : "text-muted"}`}>
       {icon}
       {children}
     </button>
@@ -246,6 +246,12 @@ export function ResultsGrid({ r }: { r: ResultsCard }) {
 export function ResultsNotes({ r }: { r: ResultsCard }) {
   return (
     <>
+      {r.stale && (
+        <p className="mt-2 text-[12px] font-medium text-needs">
+          These are the latest results FINN found on NSE, for the quarter ended {dayMonthYear(r.period_end)}. A newer quarter should have
+          been filed by now, so treat these as old.
+        </p>
+      )}
       {r.other_income_pct_of_pbt != null && (
         <p className={`mt-2 text-[12px] ${r.other_income_pct_of_pbt >= 25 ? "text-needs" : "text-muted"}`}>
           Other income is {r.other_income_pct_of_pbt.toFixed(0)}% of PBT
@@ -321,8 +327,9 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
         <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-line" />
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-display text-[20px] font-semibold">{title}</h2>
+          {/* "Close", not "Done": on a card, Done marks it read (review, 3 Nov) */}
           <button type="button" onClick={onClose} className="-mr-2 h-11 px-2 text-[15px] text-accent-ink">
-            Done
+            Close
           </button>
         </div>
         {children}

@@ -43,6 +43,22 @@ describe("scorecard rules", () => {
     expect(balanceTile(r).detail).toBe("Net NPA, gross 1.11%, Q2 FY27");
   });
 
+  it("does not call a merger year a growth trend", () => {
+    // HDFCBANK: revenue 1,70,754 (FY23) to 2,83,649 (FY24, the HDFC Ltd merger), then +18.6% and +3.6%
+    const pts = (vals: number[]) => vals.map((value, i) => ({ period: `Mar 20${23 + i}`, value }));
+    const r = research({
+      snapshot: { is_financial: true, ratios: { "Stock P/E": 13.5 } },
+      trajectory: {
+        annual: { Revenue: pts([170754, 283649, 336367, 348615]), "Net profit": pts([46149, 65446, 73440, 79219]) },
+        growth: { Revenue: { cagr_3y: 26.9, last_year: 3.6 }, "Net profit": { cagr_3y: 19.7, last_year: 7.9 } },
+        quarterly: {},
+      },
+    });
+    expect(growthTile(r)).toMatchObject({ value: "3.6%", verdict: "Slow" });
+    expect(growthTile(r).detail).toContain("one-off +66% in Mar 2024");
+    expect(valuationTile(r)).toMatchObject({ verdict: "Fair" }); // 13.5 / 7.9 = 1.7x, not 0.7x "Cheap"
+  });
+
   it("judges the track record only once enough promises have come due", () => {
     const ledger = (st: string[]) => ({ status: "ok", items: st.map(promise) });
     expect(trackTile(research({ ledger: ledger(["pending", "delivered"]) }))).toMatchObject({ verdict: "Too early", tone: "neutral" });

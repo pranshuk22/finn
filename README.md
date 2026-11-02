@@ -208,7 +208,7 @@ flowchart LR
 - **Intraday data.** The brief asks for end-of-day. Intraday would add cost and noise without changing the workflow.
 - **Voice.** A spoken brief is a nice demo but adds little over a 30-second read. Next on the list, not now.
 - **A chat-first interface.** Chat makes the investor do the work of asking. FINN leads with a finished brief and keeps Ask for follow-ups.
-- **Vector search.** Four transcripts fit in one model call ([R7](docs/RESEARCH.md#r7-transcripts-and-annual-reports)). Annual reports do not (187 to 756 pages), so Ask picks their best five pages by keyword weight; embeddings would add a model and an index for a gain we could not show.
+- **Vector search.** Four transcripts fit in one model call ([R7](docs/RESEARCH.md#r7-transcripts-and-annual-reports)). Annual reports do not (187 to 756 pages), so Ask picks their best six pages by keyword weight, with extra weight where two question words stand together; embeddings would add a model and an index for a gain we could not show.
 - **News and broker research.** Excluded from Pull by design: primary sources only.
 
 ## Run it locally

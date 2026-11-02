@@ -28,6 +28,13 @@ _RULES: list[tuple[str, str]] = [
         r"transcript|recording|earnings call|conference call|con\.? call|concall|webcast|"
         r"call with (media|analysts)",
     ),
+    # A subsidiary's listing: RELIANCE's "Trading in equity shares of Jio Platforms Limited will commence" also
+    # mentions JPL's coming board meeting on results, and was filed as a Routine results notice (review, 3 Nov).
+    (
+        "fund_raise",
+        r"trading in (the )?equity shares[^.]{0,80}commence|commencement of (listing|trading)|"
+        r"listing (and trading )?of (the )?equity shares",
+    ),
     (
         "results",
         r"financial results|results for the (quarter|period|half|year)|shareholders?'? ?letter|"

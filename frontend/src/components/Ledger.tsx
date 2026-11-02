@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { ago, monthYear, plain, target } from "../format";
+import { trackCounts } from "../scorecard";
 import type { Ledger, LedgerItem } from "../types";
 import { GuidedVsActual } from "./Charts";
 import { Button, ExtLink, Icon, Sheet } from "./ui";
@@ -354,19 +355,23 @@ const colorOf = (status: string) => OUTCOME.find((o) => o.statuses.includes(stat
 export function TrackRecord({ ledger }: { ledger: Ledger }) {
   const [open, setOpen] = useState<LedgerItem | null>(null);
   const items = ledger.items;
-  const judged = items.filter((i) => i.status !== "pending");
-  const parts = OUTCOME.map((o) => ({ ...o, n: judged.filter((i) => o.statuses.includes(i.status)).length })).filter((o) => o.n);
-  const kept = parts.find((p) => p.key === "kept")?.n ?? 0;
+  const outcomes = items.filter((i) => i.status !== "pending");
+  const parts = OUTCOME.map((o) => ({ ...o, n: outcomes.filter((i) => o.statuses.includes(i.status)).length })).filter((o) => o.n);
+  const { judged, kept, aside, open: unsettled } = trackCounts(items);
+  const rest = [aside && `${aside} revised or not mentioned again`, unsettled && `${unsettled} not yet settled`].filter(Boolean).join(", ");
   const calls = ledger.transcripts.map((t) => t.period);
   return (
     <div className="mx-4 mb-3 rounded-[12px] bg-card p-4">
       {judged.length > 0 ? (
         <p className="text-[15px]">
           <span className="text-[20px] font-semibold">{kept}</span>
-          <span className="text-muted"> of {judged.length} promises that could be checked were kept</span>
+          <span className="text-muted">
+            {" "}
+            of {judged.length} settled promises were kept{rest && `; ${rest}, not counted`}
+          </span>
         </p>
       ) : (
-        <p className="text-[15px] text-muted">No promise from these calls has come due yet.</p>
+        <p className="text-[15px] text-muted">{outcomes.length ? `None settled yet; ${rest}.` : "No promise from these calls has come due yet."}</p>
       )}
       {parts.length > 0 && (
         <div className="mt-3 flex h-2 gap-[2px]" role="img" aria-label={parts.map((p) => `${p.label} ${p.n}`).join(", ")}>

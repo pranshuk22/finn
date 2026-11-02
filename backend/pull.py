@@ -181,20 +181,25 @@ _STOP = set(
 )
 
 
-def report_pages(doc: dict, question: str, k: int = 5) -> list[int]:
+def report_pages(doc: dict, question: str, k: int = 6) -> list[int]:
     """Pages of a long report most likely to answer the question, 1-based, best first. Plain keyword scoring:
     rare words count more (log inverse document frequency), and each word is matched on its first six letters so
     "auditor" also finds "audit" and "auditors". On the TITAN 2026 report, "Who is the auditor?" ranks the
     Independent Auditor's Report pages first."""
-    words = [w[:6] for w in dict.fromkeys(re.findall(r"[a-z]{3,}", question.lower())) if w not in _STOP]
+    kept = [w for w in re.findall(r"[a-z]{3,}", question.lower()) if w not in _STOP]
+    words = list(dict.fromkeys(w[:6] for w in kept))
     if not words:
         return []
-    low = [p.lower() for p in doc["pages"]]
+    low = [re.sub(r"\s+", " ", p.lower()) for p in doc["pages"]]
     n = len(low)
     weight = {w: math.log(n / (1 + sum(1 for p in low if w in p))) for w in words}
+    # Two question words side by side on a page count far more than either alone: DIXON's "Statutory Auditors
+    # M/s S.N. Dhawan" page ranked third behind audit committee pages that say "auditor" more often.
+    phrases = [re.compile(rf"\b{a[:6]}\w*\W+{b[:6]}") for a, b in zip(kept, kept[1:], strict=False)]
     scored = []
     for i, p in enumerate(low):
         score = sum(weight[w] * min(p.count(w), 5) for w in words if weight[w] > 0)
+        score += sum(10 * min(len(ph.findall(p)), 3) for ph in phrases)
         if score > 0:
             scored.append((score, i + 1))
     return [pg for _, pg in sorted(scored, reverse=True)[:k]]
@@ -990,6 +995,8 @@ For a question about numbers (revenue, profit, margins, growth, a segment, a qua
   profit: name the business whenever you use one.
 - The calls and the annual report can be older than the latest results. Never present a number from them as the
   latest.
+- When the question names a period (a quarter, a year), answer for that period, preferring the call that discussed
+  it over the annual report. If no source covers that period, say which period your figure is for.
 For anything else, answer from the transcripts or the annual report. A quote from the annual report has source
 "Annual report" followed by its year, as in its header.
 If no source answers it, set covered to false and say what they do cover.
@@ -1108,14 +1115,20 @@ def unmatched_numbers(answer: str, sources: list[str]) -> list[str]:
     DIXON's "YoY 39.7%" from an older call pass for the filed 40.2%."""
     have = [n for s in sources for n in _numbers(s)]
 
-    def found(raw: str) -> bool:
+    def found(raw: str, lakh: bool) -> bool:
         x = float(raw.replace(",", ""))
         d = len(raw.split(".")[1]) if "." in raw else 0
-        return any(abs(round(h, d) - x) < 1e-9 or abs(round(h / 1e5, d) - x) < 1e-9 for h in have)
+        return any(abs(round(h, d) - x) < 1e-9 or (lakh and abs(round(h / 1e5, d) - x) < 1e-9) for h in have)
 
     out = []
-    for raw in _NUM.findall(_LABELS.sub(" ", answer)):
-        if float(raw.replace(",", "")) >= 10 and not found(raw) and raw not in out:  # 1 to 9 are mostly counts
+    text = _LABELS.sub(" ", answer)
+    for m in _NUM.finditer(text):
+        raw = m.group(0)
+        # Read as lakh crore only when the answer says so: ICICIBANK's "NIM was 4.18%" once passed as a Rs 4.18 lakh
+        # crore figure after its quote failed, leaving a claim with no source on screen (review, 3 Nov).
+        lakh = "lakh" in text[m.end() : m.end() + 12].lower()
+        count = "." not in raw and float(raw.replace(",", "")) < 10  # "two calls", "3 segments"; 4.18% is not a count
+        if not count and not found(raw, lakh) and raw not in out:
             out.append(raw)
     return out
 
@@ -1193,6 +1206,14 @@ def ask(ticker: str, question: str) -> dict:
             d = _match_doc(ct.source, docs)
             label = d["period"] if d else ""  # not "Apr 2026 call"
         pg = verify_quote(ct.quote, d, ct.page) if d else None
+        if pg is None:
+            # The model sometimes names a call by its quarter ("Q2 FY27 call") rather than the header's month, or
+            # the wrong call. The quote is still checked word for word; only where it is looked for widens.
+            for other in [x for x in reversed(docs) if x is not d] + ([ar] if ar and ar is not d else []):
+                pg = verify_quote(ct.quote, other, None)
+                if pg is not None:
+                    d, label = other, f"Annual report {ar['period']}" if other is ar else other["period"]
+                    break
         if pg is None:
             dropped += 1
             continue

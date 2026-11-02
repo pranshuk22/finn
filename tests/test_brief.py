@@ -184,3 +184,12 @@ def test_one_person_named_two_ways_is_listed_once(client):
     )
     card = tc.get("/api/brief?hours=24").json()["needs_you"][0]
     assert len(card["people"]) == 1
+
+
+def test_amount_read_from_the_summary_when_the_pdf_was_not_read():
+    from backend import main
+
+    # ICICIBANK, 1 Nov: "Appellate authority reduced tax penalty to 6.95 lakh rupees." kept an Alert tag
+    assert main._amount_in("Appellate authority reduced tax penalty to 6.95 lakh rupees.") == 0.0695
+    assert main._amount_in("Order worth Rs 1,250 crore") == 1250
+    assert main._amount_in("Board meeting on 30 Oct") is None

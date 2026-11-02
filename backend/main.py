@@ -201,6 +201,19 @@ def _weight(card: dict) -> float:
 _HONORIFIC = re.compile(r"^(mr|mrs|ms|dr|shri|smt|prof)\s+")
 
 
+_AMOUNT = re.compile(r"(?:rs\.?|inr|₹)?\s*(\d[\d,]*(?:\.\d+)?)\s*(lakh|crore)", re.I)
+
+
+def _amount_in(text: str | None) -> float | None:
+    """An amount stated in a filing's one-line summary, in Rs crore. ICICIBANK's "tax penalty to 6.95 lakh rupees"
+    was never read from its PDF, so without this it kept an Alert tag (review, 3 Nov)."""
+    m = _AMOUNT.search(text or "")
+    if not m:
+        return None
+    v = float(m.group(1).replace(",", ""))
+    return round(v / 100, 4) if m.group(2).lower() == "lakh" else v
+
+
 def _immaterial(scale: dict) -> bool:
     """Under 0.1% of both revenue and market cap: worth knowing at most, never an alert."""
     rev, cap = scale.get("pct_of_revenue"), scale.get("pct_of_market_cap")
@@ -280,6 +293,7 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             amount = None
             for f in fs:
                 if not f["enrichment"]:
+                    amount = amount or _amount_in(f["summary"])
                     continue
                 e = json.loads(f["enrichment"])
                 for p in e.get("people") or []:
@@ -308,6 +322,16 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             if led and led.get("status") == "ok":
                 card["ledger"] = {"counts": led["counts"], "promises": len(led["items"])}
             cards.append(card)
+        # A company's own release often states other figures than its filed results: MAXHEALTH's said revenue
+        # Rs 3,219 crore and PAT +10% (network gross revenue, adjusted profit) beside filed Rs 2,569 crore and PAT
+        # -15.6%. Say which is which instead of leaving two sets of numbers side by side (review, 3 Nov).
+        with_results = {k["ticker"] for k in cards if k["results"]}
+        for k in cards:
+            if k["category"] == "press_release" and k["ticker"] in with_results and re.search(r"\d", k["headline"]):
+                k["note"] = (
+                    "From the company's press release. Its figures can be on another basis than the filed results "
+                    "(gross revenue, adjusted profit); the results card shows what was filed with NSE."
+                )
         # Within a priority and category, the card that matters most first; ties newest first (stable sorts).
         cards.sort(key=lambda k: k["latest_at"], reverse=True)
         cards.sort(key=lambda k: (PRIORITY_ORDER[k["priority"]], CATEGORY_ORDER.get(k["category"], 99), -_weight(k)))
