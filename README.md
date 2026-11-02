@@ -247,4 +247,4 @@ No `uv`? `python -m venv .venv && source .venv/bin/activate && pip install -r re
 
 ## Build history
 
-FINN was built in Claude Code sessions. The build history is shared with the submission as a separate document rather than kept in this repo. Each decision that came out of those sessions is backed in [`docs/RESEARCH.md`](docs/RESEARCH.md).
+FINN was built with Claude Code over five days. [build-history.md](build-history.md) is the short version: how the work was split, what happened each day, and what the checks caught. The research behind each decision is in [`docs/RESEARCH.md`](docs/RESEARCH.md).
