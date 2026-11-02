@@ -169,20 +169,20 @@ Checks were run between 31 Oct and 3 Nov 2026 (IST), from a home connection in I
 - **All 12 theme and accent pairs** (Slate, Paper, Navy by four accents), computed from `tokens.css` on 3 Nov: every text colour, including gains, losses and Needs you, is at least 4.5:1 on every surface. Lowest 4.66:1 (Needs you on Paper's hero); button text on the accent at least 5.1:1.
 - **Chart colours** for gains and losses failed a colour-blindness check as fills (delta E 2.9 on slate). The chart pair is now `#2ea58f` / `#d9714a` on slate and `#00876c` / `#c8472a` on paper: delta E 10.5 or more, contrast 3:1 or more.
 
-## R15. Two independent blind reviews
+## R15. Three independent blind reviews
 
-Both reviewers were agents given only the two challenge PDFs and the live app at phone width, with no code, README or this log. Each finding was checked against the data before anything changed.
+All three reviewers were agents given only the two challenge PDFs and the live app at phone width, with no code, README or this log. Each finding was checked against the data before anything changed.
 
-| Area | 31 Oct | 2 Nov |
-| --- | --- | --- |
-| Saves time | 7 | 6 |
-| Shows what matters | 6 | 6 |
-| Trust and grounding | 6 | 7 |
-| Density | 7 | 6 |
-| Visual design | 8 | 8 |
-| Interactivity | 6 | 7 |
-| Thought-through | 7 | 7 |
-| Mobile fit | 8 | 8 |
+| Area | 31 Oct | 2 Nov | 3 Nov |
+| --- | --- | --- | --- |
+| Saves time | 7 | 6 | 8 |
+| Shows what matters | 6 | 6 | 7 |
+| Trust and grounding | 6 | 7 | 7 |
+| Density | 7 | 6 | 8 |
+| Visual design | 8 | 8 | 8 |
+| Interactivity | 6 | 7 | 7 |
+| Thought-through | 7 | 7 | 8 |
+| Mobile fit | 8 | 8 | 8 |
 
 - **31 Oct, confirmed:**
   - COFORGE's six-month filing (R4).
@@ -202,3 +202,14 @@ Both reviewers were agents given only the two challenge PDFs and the live app at
   - More promises decided by numbers (R10).
   - Bull and bear points that join facts (R11).
   - Push notifications (R13).
+- **3 Nov, held against outside sources:** all 18 closes against NSE's bhavcopy; DIXON, MAXHEALTH and HDFCBANK results and bank ratios against the filings; the alert replay counts recomputed from Yahoo; ledger and annual-report quotes on their stated pages.
+- **3 Nov, confirmed and fixed:**
+  - A new ticker showed 18-month-old results. JYOTHYLAB filed consolidated results only up to Mar 2025 and standalone since; FINN now uses consolidated only when it is current (NSE and Screener alike), and warns when a card's quarter is over about 140 days old.
+  - HDFCBANK's Growth read "26.9% a year, Strong" from the merger year (+66% in FY24; last year +3.6%). A single year of 40% or more, with last year under half the 3-year rate, is now named as a one-off and the tiles judge on last year.
+  - ASIANPAINT, GRAVITA and KAYNES showed QoQ only: revised filings listed some quarters twice and pushed the year-ago quarter out of the last five. Quarters are now deduplicated first.
+  - The track record read "2 of 2" on the tile and "2 of 5" in the section; both now use one count.
+  - "NIM was 4.18%" stayed on screen after its quote failed: numbers under 10 were skipped as counts, and 4.18 also matched a Rs 4,18,000 crore figure read as lakh crore. Decimals are now checked, and lakh crore is read only when the answer says so. A quote is also looked for in every call, not only the one the model named.
+  - The Jio Platforms listing was filed as a Routine results notice, and a Rs 6.95 lakh penalty kept an Alert tag (its size was in the summary, not read from the PDF).
+  - The summary called EBITDA "profit" and named only the biggest mover; it now says EBITDA, and gives the biggest rise and the biggest fall.
+  - Margin changes in bps were taken from rounded margins (DIXON -110 bps, actual -104).
+

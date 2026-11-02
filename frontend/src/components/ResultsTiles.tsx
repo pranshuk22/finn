@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { explainResults } from "../explain";
 import { inr } from "../format";
+import { useSettings } from "../settings";
 import type { ResultsCard } from "../types";
 import { Bps, Pct, ResultsGrid, ResultsNotes } from "./ui";
 
@@ -39,6 +41,7 @@ export function ResultsTiles({ r }: { r: ResultsCard }) {
   const [table, setTable] = useState(false);
   const tiles = r.rows.filter((x) => x.label !== "Provisions").slice(0, 4);
   const yoy = r.has_year_ago;
+  const { explain } = useSettings();
   return (
     <div>
       <p className="mb-1 flex justify-between text-[11px] text-muted">
@@ -64,6 +67,13 @@ export function ResultsTiles({ r }: { r: ResultsCard }) {
           </div>
         ))}
       </div>
+      {explain && (
+        <ul className="mt-2 space-y-1 text-[12px] leading-snug">
+          {explainResults(r).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
       {r.margins?.length > 0 && (
         <p className="mt-2 flex flex-wrap gap-x-4 text-[13px] text-muted">
           {r.margins.map((m) => (

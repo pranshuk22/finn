@@ -1,4 +1,6 @@
+import { explainTile } from "../explain";
 import { scorecard, type Tone } from "../scorecard";
+import { updateSettings, useSettings } from "../settings";
 import type { Research } from "../types";
 import { jumpTo } from "./ui";
 
@@ -14,34 +16,60 @@ export const TONE: Record<Tone, string> = {
 
 export function Scorecard({ r, figures }: { r: Research; figures: [string, string][] }) {
   const tiles = scorecard(r);
+  const { explain, explainAsked } = useSettings();
   return (
-    <section aria-label="Scorecard" className="mt-4 overflow-hidden rounded-[12px] bg-card">
-      <div className="grid grid-cols-2">
-        {tiles.map((t, i) => (
+    <>
+      {!explain && !explainAsked && (
+        <div className="mt-4 flex items-center gap-3 rounded-[12px] border border-line px-4 py-2.5">
+          <p className="flex-1 text-[13px] text-muted">New to investing? FINN can explain each number in plain words.</p>
           <button
-            key={t.key}
             type="button"
-            onClick={() => jumpTo(t.section)}
-            className={`px-4 py-3 text-left ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line" : ""}`}
+            onClick={() => updateSettings({ explain: true, explainAsked: true })}
+            className="h-9 shrink-0 text-[13px] font-semibold text-accent-ink"
           >
-            <span className="block text-[12px] text-muted">{t.label}</span>
-            <span className="tabular mt-0.5 block text-[19px] leading-tight font-semibold">{t.value}</span>
-            <span className="mt-1 flex items-center gap-1.5 text-[12px] font-medium">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TONE[t.tone] }} aria-hidden />
-              {t.verdict}
-            </span>
-            <span className="mt-0.5 block text-[11px] leading-snug text-muted">{t.detail}</span>
+            Explain
           </button>
-        ))}
-      </div>
-      <dl className="grid grid-cols-3 gap-y-2.5 border-t border-line px-4 py-3">
-        {figures.map(([k, v]) => (
-          <div key={k} className="min-w-0">
-            <dt className="truncate text-[11px] text-muted">{k}</dt>
-            <dd className="tabular m-0 truncate text-[13px] font-medium">{v}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
+          <button
+            type="button"
+            onClick={() => updateSettings({ explainAsked: true })}
+            aria-label="No thanks"
+            className="-mr-2 h-9 w-9 shrink-0 text-[18px] text-muted"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      <section aria-label="Scorecard" className="mt-4 overflow-hidden rounded-[12px] bg-card">
+        <div className="grid grid-cols-2">
+          {tiles.map((t, i) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => jumpTo(t.section)}
+              className={`px-4 py-3 text-left ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line" : ""}`}
+            >
+              <span className="block text-[12px] text-muted">{t.label}</span>
+              <span className="tabular mt-0.5 block text-[19px] leading-tight font-semibold">{t.value}</span>
+              <span className="mt-1 flex items-center gap-1.5 text-[12px] font-medium">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TONE[t.tone] }} aria-hidden />
+                {t.verdict}
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted">{t.detail}</span>
+              {explain && explainTile(t, r) && (
+                <span className="mt-1.5 block border-t border-line pt-1.5 text-[12px] leading-snug">{explainTile(t, r)}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        <dl className="grid grid-cols-3 gap-y-2.5 border-t border-line px-4 py-3">
+          {figures.map(([k, v]) => (
+            <div key={k} className="min-w-0">
+              <dt className="truncate text-[11px] text-muted">{k}</dt>
+              <dd className="tabular m-0 truncate text-[13px] font-medium">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </>
   );
 }

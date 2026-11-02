@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useQuery, useStored } from "../api";
 import { HelpButton } from "../components/Help";
-import { Header, SectionTitle, Segmented } from "../components/ui";
+import { Header, SectionTitle, Segmented, Switch } from "../components/ui";
 import { when } from "../format";
 import { ACCENTS, resolved, updateSettings, useSettings, type Accent, type TextSize, type Theme, type Typeface } from "../settings";
 
@@ -112,6 +112,17 @@ export function SettingsScreen() {
       </Group>
       <p className="mx-4 mt-2 text-[13px] text-muted">Every combination keeps text at WCAG AA contrast or better.</p>
 
+      <SectionTitle>Reading</SectionTitle>
+      <Group>
+        <Row label="Explain the numbers">
+          <Switch label="Explain the numbers" on={s.explain} onChange={(explain) => updateSettings({ explain, explainAsked: true })} />
+        </Row>
+      </Group>
+      <p className="mx-4 mt-2 text-[13px] text-muted">
+        For anyone new to investing: a plain line under each scorecard verdict and results figure says what it means and how to read this
+        company's number. Written from the figures themselves, not by a model.
+      </p>
+
       <SectionTitle>Brief</SectionTitle>
       <Group>
         <Row label="Opens on" stacked>
@@ -141,7 +152,7 @@ export function SettingsScreen() {
           <Value>{meta.data ? flashLeft(meta.data) : "..."}</Value>
         </Row>
         <Row label="Sources">
-          <Value>NSE, Screener, earnings calls</Value>
+          <Value>NSE, Screener, earnings calls, annual reports</Value>
         </Row>
       </Group>
       <p className="mx-4 mt-2 text-[13px] text-muted">

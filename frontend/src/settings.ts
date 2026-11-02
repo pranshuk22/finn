@@ -13,9 +13,11 @@ export interface Settings {
   accent: Accent;
   type: Typeface;
   size: TextSize;
+  explain: boolean; // plain-English readings under the numbers, for people new to investing
+  explainAsked: boolean; // the one-time offer on a company page was answered
 }
 
-export const DEFAULTS: Settings = { theme: "paper", accent: "steel", type: "modern", size: "standard" };
+export const DEFAULTS: Settings = { theme: "paper", accent: "steel", type: "modern", size: "standard", explain: false, explainAsked: false };
 
 // Swatch colours shown in Settings, per resolved theme (same values as tokens.css).
 export const ACCENTS: { value: Accent; label: string; slate: string; paper: string; navy: string }[] = [

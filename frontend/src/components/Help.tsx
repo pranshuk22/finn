@@ -131,6 +131,13 @@ export function HelpContent() {
         </dl>
       </Part>
 
+      <Part title="New to investing?">
+        <p className="text-muted">
+          Turn on Explain the numbers in Settings, or tap Explain on a company page. Each scorecard verdict and results figure then gets a
+          plain line saying what it means and how to read this company's number, worked out from the figure itself.
+        </p>
+      </Part>
+
       <Part title="Words you will see">
         <dl className="space-y-2">
           <Term name="QoQ, YoY">Against the previous quarter, and against the same quarter a year earlier.</Term>
