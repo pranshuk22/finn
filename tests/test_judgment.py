@@ -20,7 +20,7 @@ def test_growth_is_decided_by_numbers_over_the_model():
 
 
 def test_margin_rests_on_quotes_even_with_a_number():
-    # Our margin excludes other income; companies guide on their own definition (EVIDENCE E20).
+    # Our margin excludes other income; companies guide on their own definition (RESEARCH E20).
     v = pull._verdict(item("operating_margin", "delivered", {"status": "off_track", "actual": 16.0, "basis": ""}))
     assert v == {"status": "delivered", "judged_by": "model"}
 

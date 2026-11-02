@@ -39,7 +39,7 @@ class CleanJSON(JSONResponse):
 
 
 app = FastAPI(title="FINN", default_response_class=CleanJSON)
-# The 30-day brief is 157 KB of JSON; compressed it costs a phone a fraction of that (EVIDENCE E21).
+# The 30-day brief is 157 KB of JSON; compressed it costs a phone a fraction of that (RESEARCH E21).
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 db.init()
 

@@ -267,7 +267,7 @@ def portfolio_day(c: sqlite3.Connection, tickers: list[str]) -> dict | None:
     return {
         "date": last,
         "count": len(moves),
-        "of": len(tickers),  # a ticker without a close for that day is left out, not guessed (EVIDENCE E9)
+        "of": len(tickers),  # a ticker without a close for that day is left out, not guessed (RESEARCH E9)
         "up": sum(1 for _, m in moves if m > 0),
         "down": sum(1 for _, m in moves if m < 0),
         "median_pct": round(median, 2),

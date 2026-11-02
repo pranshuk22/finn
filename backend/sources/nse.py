@@ -1,7 +1,7 @@
 """NSE: corporate announcements and integrated-filing results (iXBRL).
 
 NSE's API needs the cookies set by its homepage, even though the homepage itself
-answers 403 to scripts (EVIDENCE E1).
+answers 403 to scripts (RESEARCH E1).
 """
 
 import csv
@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 from backend.config import USER_AGENT
 
 BASE = "https://www.nseindia.com"
-PAUSE_S = 0.8  # 18 sequential calls at this pace had zero failures (EVIDENCE E2)
+PAUSE_S = 0.8  # 18 sequential calls at this pace had zero failures (RESEARCH E2)
 
 
 class NSE:
@@ -60,7 +60,7 @@ class NSE:
     def integrated_financials(self, symbol: str) -> list[dict]:
         """Rows for quarterly results filed under SEBI's integrated filing format.
 
-        The older corporates-financial-results endpoint stops at Dec 2024 (EVIDENCE E6).
+        The older corporates-financial-results endpoint stops at Dec 2024 (RESEARCH E6).
         """
         data = self._get_json(
             "/api/integrated-filing-results",
@@ -174,7 +174,7 @@ def parse_results_ixbrl(html: str) -> dict:
     """Headline P&L numbers for the current quarter, converted to Rs crore.
 
     Verified on TCS Sep 2026: revenue 73,188, PBT 18,638, PAT 13,934 crore,
-    all equal to Screener's quarterly table (EVIDENCE E6).
+    all equal to Screener's quarterly table (RESEARCH E6).
     """
     soup = BeautifulSoup(html, "lxml")
     tables = soup.find_all("table")

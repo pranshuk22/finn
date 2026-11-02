@@ -1,6 +1,6 @@
 """Filing classification in three stages: exchange label, text rules, then a small model.
 
-Stage shares on October 2026 data before tuning: 50% label, 28% rules, 23% model (EVIDENCE E3).
+Stage shares on October 2026 data before tuning: 50% label, 28% rules, 23% model (RESEARCH E3).
 """
 
 import re

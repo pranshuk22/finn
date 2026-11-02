@@ -8,13 +8,13 @@ The brief decides the trade-offs: "Thin-but-working beats broad-but-broken" and 
 
 - No em dashes or en dashes anywhere: UI copy, code, comments, docs, commits. The API also replaces any that arrive inside exchange filings. CI enforces it; locally: `git grep -nIP '\x{2013}|\x{2014}'`
 - Commits: short title, one or two crisp lines of body. No co-author trailers.
-- Every number in the README or UI that is not live data comes from `docs/EVIDENCE.md` or the telemetry table.
+- Every number in the README or UI that is not live data comes from `docs/RESEARCH.md` or the telemetry table.
 - Models never do arithmetic. Python computes every percentage, ratio and unit conversion.
 - Flash has 20 requests a day (E19). Never run a model in a loop without checking `llm.budget()` first, and never rebuild a stored ledger without a reason.
 
 ## Done
 
-| Area | What exists | Evidence |
+| Area | What exists | Research |
 | --- | --- | --- |
 | Setup | uv project, git repo, `.env` with Gemini key, all three model families reachable | E10, E12 |
 | Ingestion | NSE filings (cookie warm-up, 0.8 s pacing), yfinance EOD with the NaN-close filter, NSE integrated-filing iXBRL results, Screener tables, ratios and document links. `python -m backend.jobs.refresh` | E1, E2, E6, E7, E9 |

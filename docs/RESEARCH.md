@@ -1,4 +1,4 @@
-# Evidence log
+# Research log
 
 Every design decision in the README and plan points back to a row here. Each entry says what was checked, how, when, and what came back. If a later probe contradicts an entry, the entry gets updated, not deleted.
 
