@@ -16,3 +16,4 @@ data/finn.db
 tmp/
 build-history/
 data/vapid_private.pem
+plan.md

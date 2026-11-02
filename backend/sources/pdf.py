@@ -11,7 +11,7 @@ from backend.config import CACHE_DIR, USER_AGENT
 
 
 def _referer(url: str) -> str | None:
-    # BSE serves transcript PDFs only with a BSE referer (RESEARCH E8)
+    # BSE serves transcript PDFs only with a BSE referer (RESEARCH R7)
     if "bseindia.com" in url:
         return "https://www.bseindia.com/"
     if "nseindia.com" in url:

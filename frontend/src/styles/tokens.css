@@ -1,4 +1,4 @@
-/* FINN design tokens. Slate is sampled from the chosen reference (RESEARCH E24); Paper is its light counterpart.
+/* FINN design tokens. Slate is sampled from the chosen reference (RESEARCH R14); Paper is its light counterpart.
    Every theme and accent pairing was checked: all text colours pass WCAG AA (4.5:1) on bg, surface and raised,
    and on-accent passes on its accent (lowest pairing 5.02:1). Choices are curated so no setting can break that.
    Attributes on <html>: data-theme (slate | paper | navy), data-accent (taupe | sage | steel | ochre),

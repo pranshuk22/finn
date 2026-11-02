@@ -1,574 +1,204 @@
 # Research log
 
-Every design decision in the README and plan points back to a row here. Each entry says what was checked, how, when, and what came back. If a later probe contradicts an entry, the entry gets updated, not deleted.
+What was checked before FINN relied on it: data sources, models, and the numbers FINN computes. Each entry says how it was checked, what came back, and the decision it led to. The README and the code cite entries by number (R1 to R15). A later check that contradicts an entry updates it.
 
-All probes were run on 2026-10-31 (IST) from a home connection in India, unless noted.
+Checks were run between 31 Oct and 3 Nov 2026 (IST), from a home connection in India unless noted.
 
-## E1. NSE corporate announcements API works without a browser
+## R1. NSE filings: the primary source
 
-- **How:** `GET https://www.nseindia.com/api/corporate-announcements?index=equities&symbol=TCS` with a desktop User-Agent and the cookie jar from one hit to `https://www.nseindia.com/`.
-- **Result:** HTTP 200, JSON list. 3,383 historical TCS filings. Each item carries `desc` (exchange label), `attchmntText` (one-line summary written by the company), `attchmntFile` (PDF), `an_dt`, `hasXbrl`.
-- **Note:** the homepage itself returned 403 but still set the cookies the API needs.
-- **Decision:** NSE is the primary filings source. BSE is a fallback only.
+- **Access:** `GET https://www.nseindia.com/api/corporate-announcements?index=equities&symbol=TCS` with a desktop User-Agent and the cookies from one hit to the homepage returns JSON: 3,383 TCS filings, each with the exchange label (`desc`), the company's one-line summary (`attchmntText`), the PDF and the time. The homepage itself answers 403 but still sets the cookies the API needs.
+- **Volume:** October 2026 for the 18-stock portfolio, one call per ticker 0.8 s apart, 0 failures in 18: 275 filings, about 9 a day. Top labels: analyst meets 46, general updates 32, board outcomes 24, newspaper copies 17, depository certificates 17, ESOP 16, press releases 14, credit ratings 9.
+- **Decision:** NSE is the filings source; BSE is a fallback. At this volume a daily brief with routine filings folded away is the right default; an unfiltered feed would be mostly paperwork.
 
-## E2. Filing volume for the 18-stock portfolio (October 2026)
+## R2. Classifying filings: labels, then rules, then a model
 
-- **How:** same endpoint with `from_date=01-10-2026&to_date=31-10-2026`, one call per ticker, 0.8 s apart. 0 failures out of 18.
-- **Result:** 275 filings in 31 days, about 9 per day across the portfolio.
-- **Top labels:** Analysts/Institutional Investor Meet/Con. Call Updates 46, General Updates 32, Outcome of Board Meeting 24, Updates 22, Copy of Newspaper Publication 17, Certificate under SEBI (Depositories and Participants) Regulations 17, ESOP/ESOS/ESPS 16, Press Release 14, Credit Rating 9.
-- **Decision:** at this volume, a daily digest with routine filings collapsed is the right default. An unfiltered feed would show 9 items a day, most of them paperwork.
+- **Labels are not enough.** Of the 275 October filings, 137 (50%) resolve from the exchange label alone, 76 more (28%) from keyword rules on the summary, and 62 (23%) need a model. Reliance's three filings on the Jio Platforms IPO were all labelled "General Updates"; a label-only filter would bury one of its most material events of the month.
+- **Inside the app** (35 days, 301 filings): 140 by label, 98 by rule, 63 by the model, which took 4 calls and about 9 s on `gemini-3.1-flash-lite`.
+- **Eval** (`eval/`). 60 filings, 20 per stage, labelled blind: the labeller saw only what the exchange published, with FINN's answer hidden. Acceptable alternatives were written down before scoring.
+  - Before fixes: category 57/60, priority 48/60. One label was wrong, not FINN (a deputy MD's exit sat beyond the excerpt the labeller saw).
+  - Misses that led to fixes: a Rs 4,265 crore QIP under the label "Committee Meeting Updates"; press releases about a takeover, a facility opening and a market entry marked Routine; results press releases ranked equal to the results.
+  - **Held out:** 30 more filings drawn after the fixes. Category 30/30, priority 25/30 (83.3%), the out-of-sample figure. Two misses showed the model marks almost everyone "senior", so seniority is now decided in code from the role.
+  - The 90 labelled filings are a regression test in CI (`tests/test_classifier_eval.py`).
+- **Second review** found two inversions: Bajaj Auto's monthly sales were Routine and an ESG score was Worth knowing. Both rules changed, and the eval still passes.
+- **Decision:** label map, then text rules, then a small model for what is left.
 
-## E3. Exchange labels alone are not enough to classify
+## R3. Management changes and executive bios
 
-- **How:** split the 275 October filings by whether the NSE label maps to exactly one challenge category.
-- **Result:**
-  - 137 of 275 (50%) resolve from the label alone (for example `ESOP/ESOS/ESPS` is routine, `Credit Rating` is credit_rating).
-  - 76 more (28%) resolve with a first, untuned set of keyword rules on `attchmntText`.
-  - 62 (23%) still need a model.
-- **Why labels fail, concretely:** Reliance's filings about the Jio Platforms IPO (14 Oct, 24 Oct, 27 Oct) were all labelled `General Updates`. Reliance's newspaper clippings and a media statement were both labelled `Updates`. A label-only filter would bury a subsidiary IPO, one of the most material Reliance events of the month.
-- **Re-run inside the app (2026-10-31 02:03, 35-day window, 301 filings, expanded label map and reordered rules):** 140 label (47%), 98 rules (33%), 63 model (21%). The model stage for 63 filings took one batch of 20 per call, 4 calls, about 9 seconds in total on `gemini-3.1-flash-lite`.
-- **Caveat:** rule precision is not measured yet. See plan.md, step "classifier eval".
-- **Decision:** three-stage classifier: label map, then text rules, then a small model for what is left.
+- **The summary does not name the person.** LT, BAJAJ-AUTO and TATACONSUM's October management filings all say only "has informed the Exchange about change in Management". The PDF has to be read.
+- **The filing often has the profile.** SEBI disclosures include a brief profile of the appointee, so FINN reads up to 6 pages of the filing before any web search (Dixon's filing for Prithvi Vachani gives his role, Bentley University 2017 and the boAt collaboration).
+- **Web search is ambiguous.** `K Krithivasan TCS CEO` returns two different LinkedIn profiles that both list TCS. The top results for Trent's new director Kalpana Merchant describe a US neuroscientist, and the model still called its answer confident. Rule: a bio is confident only if a source it cites mentions the appointing company.
+- **Query wording matters.** `{name} {company}` returns news of the appointment itself; `{name} career previously worked` returns earlier employers and education (Bahram Vakil: founding partner of AZB & Partners).
+- **Subsidiary shown as parent.** A filing was summarised as "Anup Bagchi resigned as MD and CEO" of ICICI Bank; the PDF says ICICI Life. The schema now has an entity field, and subsidiary-only changes rank Worth knowing.
+- **Sources to avoid:** grokipedia.com, an AI-written encyclopedia, appeared as a bio source; such sites are filtered out.
 
-## E4. Management-change filings do not name the person in the summary
+## R4. Quarterly results from NSE's iXBRL filings
 
-- **How:** read `attchmntText` for October `Change in Management` filings.
-- **Result:** LT (7 Oct), BAJAJ-AUTO (27 Oct), TATACONSUM (26 Oct) all say only "has informed the Exchange about change in Management".
-- **Decision:** the bio feature must open the PDF, extract name and role, then search. A summary-line-only approach cannot work.
+- **Source:** `GET /api/integrated-filing-results?index=equities&symbol=TCS&type=Integrated Filing- Financials` lists each quarter's iXBRL filing. The older `corporates-financial-results` endpoint stops at Dec 2024. Seven quarters are available, consolidated and standalone, so QoQ and YoY come from filings alone.
+- **Cross-check, TCS Q2 FY27:** revenue 73,18,800 lakh = Rs 73,188 crore, PBT 18,638, PAT 13,934, equal to Screener. Across all 22 companies' latest quarter: revenue within 0.02% for 20, PAT within 0.8% for 21 (HDFCBANK 3.9% apart), PBT within 1% for 18.
+- **Traps found:**
+  - "Profit before tax" also appears in the segment table, so the parser anchors on the P&L table.
+  - Three layouts: companies and NBFCs (Ind-AS) and banks ("Interest earned", "Operating profit before provision").
+  - Older filings (TITAN, HAL, Jun 2025) give the unit as "INR (in Actuals)" and dates as `30-Jun-2025`.
+  - COFORGE's Q2 FY27 filing has six-month figures in both columns. Read naively, revenue was +111.6% QoQ. A 6, 9 or 12-month filing now becomes a quarter by subtracting stored quarters; it was the only one of 116 stored filings affected.
+- **Segments** are in the same filing: revenue and result (before interest and tax) per segment. 15 of 23 companies report several.
+  - LT's segment revenue less inter-segment revenue equals revenue from operations (78,749.94 crore).
+  - RELIANCE's segment total is 3,62,268 against 3,32,861 in its P&L, so a segment's share is taken of segment revenue, never of headline revenue.
+- **Any NSE ticker works.** TITAN, not in any list or the database, returned research in 5.6 s. ZOMATO resolves to ETERNAL.
+- **Decision:** headline numbers are parsed, never generated. A line more than 1% from Screener is marked "check" on the card; more than 10%, it is not headlined.
 
-## E5. Person search is ambiguous, so bios need disambiguation
+## R5. What a results card has to explain
 
-- **How:** `ddgs` 9.16.1, query `K Krithivasan TCS CEO linkedin career`.
-- **Result:** two different LinkedIn profiles named K Krithivasan, both listing TCS, plus the official tcs.com leadership page.
-- **Decision:** the bio card shows its sources and prefers the company's own site over LinkedIn when they disagree. Bio search query always includes company name and role.
+- **EBITDA,** per the challenge's reference document, is a proxy for how profitable the core business is. FINN computes operating EBITDA (PBT + finance costs + depreciation - other income), so interest on cash does not count as business profit, and prints the formula.
+- **Tax can explain a profit change.** MAXHEALTH's PAT fell 15.6% while PBT rose 21.3%, because a year earlier tax was a credit (PAT was 110% of PBT). SUZLON's "profit fell 69.2%" is the same case. The card says so and headlines PBT.
+- **Other income can explain it.** DIXON Q2 FY27: EBITDA +6.3% but PBT -42.6%, because other income fell from Rs 495.74 crore to Rs 68.73 crore. The card names the line between EBITDA and PBT that moved most. L&T's other income is 30% of PBT, which is flagged at 25%.
+- **The market's reaction** is the first session the filing could move: the same day if filed before 15:30 IST. Sona BLW rose 8.95% on 8.1x usual volume after its results.
+- **Size against the company.** Persistent's Rs 4,265 crore QIP is 4.2% of market cap. A RELIANCE penalty that is 0.0% of revenue gets no alert tag.
+- **A vague label can hide a small matter.** Polycab's insolvency filings (7 to 9 Oct, filed as litigation) concern "an alleged 2.79 crore operational debt", against Rs 9,898.9 crore of revenue that quarter. Only reading the PDF shows that.
 
-## E6. Quarterly results numbers are available as structured data
+## R6. Bank figures come from the standalone filing
 
-- **How:** `GET https://www.nseindia.com/api/integrated-filing-results?index=equities&symbol=TCS&type=Integrated%20Filing-%20Financials`.
-- **Result:** HTTP 200. Latest row: quarter ended 30-SEP-2026, consolidated, broadcast 08-Oct-2026 22:07, with an iXBRL HTML link.
-- **Parsed from that iXBRL (values in Rs lakh):** Revenue from operations 73,18,800.00; Finance costs 25,200.00; Depreciation 1,26,200.00; Other income 1,33,700.00.
-- **Cross-check:** Screener's quarterly table shows Sep 2026 Sales 73,188 (Rs crore) and Net Profit 13,934. iXBRL revenue 73,18,800 lakh = 73,188 crore. Match.
-- **Gotcha found:** the older endpoint `corporates-financial-results` stops at Dec 2024 for TCS and returns nothing for 2026 date ranges. Only the integrated-filing endpoint has current quarters.
-- **Gotcha found:** the phrase "Profit before tax" appears in more than one table (P&L and segment results). The parser must anchor on the P&L table, not on first match. In the P&L table the rows are named "Total profit before tax" (18,638 crore for TCS) and "Total profit (loss) for period" (13,934 crore). An early probe that took the first "Profit before tax" on the page read the segment table instead.
-- **Layouts:** three seen live. Companies (TCS, RELIANCE) and NBFCs (BAJFINANCE, which uses "Total Revenue From Operations") share the Ind-AS layout. Banks (HDFCBANK) use "Interest earned", "Total expenditure excluding provisions", "Operating profit before provision and contingencies". The parser handles all three; tests in `tests/test_results_parser.py`.
-- **Depth:** the integrated-filing endpoint returned 14 rows (7 quarters, consolidated and standalone) for HDFCBANK, RELIANCE and BAJFINANCE, so QoQ and YoY can come from filings alone.
-- **Decision:** headline results (Revenue, EBITDA, PBT, PAT, QoQ, YoY) are parsed, not generated. No LLM touches these numbers. EBITDA is derived as PBT + finance costs + depreciation - other income, and labelled as derived.
+- **Consolidated filings leave asset quality blank.** HDFCBANK's consolidated Q2 FY27 filing has "% of gross NPAs | 0". The standalone one has gross NPA 1.11%, net NPA 0.37%, CET1 18.87%, interest earned Rs 83,426.60 crore and interest expended Rs 48,807.42 crore. On the Oct 2026 call management said "GNPA at 1.11%". FINN reads the standalone filing and treats a 0 ratio as the placeholder.
+- **Seven quarters** are on NSE for each bank, from Mar 2025. Net interest income for Q2 FY27: HDFCBANK Rs 34,619 crore (+9.7% YoY), ICICIBANK Rs 25,339 crore (+17.7%).
+- **FINN's own ratios, labelled so:**
+  - NII to assets is quarterly NII x 4 over total assets (HDFCBANK 3.02%). Banks report NIM on interest-earning assets, a smaller base, so theirs reads higher.
+  - Credit cost is provisions x 4 over advances (0.45%).
+- **The industrial template fails for lenders.** Screener's "financing margin" for HDFCBANK ran -2% to -17% a quarter, and capital work in progress read Rs 0. Lenders get credit cost, asset quality and return on equity instead.
+- **NBFCs:** BAJFINANCE's filing has "Impairment on financial instruments" but no NPA or stage 3 rows, so no asset-quality figure is shown.
 
-## E7. Screener has 5 quarters of standard financials and concall links
+## R7. Transcripts and annual reports
 
-- **How:** `GET https://www.screener.in/company/TCS/consolidated/`, HTML 249 KB, HTTP 200.
-- **Result:** quarterly table (last 5 headers Sep 2025 to Sep 2026), plus a Concalls section with Transcript, PPT and REC links. Transcript links point to `bseindia.com/stockinfo/AnnPdfOpen.aspx` or the company IR site.
-- **All 18 portfolio tickers** return HTTP 200 on `/company/{TICKER}/consolidated/`.
-- **Decision:** Screener is the source for multi-year financials and transcript discovery.
+- **Transcripts are text PDFs of manageable size.** TCS's latest: 29 pages, 52,478 characters, about 13k tokens. Four quarters is 50k to 60k tokens, which fits one model call, so no vector search is needed. Page numbers are kept so every claim can cite one.
+- **Screener's transcript links can be wrong.** Its "Jul 2026" TCS link pointed to the call from a year earlier, and tcs.com answered 403. FINN takes transcripts from the company's own NSE filings first. All four TCS calls then loaded from NSE's archive.
+- **BSE serves PDFs only with a BSE Referer** header.
+- **Ad-hoc picks have the sources Pull needs:** ASIANPAINT, HAL, PIDILITIND and BAJFINANCE each have 16 to 19 transcripts on Screener. BAJFINANCE is an NBFC, which tests that nothing assumes EBITDA exists.
+- **Annual reports** are 187 (RELIANCE) to 756 (LT) pages: too long for one call. All 22 were read once and stored, about 32 MB of text. Ask picks the five pages that best match the question by keyword weight. "Who is the statutory auditor?" on TITAN: "M/s. BSR & Co., LLP", quoted from page 136 and checked against the PDF.
 
-## E8. Concall transcripts are text PDFs of manageable size
+## R8. Prices, and how many alerts a threshold fires
 
-- **How:** downloaded the latest TCS transcript via its BSE link with a `Referer: https://www.bseindia.com/` header; parsed with PyMuPDF.
-- **Result:** HTTP 200, `application/pdf`, 723 KB, 29 pages, 52,478 characters, about 13k tokens by the chars/4 rule of thumb. Text layer present (not scanned).
-- **Decision:** four quarters of transcripts is roughly 50k to 60k tokens, which fits in one model call. No vector database needed for the prototype. Page numbers are kept per chunk so every claim can cite a page.
+- **yfinance trap:** the 30 Oct row existed for every ticker with volume but a missing close. Rows without a close are dropped before computing moves.
+- **Coverage:** all 18 portfolio tickers return prices on yfinance and a page on Screener.
+- **Symbols change.** yfinance and Screener both answer 404 for ZOMATO; the listed symbol is ETERNAL, so FINN keeps an alias map for search.
+- **Round closes are real.** A reviewer suspected seeded prices (RELIANCE 1,300.00, HDFCBANK 700.00). NSE's own bhavcopy for 2 Nov has exactly those closes: RELIANCE 1,300.00 after 1,164.90, on 88.1 million shares.
+- **Thresholds change the load fivefold.** Replayed over 60 sessions for 18 stocks: ±3% or 2x volume fires 119 alerts, about 2 a day; ±4% or 2.5x fires 51; ±5% or 3x fires 25. So the Alerts screen shows the replay count next to the sliders.
 
-## E9. yfinance works, with one data-quality trap
+## R9. Gemini models: availability, speed and free-tier limits
 
-- **How:** `yfinance==1.7.0`, `download()` for all 18 tickers plus ZOMATO, `period="1mo"`.
-- **Result:** 20 rows per ticker, last valid close 2026-10-29. The 2026-10-30 row exists for every ticker but Close is NaN while Volume is populated.
-- **ZOMATO.NS:** 404 "Quote not found". Screener `/company/ZOMATO/` also 404. The listed symbol is ETERNAL.
-- **Decision:** drop rows with NaN close before computing moves. Keep an alias map (ZOMATO to ETERNAL) for search.
+- **Availability** (Google's docs, updated 28 to 30 Oct 2026): 2.5 models are limited to past users; new projects should use 3.5 Flash-Lite or 3.8 Flash. Search grounding is not in the free tier for Gemini 3 models, so bios use a separate web search.
+- **Speed and recall** on the TCS Oct 2026 transcript (13,850 tokens), asked for every forward-looking guidance statement:
 
-## E10. Gemini model availability and free tier (checked against Google docs)
-
-Sources: https://ai.google.dev/gemini-api/docs/models, https://ai.google.dev/gemini-api/docs/pricing, model pages for gemini-3.5-flash-lite and gemini-3.8-flash. Pages last updated 2026-10-28 to 2026-10-30.
-
-- Google: "we are limiting access to the 2.5 models to users who have actively used them in the past." and "For any new projects, use our latest models: 3.5 Flash-Lite or 3.8 Flash." The old README planned on 2.5, which a new key may not be able to call.
-- Free tier input and output: free of charge for gemini-3.5-flash-lite, gemini-3.1-flash-lite, gemini-3.8-flash.
-- Paid prices per 1M tokens (input / output): 3.1 Flash-Lite $0.25 / $1.50; 3.5 Flash-Lite $0.30 / $2.50; 3.8 Flash $0.75 / $3.75 until 31 Dec 2026.
-- Context caching on the free tier: only 3.8 Flash and 3.6 Flash.
-- Google Search grounding: not included in the free tier for Gemini 3 and newer models. The old README's plan to ground executive bios with Google Search would fail on a free key.
-- Both 3.5 Flash-Lite and 3.8 Flash: 1,048,576 input tokens, structured outputs supported.
-- Free tier rate limits are not printed on the docs page; they show in AI Studio. To check with the real key before building.
-
-## E11. Package versions on PyPI (2026-10-31)
-
-| Package | Latest | Note |
-| --- | --- | --- |
-| yfinance | 1.7.0 | tested, works |
-| google-genai | 2.34.0 | |
-| fastapi | 0.162.0 | |
-| pymupdf | 2.0 | tested, works |
-| duckduckgo-search | 8.1.1 | no newer release |
-| ddgs | 9.16.1 | tested, works; replaces duckduckgo-search in deps |
-
-## E12. Local toolchain
-
-- Python 3.12.11, Node 26.5.0, Bun 1.3.0 present.
-- `uv` not installed. Install before step 1 of the plan, or fall back to `venv` + `pip`.
-
-## E13. Ad-hoc research picks have the sources Pull needs
-
-- **How:** Screener consolidated page for each candidate; counted "Transcript" links in the Concalls section and read the latest quarterly header.
-- **Result:** ASIANPAINT 16 transcripts, latest quarter Sep 2026. HAL 16, Jun 2026. PIDILITIND 19, Sep 2026. BAJFINANCE 16, Sep 2026. CDSL 19, Jun 2026.
-- **Decision:** demo Pull on ASIANPAINT, HAL, PIDILITIND and BAJFINANCE. BAJFINANCE is an NBFC, so it tests that the engine does not assume EBITDA exists.
-
-## E14. Reasoning model latency on the free tier
-
-- **Trivial prompt ("Reply with the single word: ok"), 2026-10-31 01:55 to 02:05 IST:** 3.1 Flash-Lite 1.5 s, 3.5 Flash-Lite 1.4 s, 3.8 Flash 128 s. Retest of 3.8 Flash: 298 s with thinking level low, then two 503 "This model is currently experiencing high demand" errors.
-- **Real workload:** the TCS Oct 2026 transcript (13,850 input tokens) with "list every explicit forward-looking guidance statement".
-
-| Model | Thinking | Time | Items | Notes |
-| --- | --- | --- | --- | --- |
-| gemini-3.6-flash | low | 7.3 s | 5 | Found the 26 to 28% margin band, the ~50 bp MHP dilution, data-centre revenue in 18 to 24 months. Two items were client case studies, not company guidance. |
-| gemini-3.5-flash-lite | default | 1.7 s | 1 | Only the margin band. Under-extracts. |
-| gemini-3.8-flash | low | 40.0 s | 3 | The same three real items, no case studies. Best precision, slowest. |
-
-- **Decision:** reasoning default is `gemini-3.6-flash`, with a prompt that excludes client case studies and the quote check to drop anything unsupported. `gemini-3.8-flash` is the fallback, not the default. One run each, so this is a direction, not a benchmark; re-check if quality looks off.
-
-## E15. Parsed results agree with Screener across all 22 companies
-
-- **How:** for each company's latest quarter, compare iXBRL-parsed values (refresh run 2026-10-31 02:06) with Screener's quarterly table.
-- **Revenue:** within 0.02% for 20 of 22. RELIANCE and SONACOMS differ by 0.68%.
-- **PAT:** within 0.8% for 21 of 22. HDFCBANK differs by 3.9% (filing 20,700 crore, Screener 21,537 crore).
-- **PBT:** within 1% for 18 of 22. Larger gaps: TRENT +3.4%, HDFCBANK -2.9%, ASIANPAINT -2.9%. Likely exceptional items or share of associates treated differently; not yet confirmed line by line.
-- **HAL Jun 2025:** iXBRL had no rounding unit row, so the parser refused it rather than guess. Older quarter, not needed for QoQ or YoY of the latest.
-- **Decision:** the app shows the filing's own numbers, and marks a field "check" when it differs from Screener by more than 1%.
-
-## E16. Screener's transcript links can be wrong; NSE filings are the better source
-
-- **How:** built the TCS promise ledger from Screener's last four transcript links.
-- **Result:** the link Screener lists as "Jul 2026" points to `tcs.com/.../Transcript of the Q1 2025-26 Earnings Conference Call held ... on Jul 10, 2025.pdf`, a call from a year earlier. tcs.com also answered 403 to the download.
-- **Fix:** FINN now takes transcripts from the company's own NSE filings first (announcements whose label or text mentions "transcript", excluding audio recordings), one per month, for the last 12 months. Screener links fill gaps only. After the change, all four TCS transcripts (Jan, Apr, Jul, Oct 2026) loaded from `nsearchives.nseindia.com`.
-
-## E17. Free tier limits hit in practice
-
-- **Requests per minute:** a burst of parallel calls to `gemini-3.1-flash-lite` returned 429 with `quotaValue: 15` and `quotaId: GenerateRequestsPerMinutePerProjectPerModel-FreeTier`. So 15 RPM for that model on this key.
-- **503s are not only a 3.8 Flash problem:** `gemini-3.1-flash-lite` also returned "503 UNAVAILABLE ... high demand" on 2026-10-31 around 03:00 IST after four retries.
-- **Changes made:** a per-model rate limiter in `backend/llm.py` (spacing calls at 60/RPM seconds, across threads); honouring the `retry in Ns` hint from 429 bodies; falling back to a sibling model after repeated 503s (3.1 Flash-Lite to 3.5 Flash-Lite, 3.6 Flash to 3.8 Flash); reading filing PDFs five per call instead of one, which cut 59 calls to 12.
-- **Implicit caching observed:** `usage_metadata.cached_content_token_count` reported 124,242 of 324,155 input tokens as cached across 17 calls to 3.6 Flash during ledger builds, without any explicit cache setup, because the ledger re-sends the same transcripts.
-
-## E18. Model mistakes caught while enriching filings, and the guards added
-
-- **Subsidiary presented as parent.** An ICICIBANK filing labelled `General Updates` was summarised as "Mr. Anup Bagchi resigned as MD and CEO". The PDF says the change is at "ICICI Life Insurance Limited (ICICI Life)", a subsidiary. Fix: the extraction schema now has an `entity` field for subsidiaries, the prompt requires naming the subsidiary, and Python ranks subsidiary-only changes as Worth knowing instead of Needs you.
-- **Bios that only restated the appointment.** Searching `"{name}" {company} {role}` returned nothing; `{name} {company}` returned mostly news of the appointment, so bios read like "Anup Bagchi serves as the MD and CEO of HDFC Bank". Searching `{name} career previously worked` returned earlier employers and education (Bahram Vakil: founding partner of AZB & Partners; Madhusudan Gopalan: SVP and Country Head, P&G India and South Asia).
-- **Namesakes.** The top results for Trent's new independent director Kalpana Merchant describe a US neuroscientist (Eli Lilly, University of Utah). Trent's filing says the profile is "Attached separately", so the PDF cannot settle it. The model still marked its answer confident. Fix: Python marks a bio confident only if at least one source it cites mentions the appointing company; otherwise the card says the background may belong to someone else.
-- **Filing profile first.** SEBI disclosures for appointments include a brief profile of the appointee, so FINN now reads up to 6 pages of management-change filings and extracts that profile before any web search. Example: Dixon's filing for Prithvi Vachani gives his current role, Bentley University 2017, and the boAt collaboration.
-- **Zip attachments.** Two KMP filings (TRENT, PERSISTENT) attach a `.zip` holding the PDF. The downloader now unpacks it.
-
-## E19. Free tier daily limits, and the routing they forced
-
-- **Source:** the project's AI Studio rate-limit page, read by the author on 2026-10-31 around 03:30 IST.
-
-| Model | RPM | TPM | RPD | Used at the time |
-| --- | --- | --- | --- | --- |
-| gemini-3.6-flash | 5 | 250K | 20 | 21 / 20 (exhausted) |
-| gemini-3.8-flash | 5 | 250K | 20 | 5 / 20 |
-| gemini-3.1-flash-lite | 15 | 250K | 500 | 178 / 500 |
-| gemini-3.5-flash-lite | 15 | 250K | 500 | 14 / 500 |
-
-- Google's rate-limit docs: "Requests per day (RPD) quotas reset at midnight Pacific time." and "Rate limits are applied per project, not per API key."
-- **Why it matters:** the first ledger design spent 5 Flash calls per company (4 extractions and 1 assessment) plus 1 for bull and bear. At 20 a day per Flash model, that is 3 companies a day, and a reviewer pointing FINN at a new ticker could find it out of quota.
-- **Test of the cheaper option:** both Flash-Lite models, given the extraction prompt on the TCS Oct 2026 transcript, found 2 of the 3 items that 3.6 and 3.8 Flash found (operating margin band, data-centre revenue timeline) and missed the ~50 bp MHP margin dilution. All their quotes verified. Fast (1.9 s and 12.2 s) but lower recall.
-- **Decision:** the ledger is now one Flash call per company that reads all four transcripts in date order, extracts promises and judges them against later calls. First run, ASIANPAINT on 3.8 Flash (3.6 was out of quota, the fallback took over by itself): 52,831 tokens in, 4,033 out, 109 s, 13 promises, 0 dropped for unverifiable quotes. Bull and bear moved to 3.5 Flash-Lite (500 a day): 1.7 s, every point cites a fact or promise id that Python checks. So a new company costs 1 Flash call and 1 Flash-Lite call.
-- **Guard:** `backend/llm.py` counts each model's calls since Pacific midnight and skips a model at its daily limit; a 429 whose quota id contains `PerDay` marks the model exhausted for the day and moves to its sibling.
-
-## E20. Margin promises cannot be judged by our margin number alone
-
-- **Case:** Asian Paints guided "PBDIT margin 18% to 20%". Its Jun 2026 call says "PBDIT margins at 18.9%". FINN's first numeric check compared the guidance with Screener's operating margin for Sep 2026, 16.0%, and marked the promise off track.
-- **Why:** Screener's operating margin excludes other income; Asian Paints' PBDIT includes it. Companies define EBITDA, PBDIT and operating margin differently.
-- **Decision:** growth promises (revenue, profit) are still decided in Python from reported numbers. For margin promises the verdict rests on the verified quotes from later calls, and FINN's own margin is shown beside it as context, labelled "excluding other income".
-
-## E21. API speed and payload, and what that says about caching
-
-- **How:** local uvicorn, `curl` three times per endpoint, 2026-10-31 around 03:45 IST, SQLite file 3.3 MB.
-
-| Endpoint | Average time | Payload | With gzip |
+| Model | Time | Items | Notes |
 | --- | --- | --- | --- |
-| `/api/brief?hours=24` | 7 ms | 17 KB | 4.6 KB |
-| `/api/brief?hours=168` | 14 ms | 71 KB | |
-| `/api/brief?hours=720` | 24 ms | 157 KB | 29 KB |
-| `/api/research/TCS` (cached sections) | 7 ms | 17 KB | |
-| `/api/alerts/scan` (60 days, 18 tickers) | 7 ms | 5 KB | |
+| gemini-3.6-flash, low thinking | 7.3 s | 5 | all three real items, plus two client case studies |
+| gemini-3.5-flash-lite | 1.7 s | 1 | under-extracts |
+| gemini-3.8-flash, low thinking | 40.0 s | 3 | the same three, best precision, slowest |
 
-- **Reading:** SQLite already acts as the cache: ingestion and every model output are precomputed and stored, and the API only reads. A server-side response cache (Redis or in-memory) would save single-digit milliseconds. On a phone, the network and payload size dominate, so the API compresses responses and the app keeps the last response on the device and refreshes it in the background.
-- **Where caching really matters:** model outputs, because Flash has 20 requests a day (E19). Ledgers, bull and bear, filing reads and classifications are computed once and stored; PDFs are cached on disk by URL hash.
+- **Free-tier limits** (AI Studio, 31 Oct): 3.6 and 3.8 Flash allow 5 requests a minute and 20 a day; the Flash-Lite models 15 a minute and 500 a day. Daily quotas reset at midnight Pacific and apply per project. In practice we hit 429s at 15 a minute, and 503 "high demand" on both Flash and Flash-Lite.
+- **What the limits forced:**
+  - The ledger went from 5 Flash calls per company to 1 that reads all four transcripts. First run, ASIANPAINT: 52,831 tokens in, 109 s, 13 promises, 0 quotes dropped.
+  - Bull and bear and Ask moved to 3.5 Flash-Lite.
+  - A per-model limiter honours retry hints, counts calls since Pacific midnight, and falls back to a sibling model.
+  - Reading filing PDFs five per call cut 59 calls to 12.
+- **Large calls need slow retries.** The Reliance ledger failed on two 503s and then a 429: each retry resent about 160k tokens, tripping the per-minute input-token limit. Calls over 200k characters now wait 60 s, then 120 s. The rebuild then went from 8 promises to 12, with 0 quotes dropped.
+- **Implicit caching:** 124,242 of 324,155 input tokens across 17 ledger calls were served from cache with no setup.
 
-## E22. Hosting: Render free versus AWS Lightsail
+## R10. Promise ledger: what can be checked against numbers
 
-Checked 2026-10-31 against https://render.com/docs/free, https://render.com/docs/regions, https://aws.amazon.com/lightsail/pricing/ and https://aws.amazon.com/awscredits/.
+- **Batch, 31 Oct:** 11 companies in 16 Flash requests. HAL had 10 promises (6 missed). DIXON had 11, and 2 quotes not found in the PDF were dropped. TRENT has no ledger, correctly: 117 NSE filings in a year and no transcript.
+- **Hand check of HAL against the quotes:**
+  - Nashik's third line was promised for "October 2024" and inaugurated 17 October 2025.
+  - HTT-40 deliveries due September 2025 were still "expected" in May 2026.
+  - FY26 revenue grew 6.8% against a "7% to 8%" target, while HAL said "an increase of 7%". So every numbers check states its gap: "0.2 points below the 7% low end".
+- **Margins depend on the definition.** Asian Paints guided "PBDIT margin 18% to 20%" and reported 18.9%; Screener's operating margin (16.0%) excludes other income and wrongly read off track. So a margin is decided by numbers only when the promise names its definition, rebuilt from the filed lines:
+  - EBIT = PBT + finance costs - other income;
+  - EBITDA adds depreciation;
+  - PBDIT keeps other income.
+- **IT services say "operating margin" for EBIT.** TCS Q2 FY27 is (18,638 + 252 - 1,337) / 73,188 = 23.98%, and TCS said "operating margin of 24%". INFY: 20.98% and "21%".
+- **Scope:** a promise for part of the business is never checked against company totals. HDFCBANK's MSME loan growth was once judged against bank revenue. A reported segment is checked against its own rows, and a segment result (before interest and tax) can confirm an EBITDA target but never refute one. A full-year revenue target is checked against the quarters filed so far.
+- **Result, 3 Nov:** 15 of 101 stored promises are decided by numbers, up from 8.
+  - INFY's EBIT margin is 21.0%, on track for 20% to 22%.
+  - HAL's EBITDA margin is 27.7%, off track for 30% to 31%.
+  - TITAN's jewellery segment margin is 12.4% against "around 11%".
+  - A later call that settled an open target still stands.
+  - The other 77 are volumes, launches, plants and capex, which the filings do not report.
 
-- **Render free:** "spins down a Free web service that goes 15 minutes without receiving any inbound traffic"; waking takes about one minute. "Free web services cannot" attach a persistent disk, and local file changes are lost on redeploy, restart or spin-down. Only web services, Postgres and Key Value can be free, so no free cron job or worker. Regions: Oregon, Ohio, Virginia, Frankfurt, Singapore; no India.
-- **AWS Lightsail:** Linux with public IPv4 at $5/month (0.5 GB RAM, 20 GB SSD) or $7/month (1 GB, 40 GB). Mumbai (ap-south-1) has the same prices with half the data transfer allowance. Disk persists.
-- **AWS credits:** apply "only to the specific Services designated by your AWS contracting entity" and expire on a date shown with the code. The terms page does not mention Lightsail, so eligibility has to be checked in the billing console.
-- **What FINN needs:** an always-on process for scheduled refresh, a disk that keeps SQLite (ledgers built by reviewers, refreshed filings), and ideally an Indian IP close to NSE. Render free meets none of the three.
+## R11. Keeping model answers traceable: Ask and bull and bear
 
-## E23. Alert thresholds matter, and research works on a ticker FINN never saw
+- **Ask from the calls alone mixed kinds of profit.** "What are the profits?" on RELIANCE gave the group's Q1 profit next to the retail and Jio subsidiaries' profits, and missed the Q2 results filed two days earlier. Ask now gets the filed figures as numbered facts first, then the calls, then annual report pages. Every number in the answer must match a source at the precision written.
+- **Why exact rounding:** a 1% tolerance let DIXON's "39.7%" from an older call pass for the filed 40.2%.
+- **Live runs:**
 
-- **Alert replay** (`analytics.eod_scan` over stored EOD data for the 18 portfolio stocks, last 60 sessions, 2026-10-31): price ±3% or volume 2x the 20-day average fires 119 alerts, about 2 per trading day. At ±4% or 2.5x it fires 51. At ±5% or 3x it fires 25. The defaults change the alert load by almost 5x, which is why the alerts screen shows the replay count next to the sliders.
-- **Unseen ticker:** `GET /api/research/TITAN`, with TITAN not in any list and not in the database, returned 200 in 5.6 s: Screener tables, NSE results (Q1 FY27 revenue 21,356 crore, YoY +29.3% after the parser fix in E15's HAL note), trajectory, cash quality and four transcript links. `ZOMATO` resolves to `ETERNAL`; a made-up symbol returns 404 with "Check the NSE symbol".
-- **Older iXBRL format:** Jun 2025 filings for TITAN and HAL state the unit as "INR (in Actuals)" in the currency row and dates as `30-Jun-2025`. The parser now reads both, which filled in their YoY comparisons.
+| Question | Answer starts with | Sources |
+| --- | --- | --- |
+| RELIANCE: What are the profits? | Q2 FY27 consolidated PAT Rs 29,550 crore, up 33.8% YoY | 3 figures, 2 quotes, 4.5 s |
+| HDFCBANK: How is asset quality trending? | Gross NPA 1.11%, net NPA 0.37% | filing, Oct 2026 call page 4 |
+| TITAN: Who is the statutory auditor? | BSR & Co., LLP | annual report page 136 |
+| TCS: plan for an EV battery business | not covered, no citations | none |
 
-## E24. Colour palette: sampled from the chosen reference, then checked for contrast
+- **Bull and bear restated numbers.** On 2 Nov, 11 of 17 points on DIXON, HDFCBANK and RELIANCE cited a single fact ("ROCE improved from 23% to 29%"). Each point must now join at least two cited facts, and Python drops the rest. DIXON's bear case now reads "PAT fell 44.9% ... because other income dropped from 496 crore to 69 crore".
+- **Wording fixed in code:** Flash-Lite kept writing "grew 23% over 5 years" for a 23% CAGR even when told not to, so the phrase is rewritten to "a year".
 
-- **Reference:** Pinterest pin 885872189202118303 ("Meet Marcus Insights" onboarding screen), chosen by the owner on 2026-10-31 over pure black and light options.
-- **Sampled** with PyMuPDF from the 736 x 1104 pin image: screen background `#2e3736`, cards about `#3a4342` to `#4f5759`, button taupe `#9e9189`, page behind the phone `#445255`.
-- **Contrast** (WCAG 2 formula, computed from `frontend/src/styles/tokens.css`): the reference's white text on its taupe button is 3.06:1, below the 4.5:1 AA minimum, so FINN puts dark text `#1e2524` on taupe (5.1:1). Muted grey was raised to `#b8c1bf` and the sheet colour darkened to `#414b4a` so every text colour passes 4.5:1 on background, cards and sheets. Lowest: muted text on sheets, 4.90:1. The faint grey (3.77:1 on background) is kept for icons and large text only.
-- **Preview** of the Brief rendered from the live 7-day API response confirmed a bug: DIXON's results card was headlined with a director appointment filed in the same board outcome. Fixed in `backend/main.py`; the results line now stays the headline and the appointment keeps its own management card.
+## R12. Hosting, speed and uptime
 
-## E25. Deploy probe: every source answers from AWS Lightsail Mumbai
+- **Render free does not fit:** it sleeps after 15 minutes of no traffic and takes about a minute to wake, keeps no disk, has no free cron, and has no India region. AWS Lightsail Mumbai keeps a disk and is always on (2 vCPU, 1 GB).
+- **Every source answers from Lightsail Mumbai:**
 
-Instance: Lightsail, ap-south-1, Ubuntu 24.04.4, 2 vCPU, 909 MB RAM, 38 GB disk, static IP 15.206.124.235. Probed 2026-10-31 around 13:30 IST.
-
-| Request from the server | Result |
+| Request | Result |
 | --- | --- |
-| NSE homepage | 403 in 0.06 s, same as from a home IP (E1); the cookie it sets is still enough |
-| NSE `corporate-announcements` for TCS | 200, 2.5 MB in 1.07 s |
-| NSE `integrated-filing-results` for TCS | 200 in 0.16 s |
-| NSE archive transcript PDF | 200, 3.7 MB in 0.22 s |
-| Screener TCS page | 200 in 0.06 s |
-| BSE annual report PDF (with Referer) | 200, 26 MB in 0.13 s |
-| Yahoo chart API by plain curl | 429 "Too Many Requests" |
-| yfinance (what FINN uses) | works: `refresh --only eod` stored 2,157 rows for all 18 tickers |
+| NSE homepage | 403, cookies still set |
+| NSE announcements | 200, 2.5 MB in 1.07 s |
+| NSE results | 200 in 0.16 s |
+| Screener | 200 in 0.06 s |
+| BSE annual report | 200, 26 MB in 0.13 s |
+| yfinance | works (plain curl to Yahoo gets 429) |
 
-- The full pipeline ran on the server: `refresh --only filings --days 3` found and classified 1 new filing in 27 s; `--only results` ran clean. So the scheduled refresh lives on the server and nothing depends on a laptop.
-- HTTPS: Caddy obtained a Let's Encrypt certificate for `15-206-124-235.sslip.io` (issuer YE2, expires 29 Jan 2027). From inside the server every page and API returns 200 over it.
-- Two things outside the server: port 443 was closed in the Lightsail firewall (80 and 22 open), and the owner's network answers every DNS query for `sslip.io`, even one sent to 1.1.1.1, with `208.91.112.55`, which whois lists as Fortinet Inc., a web filter block page. A reviewer behind a similar filter would see the same, which is the case for a real domain.
-- **Public link through Vercel (free plan):** the app is served from `finn-mu-three.vercel.app` and `/api/*` is rewritten to the Lightsail server. Vercel waits up to 120 seconds for an external origin (https://vercel.com/changelog/cdn-origin-timeout-increased-to-two-minutes); Netlify's proxy limit is 26 seconds (https://docs.netlify.com/manage/routing/redirects/rewrites-proxies/). From the same filtered network that blocked sslip.io, every page and API route returned 200 through Vercel, the brief in 0.58 s and research for HAL in 0.57 s; an Ask on TCS (a POST) returned a cited answer in 3.3 s. A fresh phone-sized browser rendered the brief 1 s after navigation.
-- Schedules, as systemd timers in IST (`deploy/`): filings, results and filing reads every 30 minutes 08:00 to 22:30; EOD at 16:45 and 19:30 on weekdays; Screener daily at 21:15. A shared lock stops two refreshes overlapping.
+- **Office web filters block IP-based domains.** The owner's network resolved every `sslip.io` name to a Fortinet block page. Served through Vercel, every route returned 200 from the same network. Vercel waits up to 120 s for an origin; Netlify's proxy waits 26 s.
+- **Speed:** the API only reads SQLite. The 24-hour brief takes 7 ms locally and the 30-day brief 24 ms (157 KB, 29 KB gzipped). A response cache would save milliseconds; the costly part, model output, is stored once.
+- **Uptime:** one 502 in 20 hours came from a deploy restart. A second, during an Ask, came from Ubuntu's security updates: needrestart restarted the API 3 times in 3 minutes. FINN is now excluded from needrestart, a watchdog restarts a hung API (tested by freezing it, back in 4 s), and the app retries a 502 or 503 after 1.5 s and 4 s.
 
-## E26. Ledger batch for 11 companies, and a hand check of HAL
+## R13. Push notifications
 
-Built 2026-10-31 between 13:24 and 13:36 IST, one company at a time.
+- **Web Push** with the server's own VAPID key (P-256, kept out of git). After each refresh, new filings that need you or are in a flagged category, and the latest session's moves past the thresholds, are sent once to every subscribed phone.
+- **Protocol check** (`tests/test_push.py`): a local endpoint stands in for Google's or Apple's. The received body decrypts with the phone's key (RFC 8291), and the token verifies with the server's public key (RFC 8292).
+- **Delivery:** headless Chrome refuses push subscriptions, so delivery was checked by hand. On 3 Nov a notification from the live server reached the owner's Android phone; iPhone delivery is untested. iPhones allow web push only for apps added to the Home Screen.
+- **Latency:** turning on takes a second or two, mostly the browser registering with its push service.
 
-| Company | Promises | Statuses | Seconds |
-| --- | --- | --- | --- |
-| HAL | 10 | 6 missed, 2 pending, 1 delivered, 1 on track | 37 |
-| PIDILITIND | 4 | 2 delivered, 2 pending | 40 |
-| BAJFINANCE | 10 | 8 pending, 1 revised, 1 on track | 16 |
-| HDFCBANK | 6 | 3 pending, 2 delivered, 1 off track | 18 |
-| RELIANCE | 8 | 4 pending, 1 delivered, 1 revised, 1 unclear, 1 dropped | 404 |
-| INFY | 6 | 3 on track, 3 pending | 43 |
-| LT | 5 | 4 pending, 1 on track | 23 |
-| DIXON | 11 | 9 pending, 2 revised; 2 quotes not found in the PDF and dropped | 63 |
-| TRENT | 0 | no transcripts | 9 |
-| POLYCAB | 11 | 7 pending, 2 revised, 1 delivered, 1 on track; 1 quote dropped | 62 |
-| TCS (rebuilt) | 8 | 5 pending, 1 missed, 1 delivered, 1 unclear | 21 |
+## R14. Colour and contrast
 
-- **Cost:** 16 Flash requests for 11 companies. Five 3.6 Flash requests failed (503 or timeout) and were retried; RELIANCE fell back to 3.8 Flash, which took 338 s on 107,523 input tokens. 25 of the day's 40 Flash requests were left.
-- **TRENT has no ledger, correctly:** its 117 NSE filings in the last 12 months include many analyst-meet schedules and no earnings call transcript.
-- **HAL, read against the quotes:** the Nashik third line was promised for "October 2024" (May 2024 call, page 5) and inaugurated on 17 October 2025 (May 2026 call, page 3); HTT-40 deliveries due September 2025 were still "expected during the current year" in May 2026; FY25 revenue grew 2.0% against "10% from '24-'25 onwards". Two verdicts are weaker: the LCA Mk1A evidence quote says deliveries would scale up in FY25 without saying none came in FY24, and the CY25 engine item is GE's supply promise relayed by HAL, not HAL's own target. FY26 revenue growth was judged missed at 6.8% (Screener) against "7% to 8%", while HAL reported "an increase of 7%"; the check now states the gap ("0.2 points below the 7% low end") instead of a bare "missed".
-- **Ask, run on TCS** (gemini-3.5-flash-lite, 2026-10-31): "deal wins and TCV in the latest quarter" answered in 9.7 s with 2 citations ("TCV for the quarter was US$9.6 billion", Oct 2026 call, page 3); "guidance on operating margin" in 9.2 s, citing that TCS gives no formal guidance (Jan 2026, page 3) and the "26%-28%" band (Oct 2026, page 27); "plan for entering the electric vehicle battery business" in 7.3 s returned covered = false with no citations. No quote was dropped in the three answers.
-- **Bull and bear wording:** Flash-Lite wrote "Net profit grew 23% over 5 years" for a 23% five-year CAGR, and kept doing so after a prompt rule against it. The phrase is now rewritten in code to "a year over 5 years", and facts carry their units ("ROCE: 37% in Mar 2022").
+- **Palette** sampled from the chosen reference design: background `#2e3736`, cards `#3a4342` to `#4f5759`, taupe `#9e9189`.
+- **The reference fails contrast.** White on its taupe button is 3.06:1, below the 4.5:1 AA minimum, so FINN uses dark text on taupe (5.1:1).
+- **All 12 theme and accent pairs** (Slate, Paper, Navy by four accents), computed from `tokens.css` on 3 Nov: every text colour, including gains, losses and Needs you, is at least 4.5:1 on every surface. Lowest 4.66:1 (Needs you on Paper's hero); button text on the accent at least 5.1:1.
+- **Chart colours** for gains and losses failed a colour-blindness check as fills (delta E 2.9 on slate). The chart pair is now `#2ea58f` / `#d9714a` on slate and `#00876c` / `#c8472a` on paper: delta E 10.5 or more, contrast 3:1 or more.
 
-## E27. Classifier eval: 60 blind-labelled filings, then 30 held out
+## R15. Two independent blind reviews
 
-**Method** (`eval/`). 20 filings per sorting stage (exchange label, text rule, model), fixed seed 2027, drawn from the 301 October filings. The labeller (Claude) saw only what the exchange published: the label, the summary text and the attachment from its subject line, with the stage and FINN's answer hidden and the order shuffled. Category and priority were labelled against the README priority table. For filings that honestly fit two categories (a trading-window notice as unclassified or insider trading), acceptable alternatives were written down before scoring; "strict" ignores them, "lenient" accepts them. `eval/score.py` joins FINN's stored answer only after the labels are saved.
+Both reviewers were agents given only the two challenge PDFs and the live app at phone width, with no code, README or this log. Each finding was checked against the data before anything changed.
 
-**Result before any fixes (the headline):**
-
-| Stage | Category, lenient | Priority, lenient |
+| Area | 31 Oct | 2 Nov |
 | --- | --- | --- |
-| Exchange label | 18/20 | 19/20 |
-| Text rule | 20/20 | 15/20 |
-| Model | 19/20 | 14/20 |
-| All | 57/60 (95.0%) | 48/60 (80.0%) |
-
-Strict: category 51/60, priority 47/60. One label was wrong, not FINN: an HDFC Bank filing re-appointing an independent director also records the Deputy Managing Director ceasing, which sits beyond the excerpt the labeller saw; FINN's filing reader had found it. With that label corrected, priority before fixes is 49/60 (81.7%). The correction is recorded in the label file.
-
-**What the misses showed, and the fixes:**
-- A Rs 4,265 crore QIP allocation (7.68 million shares at Rs 5,550) came under the exchange label "Committee Meeting Updates", which the label map treated as always routine. That label, and "Shareholders meeting" (also used for postal ballots), now go to rules and the model. Re-sorting them found five Persistent QIP filings, now fund raises.
-- Press releases were judged on a short keyword list, so a facility opening, a market entry, a client collaboration, a revenue update and a completed takeover ("Secures Strong Majority Stake", about 94% of Nagarro) were all Routine. Takeovers and stakes now count as M&A, facility openings as capex, and the press-release list covers entries, collaborations, wins and business updates.
-- Companion documents (a results press release, a shareholders' letter) were Needs you next to the results filing itself; they are now Worth knowing, keyed on the exchange's "Press Release" label rather than the words "press release", which also appear in genuine results announcements.
-
-**Held out: 30 filings** (seed 2028, 10 per stage, none from the first 60), drawn and labelled after those fixes. Category 30/30 lenient (27/30 strict); **priority 25/30 (83.3%)**. This is the out-of-sample figure to quote. Two of the five misses contradicted the README: a CEO change at subsidiary ICICI Life and an independent director at Bajaj Auto were Needs you because the filing reader's model marks almost every person "senior". Seniority is now decided in code from the role (CEO, CFO, COO, MD, whole-time or executive director, chair, KMP; never independent or non-executive directors). Also fixed: an analyst presentation of a quarter is Worth knowing, and "award" means a contract award, not an awards ceremony. Still missed: an Infosys client adopting Finacle, filed with no keyword a rule could use.
-
-**After both rounds** (in-sample now, so optimistic): the 60 agree on 58 priorities, the 30 on 29. The two disagreements left in the 60 are judgment calls: a GST show-cause notice to ICICI Bank (FINN Needs you, labeller Worth knowing) and a postal ballot approving a share plan (FINN Worth knowing, labeller Routine). The labelled filings are a regression test in CI (`tests/test_classifier_eval.py`): the deterministic stages place 61 of the 90 and must keep agreeing with the labels. The owner's spot-check of 15 is in `eval/SPOTCHECK.md`.
-
-## E28. Beyond the brief's two examples: what each card adds, and the reference glossary
-
-**Against the reference document** (`2. ENAM_AI_Engineer_Build_Challenge_Reference.pdf`):
-- EBITDA is defined there as earnings before interest, tax, depreciation and amortisation, "a rough proxy for operating profitability, how profitable the core business is". FINN computes operating EBITDA, PBT + finance costs + depreciation - other income, so interest on cash and investment gains do not count as core business. The card labels it "Operating EBITDA" and prints the formula.
-- Margin is defined as profit / revenue. The results card now shows EBITDA and PAT margins with their change in basis points.
-- Its category table files "results decks and shareholder letters, and ads confirming results were published" under results. Results presentations and shareholder letters now go to results (Worth knowing); a results newspaper ad goes to results (Routine). ESOP allotments, compliance certificates and ESG reports stay unclassified, as the table says.
-
-**Added to the cards, all computed in Python from stored filings, results and prices** (`analytics.reaction`, `analytics.scale`, `results_card`, `main._filed_before`):
-
-| Card | Added | Example from the live data, 31 Oct |
-| --- | --- | --- |
-| Results | EBITDA and PAT margin, change in bps QoQ and YoY | DIXON EBITDA margin 2.7%, -110 bps YoY; PAT margin 1.9%, -310 bps YoY |
-| Results | Other income as a share of PBT, flagged at 25% or more | L&T 30%: "a large part of profit does not come from operations" |
-| Results, people, litigation, deals | The first session after the filing (same day if filed before 15:30 IST) | Sona BLW +8.95% on 8.1x usual volume after Q2; Tata Consumer +6.78% on 5.4x; TCS +3.85% on 3.5x |
-| Results | The company's promise ledger in one line, linked | TCS: 1 missed, 1 delivered, 5 pending, 1 unclear |
-| Management | Top management, board or senior staff (from the role, E27), entity, effective date | Pallavi Joshi Bakhru: Board, effective 1 Jan 2027 |
-| Fund raise, M&A | Size as a share of market cap as well as revenue | Persistent QIP Rs 4,265 crore: 4.2% of market cap |
-| Every card | How many filings and since when | Polycab litigation: 9 filings since 7 Oct |
-| Price and volume | What was filed between the previous close and that close, one line per category | Trent +5.4% on 30 Oct: Results, Management; Dixon -4.25%: no filing explains it (its results came at 16:19) |
-
-One bug found on the way: the move context first kept the two latest filings, so Trent's results (16:08) were hidden behind four Chairman-change filings (16:32). It now keeps one per category, most important first.
-
-## E29. Blank Brief after a deploy: an old saved copy crashed the new code
-
-**Report** (31 Oct, 19:49 IST, phone test): the Brief showed a blank page; another screen said "Offline".
-
-**What the logs showed:**
-- Server and proxy were healthy: every endpoint the app calls returned 200 through Vercel in under 0.6 s, and the API log had no errors.
-- Vercel's request log for the phone (Android, Chrome 150) between 19:46 and 19:49 IST had nine app opens (`/sw.js` checks) and no `/api/` request at all. The app failed on the phone before asking the network.
-
-**Cause, reproduced on production** (headless Chrome in phone emulation: seed the saved 7-day brief from before E28, reload):
-- The app renders the saved copy first, then fetches. Moves saved before E28 have no `filed` field, and the new code read `m.filed.length`.
-- The render threw `TypeError: Cannot read properties of undefined (reading 'length')` and React unmounted the page (`#root` empty).
-- The fetch runs in an effect, which never ran, so the app could not heal itself.
-- The "Offline" note was also wrong: it showed for any failed refresh, not only a failed network.
-
-**Fix** (`api.ts`, `components/ScreenBoundary.tsx`, `vite.config.ts`):
-1. Each saved response is tagged with the build that wrote it (`__BUILD__`, set at build time). A new build ignores older copies, so a deploy never renders an old shape.
-2. Each screen sits in an error boundary. A render failure shows "This screen could not be shown" and a Reload button that clears saved responses (not settings or done cards).
-3. The note says "Offline." only when the network failed (status 0), and "Could not refresh." otherwise.
-
-**Verified on production after deploy:**
-- The same old copy now renders the fresh 7-day brief ("15 filings need you ...").
-- Forcing the crash (the old copy tagged with the current build) shows the recovery screen with the tab bar intact.
-- Reload brings the Brief back.
-- `src/api.test.ts` covers the build check and what Reload clears; frontend tests 25 pass.
-
-## E30. The research brief, section by section, and segment data from the results filing
-
-**Checked against the brief's eight research items.** Before this change: business snapshot (description only, no segments), balance sheet (one line inside Cash quality), guidance and narrative vs numbers (merged in one ledger list). Now each has its own section, in the brief's order.
-
-**Segments are in the primary source we already parse.** The NSE integrated filing carries a segment table: revenue and profit before interest and tax per segment, for the quarter and year to date. `sources.nse._segments` reads the quarter column; single-segment companies are named from the filing's general table.
-- Backfill (`backend.jobs.segments`): 111 of 111 stored quarters, 0 failures, locally and on the server. 15 of 23 companies report several segments; 8 report one (e.g. DIXON "Electronic Goods", TRENT "Retail").
-- LT Q2 FY27: segment revenue 79,615.57 less inter-segment 865.63 equals revenue from operations 78,749.94 (test `test_segments_tie_to_revenue_and_skip_adjustments`).
-- RELIANCE's segment table totals 3,62,268 crore against 3,32,861 in its P&L, so mix is always a share of segment revenue, never of headline revenue. The page says so.
-- Hand check, RELIANCE O2C revenue: 1,60,558 (Q2 FY26 filing) to 2,31,601 (Q2 FY27) = +44.2%, as shown.
-- ASIANPAINT's Jun 2026 filing itself contains a broken character ("D\ufffdcor"); its other three filings read "Décor". Left as filed.
-
-**Balance sheet** (`analytics.balance_sheet`): interest coverage = (PBT + interest) / interest from the latest full year (Screener's latest balance-sheet column can be a half year, e.g. Sep 2026). Not shown for lenders. Funding mix includes deposits for banks: HDFCBANK Sep 2026 deposits 64.3%, borrowings 11.5%, equity 11.7%, other 12.5%. DIXON coverage 15.7x, TCS 54.4x, RELIANCE 5.6x (Mar 2026).
-
-**Guidance** is the ledger's open items (pending or on track) grouped by the metric key the ledger already records (revenue_growth, operating_margin, capex, other). No new model call. Bare-number targets get their unit ("100000" in Rs crore reads "Rs 1,00,000 crore").
-
-**Reliance looked thin** (owner's review, 31 Oct). Measured: 8 promises from 138 transcript pages, the lowest yield of any company, and bull and bear used only consolidated facts. Changes:
-- Segment revenue and result by quarter are now in the ledger's numbers table, and the prompt asks for each segment's guidance. The Reliance ledger rebuild was refused by the API for quota on both Flash models (our counter showed 14 of 20 used); nothing was overwritten. To rerun after the 12:30 IST reset.
-- Segment facts are now in bull and bear's numbered facts, and the prompt asks for one segment point each side when there are segments. Rebuilt for all 12 companies with a ledger (backup kept on the server). RELIANCE now: bull "O2C revenue +44.2% YoY, share +6.8 points"; bear "Retail revenue +1.3% YoY while losing 5.8 points of share".
-- Fixed promise facts that repeated the timeframe ("ready by March by by March"); test `test_promise_timeframe_is_not_said_twice`.
-
-Tests: backend 36, frontend 27, all passing.
-
-## E31. Independent review, the promise sheet crash, and charts
-
-**Review.** A separate agent saw only the two challenge PDFs and the live site at 390px (no code, README or this log) and drove it in headless Chrome for about 19 minutes. Scores out of 10: saves time 7, shows what matters 6, trust 6, density 7, visual design 8, interactivity 6, thought-through 7, mobile fit 8. Its findings are the to-do list for the last day.
-
-**Crash, confirmed and fixed.** Tapping a promise or guidance item showed "This screen could not be shown". Cause: the detail sheet read `repeated_in.length`, and the ledger set `repeated_in` only for measurable metrics; 60 of 97 stored promises had no such field. Fixed at both ends: every promise gets the field, and the sheet tolerates its absence.
-- Before, on production, tapping every item (headless script): RELIANCE 8 of 8 crashed, HDFCBANK 5 of 6, DIXON 10 of 11.
-- After deploy: RELIANCE, HDFCBANK, DIXON and TITAN, 31 items, 0 crashed.
-- "effective Invalid Date" on management cards: 9 people had a date written in words ("12th November 2026"); such dates are now shown as written (`format.filedDate`, tested).
-
-**Charts** (`components/Charts.tsx`), following the dataviz method: one hue for magnitude, a validated pair for gains and losses with direction also shown by position, thin marks, hairline axes, tap to read.
-- Brief hero: every portfolio stock's move on the day, best to worst.
-- Research header: daily closes (about six months held) with Needs you and Worth knowing filings placed on the session they could first move the price (after 15:30 IST means the next session; tested).
-- Narrative vs numbers: track record ("2 of 8 promises that could be checked were kept", HAL) and guided range against the reported figure for numeric promises.
-- Cash quality: cash from operations as columns with operating profit as a tick on each, one axis.
-- Colour check (dataviz validator): the text pair for gains and losses failed as chart fills (CVD delta E 2.9 on slate). Chart pair now #2ea58f / #d9714a on slate, #00876c / #c8472a on paper: CVD delta E 10.5 or more, contrast 3:1 or more on card and hero surfaces.
-
-## E32. Acting on the review: each finding checked before it was fixed
-
-| Finding | What the data showed | Fix | Live after deploy |
-| --- | --- | --- | --- |
-| COFORGE revenue +111.6% QoQ | The Q2 FY27 filing gives six-month figures in both columns (start 01-04-2026, end 30-09-2026). Stored 11,698.5 = Q1 5,527.7 + Screener's Sep 6,171 | Parser records the months covered; a 6, 9 or 12-month filing becomes a quarter by subtracting stored quarters, labelled on the card (`refresh.to_quarter`). Any line over 10% from Screener is not headlined. Re-read of all 116 stored filings: only COFORGE changed | Revenue 6,170.8 (+11.6% QoQ), PAT 604.9 vs Screener 6,171 / 605 |
-| MAXHEALTH PAT -15.6% vs release "+10%" | Card matches filing and Screener (491 to 414). PBT rose 21.3%; a year ago PAT was 110% of PBT (tax credit). The release quotes gross revenue 3,219 and an adjusted PAT | Tax note on the card; headline and hero use PBT when tax explains the PAT change (`analytics._tax_note`) | "PAT -15.6% YoY, but PBT +21.3%: a year ago tax was a credit..." |
-| SUZLON "profit fell 69.2%" | Same: PAT 1,279 on PBT 562 a year ago | Same rule | Headline "PBT -7.9% YoY" |
-| Promise judged on the wrong metric | `_numeric_check` compared any revenue-growth promise with company revenue | Scope guard: a metric naming a part of the business is not checked against company totals (`pull._company_level`, 8 cases tested). 11 stored ledgers rechecked, no model calls | HDFCBANK MSME loan growth: "unclear" from the calls; TITAN jewellery targets: pending |
-| Legal adjournment in Needs you | The rule matched "SEBI" in the boilerplate "SEBI (Listing Obligations ...)" that every Regulation 30 notice carries | Boilerplate excluded; an adjournment read from the PDF is Worth knowing | MAXHEALTH's two adjournments moved; classifier eval still passes |
-| Needs you by time; tiny fine with Alert tag; triplicate | Order was priority, category, newest. RELIANCE penalty 0.0% of revenue and market cap. BAJAJ-AUTO: three NSE filings with identical text at 17:28:47 | Within a category, biggest profit change, most senior person, or largest deal first; no Alert under 0.1% of revenue and market cap; identical routine filings shown once with a count. Hero names a CEO or chair leaving | Results led by DIXON, RELIANCE...; "filed 3 times" |
-| "Session has not closed yet" on Saturday | One wording for two cases | Says the date of the first session after the filing (weekends skipped), or that the price is not loaded | DIXON, RELIANCE: "first session after the filing is 2 Nov" |
-| "3 not priced yet" | BAJAJ-AUTO, GRAVITA, POLYCAB missing 30 Oct; the server's first run was Saturday | Rerun filled all 18; Saturday catch-up added to the price timer | 0 missing |
-| Search by name fails | Search only knew FINN's 22 companies; NSE's autocomplete endpoint now returns 404 | `/api/search` over NSE's published equity list (2,620 rows, cached a week) | "bharat electronics" finds BEL; "zomato" finds ETERNAL |
-| "Status: on_track" in bull and bear; "call call"; "Dropped" | Raw status in the facts; the model's source string; a label stronger than the rule behind it | Plain words in facts; citations use the matched document's period; "Not mentioned again". Ask now says "No quote could be verified" instead of "Not covered" when that is the reason | Bull and bear rebuilt for 13 companies |
-
-Guidance shows each target once, from the latest call, naming earlier calls. A "?" on Brief, Research, Alerts and Settings opens one page on how to read FINN; its tier descriptions were checked against `classify.priority`.
-
-Not reproduced: "Reload wipes Done marks". Reload clears only saved `/api/` responses; `api.test.ts` covers it.
-
-Tests: backend 47, frontend 30.
-
-## E33. Why the Reliance ledger rebuild failed, and the rebuild
-
-The refusal was not the daily quota (a TITAN ledger call succeeded 15 minutes later). With the reason now logged (`llm.generate` prints the code and the quota named):
-- Attempts 1 and 2: `503 UNAVAILABLE`, "This model is currently experiencing high demand".
-- Attempt 3, 5 to 10 s later: `429 RESOURCE_EXHAUSTED`. Each attempt resends about 160k tokens of transcripts, so three inside a minute trip the per-minute input-token limit (the free tier names it `GenerateContentInputTokensPerModelPerMinute-FreeTier`).
-
-Fix: calls over 200k characters wait 60 s, then 120 s, between retries. Retried at 21:06 IST: one 503 on the fallback model, then success.
-
-RELIANCE ledger, before and after (same four calls, Oct 2025 to Jul 2026, segment numbers now in the numbers table): 8 promises to 12, 0 quotes dropped. New: petchem customs duty (not mentioned again), solar, battery and polysilicon commissioning, Kutch power supply, Retail absolute EBITDA "double over the next three years". Jio IPO timing moved from unclear to revised. Bull and bear rebuilt from it.
-
-## E34. Presentation: making importance visible and reading faster
-
-Owner's review (31 Oct): the app was "not as attractive", the Research page "too bland", the brief's opening sentence too big. Changes, each meant to save reading as well as look better:
-
-| Idea | What changed | Checked |
-| --- | --- | --- |
-| A. Scorecard | Six tiles at the top of a company page (growth, margins, cash or returns for lenders, balance sheet, track record, valuation). Each verdict is a fixed rule (`src/scorecard.ts`), printed in Help; a tile opens the section behind it | `scorecard.test.ts` on RELIANCE's figures (P/E 19.2 on 8.9% profit growth: "Rich"), HAL's track record (2 of 8: "Often misses"), a lender (return on equity) |
-| B. Results tiles | Revenue, EBITDA, PBT, PAT as tiles with the YoY change and a five-quarter trend (`results_card.history`); the full table one tap away; notes kept | RELIANCE history Q2 FY26 to Q2 FY27 live |
-| C. Identity and importance | Monogram per company (hue fixed per ticker, strength per theme), an icon per filing kind, an amber edge on Needs you cards | Slate and Paper screenshots |
-| D. Promise timeline | One column per earnings call, one dot per promise coloured by outcome, hollow when not due; tap opens the quote | HDFCBANK: Mar, Apr, Jul, Oct 2026 columns |
-| E. Feel | Swipe right to mark done; counts in the hero count up; a finish moment when every item is read; motion off under reduced-motion | Swipe: in-page touch events moved the card 20 to 210px and stored it as done (DevTools touches first missed the card because it was below the screen; confirmed with real touches in E37). Finish moment shown after marking all 28 done |
-| F. Ask suggestions | Four questions as chips on the page and above the Ask box when it is focused and empty | 4 chips shown on focus |
-| G. Share a card | Results cards share as a PNG (`html-to-image` 1.11.11, pinned); buttons left out, a footer names the source; share sheet where supported, else download | 148 KB PNG made in 4.8 s. Fonts embed after adding `crossorigin` to the Google Fonts link (before: "Failed to read the 'cssRules' property") |
-
-Also: the opening sentence from 19px to 15px; the stats grid drops P/E, margin and debt to equity, now in the scorecard. White on the slate teal is 3.05:1, so marks on teal use the page background colour (4.0:1 slate, 3.97:1 paper).
-
-Regression on production after deploy: every promise and guidance item tapped on RELIANCE (12), HDFCBANK (6), DIXON (9), TITAN (5), 0 crashed. Tests: backend 47, frontend 34.
-
-## E35. A quieter, more professional pass
-
-Owner's review (31 Oct): a scrolling strip on the right of the screen, the company monogram "not professional", Research cards "look vibe coded".
-
-**The strip.** The page itself was never wider than 390px, but two rows scrolled sideways inside it with their last items cut at the edge: the section tabs on Research (9 sections) and the promise filters. Replaced:
-- Sections: a slim sticky bar naming the section in view ("1/9 Business") with a Sections button that lists all nine.
-- Filters: removed; the timeline above the list already gives the breakdown.
-- Ask suggestions above the box wrap instead of scrolling. `html { overflow-x: clip }` so a card swiped away cannot widen the page.
-- Live check on every screen after deploy: page width 390, elements that scroll sideways 0 (before: the two strips on Research).
-
-**Professional pass**, guided by fewer surfaces and colour only where it means something:
-- Monograms removed from cards and the company header.
-- Scorecard and key figures merged into one surface: six verdicts in a two-column grid with hairline dividers, key figures in a compact three-column row. Coloured top stripes and the entrance animation removed; colour is a 6px dot beside each verdict word.
-- Results: four figures in one row with hairline dividers instead of four boxes inside a card; one short header line instead of a caption under every card.
-- Oversized figures brought onto the type scale (cash conversion 30px to 22px, track record 24px to 20px); chart bars capped at 18px; Guidance group labels in sentence case; Business table columns spaced so headers no longer run together.
-
-Tests: backend 47, frontend 34.
-
-## E36. Section menu that lands where it says, and a watchlist
-
-**Sections** (owner: "not working well"). Reproduced headless on RELIANCE: tapping Sources left the bar on "8/9 Bull and bear" (the Ask section was not in the list), the count was 9 whatever the company had, headings stopped 96px down, and the jump started while the menu was still closing (on iPhone Safari, focus returning to the button can cancel a smooth scroll). Now:
-- The section in view is read from the scroll position: the last heading above the bar, or the last section once the page bottom is reached. Only sections the company has are listed (RELIANCE 10, COFORGE 9 without a ledger).
-- The jump runs after the menu has closed, to 52px (just under the 44px bar); returning focus no longer scrolls (`focus({ preventScroll: true })`). Scorecard tiles and links into a section use the same offset.
-- Live test on TCS: Cash, Guidance, Business, Balance sheet each land at 52px with the bar naming the tapped section.
-
-**Research tab** (owner: "too plain"). Now a watchlist: breadth for the day (12 up, 6 down) with a thin bar; sector groups or sorted by the day's move (remembered on the device); each row has the latest quarter's revenue and profit growth (PBT where tax distorts PAT), a 30-day line, the close and the day's move. `/api/companies` returns this for all 22 companies in 0.03 s locally, 0.4 s through Vercel.
-
-## E37. The section menu froze the screen on a phone
-
-**Owner's report:** tapping Sections, the options disappear and the screen freezes.
-
-**Cause, reproduced with touch emulation** (taps through DevTools touch events, not script clicks): the menu opened, but its options were at y = -738, above the screen. The menu was rendered inside the sticky section bar, whose `backdrop-blur` (a `backdrop-filter`) becomes the containing block for `position: fixed` descendants. So the "full screen" sheet was positioned against the 44px bar instead of the viewport, while its scroll lock held the page still. Earlier tests clicked options through script, which works off screen, so they missed it.
-
-**Fix:**
-- Every sheet renders through a portal at the end of `<body>`, so no ancestor's filter or transform can move it (swiped cards use a transform too).
-- The sheet's focus and scroll lock run once on open and once on close (the caller's `onClose` is kept in a ref instead of re-running the effect on each re-render).
-- The lock is released before any jump; long jumps are instant, since a long programmatic smooth scroll on iOS ignores the finger until it ends.
-
-**Checked on production with touch taps** (TCS; the bar first scrolled into view as a reader would):
-
-| Tapped | Menu | Landed | Lock after | Finger scroll after |
-| --- | --- | --- | --- | --- |
-| Cash | opened, closed | "5/10 Cash" | released | 297px |
-| Business | opened, closed | "1/10 Business" | released | 302px |
-| Guidance | opened, closed | "7/10 Guidance" | released | 302px |
-| Sources | opened, closed | "10/10 Sources" | released | 0px (already at the page bottom) |
-
-**Swipe to done, re-tested the same way:** the earlier failure (E34) was the same test flaw, a touch below the visible screen. With the card on screen, a right swipe marked DIXON done, the next card moved up and Undo appeared; a vertical drag over a card scrolled the page 301px and marked nothing.
-
-## E38. Keeping the server up through evaluation
-
-**Question:** the app looked off. Was the server down?
-
-**Checked 1 Nov, 06:23 UTC:** no. The instance had been up 22 hours and the API had run without a restart since the last deploy (31 Oct 16:18 UTC, `NRestarts=0`). Every endpoint answered through the live app in 0.2 to 0.4s. Across the previous 20 hours Caddy logged exactly one 502 ("connection refused"), at 31 Oct 15:31 UTC, which is when a deploy was restarting the API, and an Android phone on /research hit it in that window.
-
-**Gaps found:** `Restart=always` covers a crash but not a process that is running and hung, and the 1 GB instance had no swap, so a heavy job could get the API killed for memory.
-
-**Added:**
-- `/api/health`, which runs one query on the database.
-- `finn-watchdog.timer`, which checks it every 2 minutes and restarts the API after two failed checks 5 seconds apart.
-- A 1 GB swap file, also added to `deploy/setup.sh`.
-
-**Tested on the server:** we froze the API processes with `SIGSTOP`, and health requests then timed out. The watchdog restarted the API (06:26:12 UTC, new PID), and it answered `{"ok":true}` 4 seconds later. The public `/api/health` through Vercel returns 200.
-
-**Then, 1 Nov 06:28 UTC:** an Ask ("What are the profits?" on RELIANCE) returned "Request failed (502)". Caddy logged it at 06:28:52 as "connection refused", and the API was restarting from 06:28:48 to 06:28:53. Nobody deployed then. Ubuntu's automatic security updates had started at 06:25:20, and needrestart restarted every service using an updated library, FINN's API included: 3 restarts in 3 minutes. The fixes:
-- `deploy/needrestart-finn.conf` leaves FINN out of those restarts. On the server, needrestart reports `finn=0`.
-- The app sends a request again after 1.5s and then 4s when the proxy answers 502 or 503. The request never reached the API, so a POST is safe to repeat. Two tests in `frontend/src/api.test.ts` cover this.
-- The same question, asked again, returned a cited answer in 5.7s.
-
-## E39. Ask answers number questions from the filed results
-
-**Problem, 1 Nov:** on RELIANCE, "What are the profits?" was answered from the calls alone. The answer gave the Q1 group profit (Rs 23,200 crore, quoted from the Jul 2026 call) next to the retail and Jio subsidiaries' profits, as if they were the same kind of number. The Q2 FY27 results, filed with NSE on 30 Oct, were missing.
-
-**Change:** Ask now also gets the company's reported figures as numbered facts, each with its source:
-- the latest quarter's lines with QoQ and YoY, from the NSE results filing;
-- five quarters of revenue and PAT;
-- the latest segment results;
-- three full years, from Screener.
-
-The prompt says that for a number question it starts from those figures and then adds what management said. "Profit" means consolidated PAT, and a segment's profit is never the company's. Python then checks every number in the answer against the figures and the verified quotes, rounded to the precision written, and removes any sentence whose number is in neither.
-
-**Why exact rounding:** a first version allowed a 1% gap. On DIXON, "What was revenue growth last quarter?" then let an older call's "YoY 39.7%" pass for the filed 40.2%. The check now requires 39.7 to equal the source rounded to one decimal, which it does not (`tests/test_ask.py`).
-
-**Run against the live server, 2 Nov:**
-
-| Question | Answer starts with | Sources | Removed |
-|---|---|---|---|
-| RELIANCE: What are the profits? | Q2 FY27 consolidated PAT Rs 29,550 crore, up 27.4% QoQ and 33.8% YoY; FY26 Rs 95,754 crore | 3 figures, 2 quotes from the Nov 2026 call, answered in 4.5s | 0 |
-
-**Run on local data the same day:**
-
-| Question | Answer starts with | Sources | Removed |
-|---|---|---|---|
-| DIXON: What was revenue growth last quarter? | Q2 FY27 revenue Rs 21,794 crore, up 40.2% QoQ and 46.7% YoY | 1 figure | 0 |
-| HDFCBANK: How did net profit change this quarter? | Q2 FY27 PAT Rs 20,700 crore, up 1.6% QoQ and 5.6% YoY | 2 figures | 1 sentence ("12.7%"; its quote was not found in the PDF) |
-| RELIANCE: What did management say about Jio tariff hikes? | no plans to change base tariffs | 1 quote | 0 |
-
-## E40. Second blind review: what held up and what changed
-
-**Setup, 2 Nov:** a reviewer agent was given only the two problem-statement PDFs and the live app, with no code or docs. Each finding was checked against the data before anything was changed.
-
-**Not true:** "prices look seeded" (RELIANCE 1,300.00, HDFCBANK 700.00, POLYCAB 7,920.00, KAYNES 3,210.00). NSE's own bhavcopy for 2 Nov (`BhavCopy_NSE_CM_0_0_0_20261102_F_0000.csv`) has exactly those closes: RELIANCE 1,300.00, previous close 1,164.90, on 88.1 million shares. They are real prices that happen to be round.
-
-**Confirmed and fixed:**
-
-| Finding | Checked | Fix |
-|---|---|---|
-| On a Monday, "24 hours" hid Friday's results | At 22:37 on 2 Nov, 24h started Sunday 22:37, so DIXON and RELIANCE results (30 Oct, 16:07 to 21:32) were missing. The 3-day view started Friday 22:37 | One window rule, `_window`: N trading sessions of price moves, plus every filing since the close of the session before them, never shorter than the hours. 24h now starts 30 Oct 15:30 and shows both under Needs you. The Brief says where its window starts |
-| Track record counted revised and unmentioned promises as misses | DIXON "0 of 2, Often misses" came from 2 revised promises. RELIANCE "1 of 6" included 2 revised, 2 not mentioned again and 1 unclear | Only promises a result settled are counted, at least 3 of them, and the rest are named as not counted |
-| "Cheap for its growth" the week profit fell | DIXON P/E 48.6 on 86.1% 3-year profit CAGR, with Q2 FY27 PAT -44.9% YoY | "Growth in doubt" when the latest PAT is down 20% or more YoY |
-| Bank pages used the industrial template | HDFCBANK "margin" from Screener ran -2% to -17% a quarter; CWIP Rs 0 cr; D/E 0.98 | Lenders get a credit cost tile (provisions over pre-provision profit, 12.8% for Q2 FY27). Their operating margin is left out of trajectory, and their balance sheet shows assets, borrowings and equity |
-| Company blurb is not a primary source | HDFCBANK: "tenth-largest bank ... as of May 2024" | Labelled "Screener's profile, not from a filing" |
-| Results card missed DIXON's biggest anomaly | Other income Rs 495.74 cr in Q2 FY26 against Rs 68.73 cr now. EBITDA +6.3%, PBT -42.6% | `below_ebitda` names the line between EBITDA and PBT that moved most. The summary quotes EBITDA when that note is present |
-| Priority inversions | BAJAJ-AUTO "Sales for the month of October 2026" was Routine; TATACONSUM's ESG score was Worth knowing | Monthly sales are Worth knowing, ESG ratings Routine. 4 stored filings were reclassified, and the labelled eval test still passes |
-| A due promise read "Not due yet" | DIXON "20% to 25% QoQ" phone volumes, due Q2 FY27 | New status "Due, not settled" once the date passes with nothing to settle it. 4 stored ledgers were rechecked |
-| Summary repeated a company | "HDFCBANK's MD and CEO, HDFCBANK's MD" (the second was the Deputy MD) | Exits grouped per company; "Deputy MD" named |
-| CEO change card led with a group head | HDFCBANK listed Sanjay D'Souza first, and "Mr. Anup Bagchi" and "Anup Bagchi" separately | Top management first; honorifics ignored when merging names |
-| AI encyclopedia cited for a bio | grokipedia.com on 1 stored HDFCBANK filing | Filtered from bio search; the stored source removed |
-
-**Swipe:** the reviewer could not swipe a card. E37 verified the swipe with on-screen touch events. The help sheet did not mention it, and now does.
-
-**Not fixed, still open:**
-- Annual reports are listed but not read.
-- Alerts are thresholds in the app, with no push notification.
-- There are no bank-specific KPIs (NIM, GNPA, CASA).
-- Ledgers built before the Nov 2026 calls have not been rebuilt (rebuilding costs reasoning-model quota).
-- Bull and bear points can read as restated metrics.
-
-## E41. Closing the five gaps the second review left open
-
-**Bank figures (3 Nov).** HDFCBANK's consolidated Q2 FY27 filing has "% of gross NPAs | 0"; its standalone filing has 1.11% gross and 0.37% net NPA, CET1 18.87%, interest earned Rs 83,426.60 crore and interest expended Rs 48,807.42 crore. On the Oct 2026 call management said "GNPA at 1.11%". So FINN reads banks' standalone filings (`parse_bank_kpis`), and a 0 ratio is dropped as the consolidated placeholder. NSE has seven quarters of these filings for each bank, from Mar 2025.
-- Net interest income = interest earned - interest expended: HDFCBANK Rs 34,619 crore, +9.7% YoY; ICICIBANK Rs 25,339 crore, +17.7%.
-- Two ratios are FINN's own and labelled so. NII to assets is NII x 4 over total assets (3.02% for HDFCBANK); banks report NIM on interest-earning assets, a smaller base. Credit cost is provisions x 4 over advances (0.45%). Assets and advances come from the half-year balance sheet in the same filings.
-- BAJFINANCE's NBFC filing has "Impairment on financial instruments" but no NPA or stage 3 rows, so no asset-quality figure is shown for it.
-- Ask on HDFCBANK, "How is asset quality trending?", answered "Gross NPA was 1.11% and Net NPA was 0.37%", citing the filing and the Oct 2026 call (page 4).
-
-**Annual reports.** The latest annual report of all 22 companies is read once and stored: 187 (RELIANCE) to 756 (LT) pages, about 32 MB of text, 71 s for all 22 locally. Ask picks the five pages that best match the question (keyword weights), and each quote is checked against the PDF like a transcript quote. "Who is the statutory auditor?" on TITAN: "M/s. BSR & Co., LLP", quoted from page 136. A company with no report stored yet is answered without it while the report is read in the background.
-
-**Ledger verdicts from numbers.** On the 101 stored promises, 8 were decided by numbers. Three new checks:
-- A margin in the definition the promise names, rebuilt from the filed lines: EBIT = PBT + finance costs - other income, EBITDA adds depreciation, PBDIT keeps other income. IT services companies say "operating margin" for EBIT. TCS Q2 FY27: (18,638 + 252 - 1,337) / 73,188 = 23.98%, and TCS said "operating margin of 24%". INFY: 20.98% and "21%".
-- A reported segment's margin and growth. A segment result is before interest and tax, so it can confirm an EBITDA target but never refute one.
-- A full-year revenue target in rupees, against the quarters filed so far. A target "ex" something is skipped.
-
-Result: 15 of 101 are decided by numbers. Examples: INFY 21.0% EBIT margin, on track for 20% to 22%. HAL 27.7% EBITDA margin, off track for 30% to 31%. TITAN jewellery 12.4% segment margin against "around 11%". A later call that settled an open target still stands: TCS "26% to 28%" stays Missed. The other 77 are volumes, launches, plants and capex, which the filings do not report.
-
-**Bull and bear.** On 2 Nov, 11 of 17 points on DIXON, HDFCBANK and RELIANCE cited a single fact, for example "ROCE improved from 23% in Mar 2022 to 29% in Mar 2026". The prompt now asks for an argument that joins facts. Python drops any point citing fewer than two, and the model also gets P/E, ROE or ROCE and the results notes. DIXON's bear case now reads: "Q2 FY27 PAT fell 44.9% year-over-year ... because other income dropped from 496 crore to 69 crore."
-
-**Push notifications.** Web Push with the server's own VAPID key (P-256, kept in `data/`, out of git). After each refresh, new filings that need you or are in a flagged category, and the latest session's moves past the thresholds, go once to every subscribed phone. Each is keyed, so it is never sent twice.
-- `tests/test_push.py` stands up a local push endpoint. It decrypts the received body with the phone's key (RFC 8291) and verifies the token's signature with the server's public key (RFC 8292).
-- Headless Chrome refuses push subscriptions ("Registration failed - permission denied"), so delivery was checked by hand: after deploy on 3 Nov, a test notification from the live server reached the owner's phone (not an iPhone; iPhone delivery is untested). The test button was then removed from the app.
-- Turning on felt slow on the phone: most of it is the browser registering with its push service. The switch now moves at once and says "Turning on..." while that finishes, and the server key is fetched before the tap.
-- iPhones allow web push only for apps added to the Home Screen; the Alerts tab says so.
-
-## Open questions (not yet verified)
-
-- Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.
-- Free tier RPM and RPD for our key. Check in AI Studio.
-- Rule precision: measured in E27.
+| Saves time | 7 | 6 |
+| Shows what matters | 6 | 6 |
+| Trust and grounding | 6 | 7 |
+| Density | 7 | 6 |
+| Visual design | 8 | 8 |
+| Interactivity | 6 | 7 |
+| Thought-through | 7 | 7 |
+| Mobile fit | 8 | 8 |
+
+- **31 Oct, confirmed:**
+  - COFORGE's six-month filing (R4).
+  - Tax-driven profit changes (R5).
+  - A segment promise judged on company totals (R10).
+  - A legal adjournment ranked Needs you because a rule matched "SEBI" in boilerplate.
+- **2 Nov, confirmed:**
+  - On a Monday the 24-hour brief started on Sunday night and hid Friday's results. The brief now covers N trading sessions of price moves plus every filing since the close before them.
+  - The track record counted revised promises as misses.
+  - "Cheap for its growth" showed the week DIXON's profit fell 45%.
+  - Bank pages used the industrial template (R6).
+  - DIXON's other-income swing was missed (R5).
+- **Not true:** "prices look seeded" (R8).
+- **Gaps closed on 3 Nov:**
+  - Annual reports read (R7).
+  - Bank KPIs (R6).
+  - More promises decided by numbers (R10).
+  - Bull and bear points that join facts (R11).
+  - Push notifications (R13).

@@ -16,7 +16,7 @@ from backend.config import ROOT
 
 load_dotenv(ROOT / ".env")
 
-# Routing (RESEARCH E10, E14, E19):
+# Routing (RESEARCH R9):
 # LITE   bulk work: classifying filings, reading filing PDFs, bios.
 # SMART  Flash-Lite with the higher daily quota, for bull and bear and Ask, where Python checks every reference.
 # REASON the promise ledger only: one call per company reads four transcripts and judges what happened.
@@ -28,7 +28,7 @@ REASON_FALLBACK = os.getenv("FINN_REASON_FALLBACK", "gemini-3.8-flash")
 # When a model is out of daily quota or keeps answering 503 "high demand", try its sibling.
 FALLBACK = {LITE: SMART, SMART: LITE, REASON: REASON_FALLBACK}
 
-# Free tier limits for this project, read from AI Studio on 2026-10-31 (RESEARCH E19).
+# Free tier limits for this project, read from AI Studio on 2026-10-31 (RESEARCH R9).
 RPM = {"gemini-3.1-flash-lite": 15, "gemini-3.5-flash-lite": 15, "gemini-3.6-flash": 5, "gemini-3.8-flash": 5}
 RPD = {"gemini-3.1-flash-lite": 500, "gemini-3.5-flash-lite": 500, "gemini-3.6-flash": 20, "gemini-3.8-flash": 20}
 PACIFIC = ZoneInfo("America/Los_Angeles")  # "RPD quotas reset at midnight Pacific time" (Google docs)
@@ -139,7 +139,7 @@ def generate(
             return r.parsed if schema else r.text
         except errors.APIError as e:
             _log(task, model, None, t0, ok=False)
-            # Say why: a per-day refusal and a per-minute one need different responses (RESEARCH E33).
+            # Say why: a per-day refusal and a per-minute one need different responses (RESEARCH R9).
             quota = ", ".join(sorted(set(re.findall(r"quotaId'?\"?:\s*'?\"?([\w-]+)", str(e))))) or "none named"
             print(f"llm: {task} on {model} refused, {e.code} ({quota}): {str(e)[:160]}", flush=True)
             if e.code == 429 and "PerDay" in str(e):

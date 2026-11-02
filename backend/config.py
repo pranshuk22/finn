@@ -11,7 +11,7 @@ USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 )
 
-# ticker -> (display name, sector, size). Verified on yfinance and Screener, see RESEARCH E9.
+# ticker -> (display name, sector, size). Verified on yfinance and Screener, see RESEARCH R8.
 PORTFOLIO: dict[str, tuple[str, str, str]] = {
     "RELIANCE": ("Reliance Industries", "Energy and telecom", "Large"),
     "TCS": ("Tata Consultancy Services", "IT services", "Large"),
@@ -33,13 +33,13 @@ PORTFOLIO: dict[str, tuple[str, str, str]] = {
     "GRAVITA": ("Gravita India", "Recycling", "Small"),
 }
 
-# Ad-hoc research picks, outside the portfolio. See RESEARCH E13.
+# Ad-hoc research picks, outside the portfolio. See RESEARCH R7.
 ADHOC = ["ASIANPAINT", "HAL", "PIDILITIND", "BAJFINANCE"]
 
 # Lenders: EBITDA is not meaningful, so results cards skip it.
 FINANCIALS = {"HDFCBANK", "ICICIBANK", "BAJFINANCE"}
 
-# Old or common names -> current NSE symbol. ZOMATO.NS returns 404 (RESEARCH E9).
+# Old or common names -> current NSE symbol. ZOMATO.NS returns 404 (RESEARCH R8).
 ALIASES = {
     "ZOMATO": "ETERNAL",
     "L&T": "LT",
@@ -75,7 +75,7 @@ CATEGORIES = [
 ]
 
 # NSE `desc` labels that map to exactly one category. Every label here was seen in live
-# NSE data (TCS full history plus all 18 tickers for October 2026, RESEARCH E2). Anything
+# NSE data (TCS full history plus all 18 tickers for October 2026, RESEARCH R1). Anything
 # not here goes to text rules, then to the model.
 LABEL_MAP: dict[str, str] = {
     "Financial Result Updates": "results",

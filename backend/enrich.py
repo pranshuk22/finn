@@ -1,7 +1,7 @@
 """Read the filing PDF for cards that need more than the exchange one-liner.
 
 Management changes: who joined or left, in what role, and a short background from a web search.
-Exchange summaries like "change in Management" do not name the person (RESEARCH E4).
+Exchange summaries like "change in Management" do not name the person (RESEARCH R3).
 """
 
 import json
@@ -123,7 +123,7 @@ def search_bio(name: str, company: str, role: str) -> dict | None:
     # Quoted, role-specific queries returned nothing; company in the query still guards against namesakes.
     results, query = [], ""
     # Plain "name company" results were mostly news of the appointment itself; asking for career history
-    # surfaced earlier employers and education (RESEARCH E18).
+    # surfaced earlier employers and education (RESEARCH R3).
     for query in (f"{name} career previously worked", f"{name} {company} profile"):
         for attempt in range(2):  # the search backend returns "No results" intermittently
             try:
@@ -151,7 +151,7 @@ def search_bio(name: str, company: str, role: str) -> dict | None:
     used = sorted({i for i in bio.sources if 1 <= i <= len(results)})
     if not used or not bio.lines:
         return None
-    # Namesakes are common (RESEARCH E5, E18). Trust the bio only if a source it uses names the company.
+    # Namesakes are common (RESEARCH R3). Trust the bio only if a source it uses names the company.
     key = _company_key(company)
     tied = any(key in (results[i - 1]["title"] + " " + results[i - 1]["body"]).lower() for i in used)
     return {
@@ -217,7 +217,7 @@ _NOT_SENIOR = re.compile(r"independent|non-?executive|nominee", re.I)
 
 def is_senior(role: str) -> bool:
     """Seniority is a rule, not the model's call: it marked independent directors and senior-management staff
-    as senior, which put routine board changes into Needs you (classifier eval, E27)."""
+    as senior, which put routine board changes into Needs you (classifier eval, R2)."""
     return bool(_SENIOR.search(role or "")) and not _NOT_SENIOR.search(role or "")
 
 

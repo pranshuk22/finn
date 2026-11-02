@@ -80,7 +80,7 @@ def sync_nse_transcripts(ticker: str) -> None:
     """Use the exchange's own transcript filings as the primary source.
 
     Screener's links can be wrong: for TCS its "Jul 2026" transcript pointed to the Jul 2025 call on
-    tcs.com, which also answers 403 to scripts (RESEARCH E16).
+    tcs.com, which also answers 403 to scripts (RESEARCH R7).
     """
     from backend.sources.nse import NSE
 
@@ -642,7 +642,7 @@ def _verdict(p: dict) -> dict:
     # Growth is unambiguous, so Python decides it. Margin definitions differ (Asian Paints guides on PBDIT
     # including other income, Screener's operating margin excludes it), so a margin is decided by numbers only
     # when the promise names its definition and FINN rebuilt that one from the filing; otherwise the verdict
-    # rests on the verified quotes and our number is shown as context (RESEARCH E20, E41).
+    # rests on the verified quotes and our number is shown as context (RESEARCH R10).
     # An open-ended target can only be on or off track by the numbers; a later call that settled it (TCS said its
     # "26% to 28%" would not come in the coming quarters) is worth more than the latest quarter, so it stands.
     settled = status in ("delivered", "missed", "revised") and check and check["status"] in ("on_track", "off_track")
@@ -684,7 +684,7 @@ def recheck_ledgers() -> int:
 
 
 def build_ledger(ticker: str) -> dict:
-    """One reasoning call per company: the free tier allows 20 Flash requests a day (RESEARCH E19).
+    """One reasoning call per company: the free tier allows 20 Flash requests a day (RESEARCH R9).
 
     Python then checks every quote, decides numeric promises from reported numbers, and spots revisions.
     """

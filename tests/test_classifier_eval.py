@@ -1,4 +1,4 @@
-"""Regression test on the human-labelled filings in eval/ (RESEARCH E27).
+"""Regression test on the human-labelled filings in eval/ (RESEARCH R2).
 
 Runs only the deterministic stages (exchange label, text rules, priority rules) on the exchange text the labeller
 saw. Filings those stages cannot place go to the model in production and are skipped here. Management changes are

@@ -8,7 +8,7 @@ def download(tickers: list[str], days: int = 120) -> list[tuple[str, str, float,
     """Rows of (ticker, date, close, volume).
 
     The latest row sometimes has volume but no close (seen for all 18 tickers on
-    2026-10-30, RESEARCH E9). Such rows are dropped, never filled.
+    2026-10-30, RESEARCH R8). Such rows are dropped, never filled.
     """
     df = yf.download(
         [t + ".NS" for t in tickers],

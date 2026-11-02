@@ -1,6 +1,6 @@
 """Filing classification in three stages: exchange label, text rules, then a small model.
 
-Stage shares on October 2026 data before tuning: 50% label, 28% rules, 23% model (RESEARCH E3).
+Stage shares on October 2026 data before tuning: 50% label, 28% rules, 23% model (RESEARCH R2).
 """
 
 import re
@@ -92,7 +92,7 @@ AMBIGUOUS_LABELS = {
     "Analysts/Institutional Investor Meet/Con. Call Updates",
     "Record Date",
     "Allotment of Securities",
-    "Committee Meeting Updates",  # carried a Rs 4,265 crore QIP allocation (eval, E27)
+    "Committee Meeting Updates",  # carried a Rs 4,265 crore QIP allocation (eval, R2)
     "Shareholders meeting",  # also used for postal ballot notices
     "Agreements",
     "Agreement",
@@ -126,7 +126,7 @@ def priority(category: str, text: str, label: str = "") -> str:
             return "routine"
         if _has(t, r"to consider|intimation of (the )?board meeting|will be held|is scheduled|trading window"):
             return "routine"
-        # Companion documents: the numbers are in the results filing itself (eval, E27).
+        # Companion documents: the numbers are in the results filing itself (eval, R2).
         if label in ("Investor Presentation", "Press Release") or _has(t, r"presentation|shareholders?'? ?letter"):
             return "worth_knowing"
         return "needs_you"
@@ -178,7 +178,7 @@ def priority(category: str, text: str, label: str = "") -> str:
         and _has(t, r"presentation")
         and _has(t, r"\bq[1-4]\b|quarter|results|financials")
     ):
-        return "worth_knowing"  # the deck that explains a quarter's numbers (eval, E27)
+        return "worth_knowing"  # the deck that explains a quarter's numbers (eval, R2)
     if category == "press_release":
         return (
             "worth_knowing"
