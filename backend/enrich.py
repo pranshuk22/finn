@@ -70,7 +70,7 @@ If the results may describe a different person with the same name, set confident
 Do not add anything that is not in the results."""
 
 
-_NO_NUMBER = re.compile(r"^\D*$")
+_HAS_VOLUME = re.compile(r"\d[\d,.]*\s*(units|vehicles|tonnes|%|lakh)", re.I)
 
 
 def _needs_read(f) -> bool:
@@ -81,7 +81,7 @@ def _needs_read(f) -> bool:
     if f["category"] == "credit_rating" and len(f["summary"] or "") < 40:
         return True
     if re.search(r"sales for the month|monthly sales|production (volumes?|numbers)", f["summary"] or "", re.I):
-        return bool(_NO_NUMBER.match(f["summary"] or ""))
+        return not _HAS_VOLUME.search(f["summary"] or "")  # a date is not a sales figure
     if f["priority"] == "routine":
         return False
     if f["category"] == "management_change":
