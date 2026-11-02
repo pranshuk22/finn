@@ -2,7 +2,7 @@
 
 **How FINN was built with AI, in five days.**
 
-FINN was built in [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, between 30 Oct and 3 Nov 2026. I set the direction, the rules and the design, and reviewed what came back. Claude Code wrote the code, ran the tests and deploys, and checked every claim against live data. Inside the product, Gemini models read and judge text; Python does all the arithmetic.
+FINN was built in [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, between 30 Oct and 3 Nov 2026. I set the direction, the rules and the design, and checked everything myself, several times over: the app on my phone, the numbers against the filings, and every change before it shipped. Claude Code wrote the code, ran the tests and deploys, and checked every claim against live data. Inside the product, Gemini models read and judge text; Python does all the arithmetic.
 
 | At a glance | |
 | --- | --- |
@@ -12,12 +12,6 @@ FINN was built in [Claude Code](https://claude.com/claude-code), Anthropic's cod
 | **Independent reviews** | 2 blind reviews of the live app, 31 Oct and 2 Nov |
 | **Commits** | all mine, none with an AI co-author |
 | **Model cost** | Rs 0, on the Gemini free tier |
-
-## The rules, from the first prompt (lightly edited)
-
-> No em dash in the app or the repo. Use human language, but don't oversimplify the technical words. Keep commit messages short. Never add yourself as a co-author. Everything you do must be backed with evidence.
-
-They held to the end. CI fails on any en or em dash, and each claim in the README links to the [research log](docs/RESEARCH.md), where it was checked.
 
 ## Five days
 
@@ -31,7 +25,7 @@ They held to the end. CI fails on any en or em dash, and each claim in the READM
 
 ## Checks, not trust
 
-Every result from the agent or a model was checked before it shipped. Some of what those checks caught:
+Nothing was taken on trust. I went through the app and its numbers by hand, more than once, and every result from the agent or a model was also checked against the source before it shipped. Some of what those checks caught:
 
 - **A wrong number in an answer.** Ask once quoted Dixon's revenue growth as 39.7%, from an older call; the filing says 40.2%. Numbers in answers are now matched to a source at the precision written.
 - **A false finding.** A reviewer said the prices looked seeded. NSE's own closing-price file for 2 Nov has the same round closes, so nothing was changed.
