@@ -98,7 +98,7 @@ export function HelpContent() {
             </li>
           ))}
         </ul>
-        <p className="text-muted">Ask answers only from the last four calls, with quotes. If no quote can be verified, it says so instead of answering.</p>
+        <p className="text-muted">Ask answers number questions from the results filed with NSE first, then adds what management said on the last four calls, with quotes. A sentence whose number is in neither is removed, and if nothing can be traced it says so instead of answering.</p>
       </Part>
 
       <Part title="The scorecard">

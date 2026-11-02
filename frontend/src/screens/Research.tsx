@@ -21,7 +21,7 @@ const SECTIONS = [
   { id: "ledger", label: "Narrative vs numbers" },
   { id: "guidance", label: "Guidance" },
   { id: "bullbear", label: "Bull and bear" },
-  { id: "ask-calls", label: "Ask the calls" },
+  { id: "ask-calls", label: "Ask results and calls" },
   { id: "sources", label: "Sources" },
 ];
 
@@ -57,6 +57,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
   }
 
   const s = r.snapshot;
+  const canAsk = !!r.results || r.documents.some((d) => d.kind === "transcript");
   const price = s.ratios["Current Price"] as number | undefined;
   const hl = s.ratios["High / Low"] as number[] | undefined;
   const stats: [string, string][] = [
@@ -155,9 +156,9 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
         </>
       )}
 
-      {r.documents.some((d) => d.kind === "transcript") && (
+      {canAsk && (
         <>
-          <SectionTitle id="ask-calls">Ask the calls</SectionTitle>
+          <SectionTitle id="ask-calls">Ask results and calls</SectionTitle>
           <div className="mx-4 flex flex-wrap gap-2">
             {SUGGESTED.map((q) => (
               <button
@@ -170,7 +171,10 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
               </button>
             ))}
           </div>
-          <p className="mx-4 mt-2 text-[12px] text-muted">Answers come only from the last four calls, each with a quote checked against the transcript.</p>
+          <p className="mx-4 mt-2 text-[12px] text-muted">
+            Numbers come from the results filed with NSE, and management's words from the last four calls, each quote
+            checked against the transcript. A sentence whose number is in neither is removed.
+          </p>
         </>
       )}
 
@@ -188,7 +192,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
         <li className="py-3 text-[12px] text-muted">{s.source}. Quarterly results from NSE integrated filings.</li>
       </ul>
 
-      <AskBar ticker={r.ticker} hasTranscripts={r.documents.some((d) => d.kind === "transcript")} />
+      <AskBar ticker={r.ticker} show={canAsk} />
     </div>
   );
 }
@@ -532,13 +536,13 @@ function BullBearList({ title, tone, points }: { title: string; tone: "up" | "do
 
 // Most people do not know what to ask a set of earnings calls; these show what Ask is good at.
 export const SUGGESTED = [
+  "How did profit change last quarter?",
   "What did they guide for revenue growth?",
   "What did they say about margins?",
-  "Any capex or capacity plans?",
   "What risks did management flag?",
 ];
 
-function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: boolean }) {
+function AskBar({ ticker, show }: { ticker: string; show: boolean }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -566,7 +570,7 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
     }
   };
 
-  if (!hasTranscripts) return null;
+  if (!show) return null;
 
   return (
     <>
@@ -593,7 +597,7 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
           </div>
         )}
         <label htmlFor="ask" className="sr-only">
-          Ask about {ticker}'s earnings calls
+          Ask about {ticker}'s results and calls
         </label>
         <input
           id="ask"
@@ -601,7 +605,7 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
           onChange={(e) => setText(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={`Ask ${ticker}'s earnings calls`}
+          placeholder={`Ask about ${ticker}'s results and calls`}
           maxLength={500}
           enterKeyHint="send"
           className="h-11 min-w-0 flex-1 rounded-[10px] border border-line bg-card px-3 text-[16px] text-ink placeholder:text-muted focus:border-accent focus:outline-none"
@@ -610,18 +614,39 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
           Ask
         </button>
       </form>
-      <Sheet open={!!answer} onClose={() => !busy && setAnswer(null)} title="From the earnings calls">
+      <Sheet open={!!answer} onClose={() => !busy && setAnswer(null)} title="From the filings and calls">
         {answer && (
           <div className="space-y-4">
             <p className="text-[13px] text-muted">{answer.q}</p>
-            {busy && <p className="text-[14px] text-muted">Reading the transcripts. This usually takes a few seconds.</p>}
+            {busy && <p className="text-[14px] text-muted">Reading the results and transcripts. This usually takes a few seconds.</p>}
             {answer.err && <p className="text-[14px] text-down">{answer.err}</p>}
             {answer.a && (
               <>
                 {!answer.a.covered && (
-                  <p className="text-[13px] font-semibold text-needs">{answer.a.unverified ? "No quote could be verified" : "Not covered by the calls"}</p>
+                  <p className="text-[13px] font-semibold text-needs">{answer.a.unverified ? "Nothing could be traced to a source" : "Not covered by the results or calls"}</p>
                 )}
                 <p className="text-[15px]">{plain(answer.a.answer)}</p>
+                {!!answer.a.figures?.length && (
+                  <div className="rounded-[10px] border border-line bg-card px-3 py-2.5">
+                    <p className="text-[12px] font-medium text-muted">Reported figures</p>
+                    <ul className="mt-1.5 space-y-2">
+                      {answer.a.figures.map((f) => (
+                        <li key={f.id} className="tabular text-[13px] leading-snug">
+                          {f.text}
+                          <span className="mt-0.5 block text-[12px] text-muted">
+                            {f.source}
+                            {f.url && (
+                              <>
+                                {" · "}
+                                <ExtLink href={f.url}>Open</ExtLink>
+                              </>
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {answer.a.citations.map((c) => (
                   <figure key={`${c.source}-${c.page}-${c.quote.slice(0, 20)}`} className="m-0 border-l-2 border-accent pl-4">
                     <blockquote className="m-0 font-serif text-[17px] leading-relaxed">{plain(c.quote)}</blockquote>
@@ -630,6 +655,13 @@ function AskBar({ ticker, hasTranscripts }: { ticker: string; hasTranscripts: bo
                     </figcaption>
                   </figure>
                 ))}
+                {!!answer.a.removed_sentences && (
+                  <p className="text-[12px] text-muted">
+                    {answer.a.removed_sentences > 1 ? `${answer.a.removed_sentences} sentences were removed: their numbers (` : "1 sentence was removed: its number ("}
+                    {answer.a.unmatched_numbers?.join(", ")}) {answer.a.removed_sentences > 1 ? "are" : "is"} not in the filed results or a
+                    verified quote.
+                  </p>
+                )}
                 {!!answer.a.unverified_dropped && (
                   <p className="text-[12px] text-muted">
                     {answer.a.unverified_dropped} quote{answer.a.unverified_dropped > 1 ? "s" : ""} could not be found in the PDF and{" "}

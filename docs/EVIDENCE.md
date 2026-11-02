@@ -483,6 +483,34 @@ Tests: backend 47, frontend 34.
 - The app sends a request again after 1.5s and then 4s when the proxy answers 502 or 503. The request never reached the API, so a POST is safe to repeat. Two tests in `frontend/src/api.test.ts` cover this.
 - The same question, asked again, returned a cited answer in 5.7s.
 
+## E39. Ask answers number questions from the filed results
+
+**Problem, 1 Nov:** on RELIANCE, "What are the profits?" was answered from the calls alone. The answer gave the Q1 group profit (Rs 23,200 crore, quoted from the Jul 2026 call) next to the retail and Jio subsidiaries' profits, as if they were the same kind of number. The Q2 FY27 results, filed with NSE on 30 Oct, were missing.
+
+**Change:** Ask now also gets the company's reported figures as numbered facts, each with its source:
+- the latest quarter's lines with QoQ and YoY, from the NSE results filing;
+- five quarters of revenue and PAT;
+- the latest segment results;
+- three full years, from Screener.
+
+The prompt says that for a number question it starts from those figures and then adds what management said. "Profit" means consolidated PAT, and a segment's profit is never the company's. Python then checks every number in the answer against the figures and the verified quotes, rounded to the precision written, and removes any sentence whose number is in neither.
+
+**Why exact rounding:** a first version allowed a 1% gap. On DIXON, "What was revenue growth last quarter?" then let an older call's "YoY 39.7%" pass for the filed 40.2%. The check now requires 39.7 to equal the source rounded to one decimal, which it does not (`tests/test_ask.py`).
+
+**Run against the live server, 2 Nov:**
+
+| Question | Answer starts with | Sources | Removed |
+|---|---|---|---|
+| RELIANCE: What are the profits? | Q2 FY27 consolidated PAT Rs 29,550 crore, up 27.4% QoQ and 33.8% YoY; FY26 Rs 95,754 crore | 3 figures, 2 quotes from the Nov 2026 call, answered in 4.5s | 0 |
+
+**Run on local data the same day:**
+
+| Question | Answer starts with | Sources | Removed |
+|---|---|---|---|
+| DIXON: What was revenue growth last quarter? | Q2 FY27 revenue Rs 21,794 crore, up 40.2% QoQ and 46.7% YoY | 1 figure | 0 |
+| HDFCBANK: How did net profit change this quarter? | Q2 FY27 PAT Rs 20,700 crore, up 1.6% QoQ and 5.6% YoY | 2 figures | 1 sentence ("12.7%"; its quote was not found in the PDF) |
+| RELIANCE: What did management say about Jio tariff hikes? | no plans to change base tariffs | 1 quote | 0 |
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

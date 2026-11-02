@@ -303,10 +303,13 @@ export interface Research {
 
 export interface Answer {
   covered: boolean;
-  unverified?: boolean; // the model said the calls cover it, but none of its quotes was found in the PDF
+  unverified?: boolean; // the model said it could answer, but nothing it said traced to a figure or a quote
   answer: string;
+  figures?: { id: string; text: string; source: string; url: string | null }[]; // from the filed results
   citations: { source: string; page: number; quote: string; url: string }[];
   unverified_dropped?: number;
+  removed_sentences?: number; // sentences whose number was in no source
+  unmatched_numbers?: string[];
 }
 
 /** What a watchlist row shows. Prices are kept for the portfolio only, so ad-hoc companies have none. */

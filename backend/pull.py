@@ -680,27 +680,166 @@ class Citation(BaseModel):
 
 
 class Answer(BaseModel):
-    covered: bool = Field(description="False if the transcripts do not answer the question")
-    answer: str = Field(description="At most 80 words")
+    covered: bool = Field(description="False if neither the figures nor the transcripts answer the question")
+    answer: str = Field(description="At most 90 words")
+    figures: list[str] = Field(description="Ids of the REPORTED FIGURES used, like R1")
     citations: list[Citation]
 
 
-_ASK_SYSTEM = """Answer an investor's question about a company using only the earnings call transcripts given.
-If they do not answer it, set covered to false and say what they do cover instead.
-Every factual sentence needs a citation with an exact quote. Do not use outside knowledge."""
+_ASK_SYSTEM = """Answer an investor's question about a company. You have two sources:
+1. REPORTED FIGURES, numbered [R1], [R2] and so on: the company's own numbers from its results filed with the exchange
+   (and its annual accounts).
+2. Earnings call transcripts, where management explains the numbers.
+
+For a question about numbers (revenue, profit, margins, growth, a segment, a quarter or a year):
+- Answer from the REPORTED FIGURES first: the latest quarter with its change from the previous quarter and from a
+  year earlier, then the last full year if it helps. List the ids you used in figures.
+- Then, in a sentence or two at most, add what management said about it, naming the call by its header,
+  with exact quotes. Each call discusses the quarter that ended just before it.
+- "Profit" for the company means its consolidated PAT. A segment's or subsidiary's profit is never the company's
+  profit: name the business whenever you use one.
+- The calls can be older than the latest results. Never present a number from a call as the latest.
+For anything else, answer from the transcripts.
+If neither source answers it, set covered to false and say what they do cover.
+Every sentence needs a figure id or an exact quote, but keep ids and page numbers out of the answer text; they go in
+figures and citations. Copy numbers as written. Do not use outside knowledge."""
+
+
+def _reported(c, ticker: str) -> dict[str, dict]:
+    """The company's reported numbers as short numbered facts, so Ask answers number questions from the filing
+    rather than from what someone said on a call. Each fact carries where it came from."""
+    out: dict[str, dict] = {}
+
+    def add(text: str, source: str, url: str | None) -> None:
+        out[f"R{len(out) + 1}"] = {"text": text, "source": source, "url": url}
+
+    rc = A.results_card(c, ticker)
+    if rc:
+        basis = "consolidated" if rc["consolidated"] else "standalone"
+        src = f"{rc['quarter']} results filing"
+        ended = date.fromisoformat(rc["period_end"]).strftime("%-d %b %Y")
+        prev_q = rc["history"][-2]["quarter"] if len(rc.get("history") or []) >= 2 else "previous quarter"
+        names = {"PAT": "PAT (net profit)"}
+        for r in rc["rows"]:
+            if r["label"] in rc.get("suspect", []):
+                continue
+            name = names.get(r["label"], r["label"])
+            text = f"{rc['quarter']} (quarter ended {ended}), {basis} {name}: Rs {_n(r['value'])} crore"
+            if r["prev"] is not None:
+                text += f"; {prev_q} Rs {_n(r['prev'])} crore, QoQ {_n(r['qoq'])}%"
+            if r["year_ago"] is not None:
+                text += f"; a year earlier Rs {_n(r['year_ago'])} crore, YoY {_n(r['yoy'])}%"
+            add(text, src, rc["source_url"])
+        for m in rc.get("margins", []):
+            add(
+                f"{rc['quarter']} {basis} {m['label']}: {_n(m['now'])}%, {prev_q} {_n(m['prev'])}%, a year earlier "
+                f"{_n(m['year_ago'])}%",
+                src,
+                rc["source_url"],
+            )
+        if rc.get("tax_note"):
+            add(f"{rc['quarter']} note: {rc['tax_note']}", src, rc["source_url"])
+        hist = rc.get("history") or []
+        for label in ("Revenue", "PAT"):
+            pts = [f"{h['quarter']} {_n(h[label])}" for h in hist if h.get(label) is not None]
+            if len(pts) >= 3:
+                add(
+                    f"{basis.capitalize()} {names.get(label, label)} by quarter, Rs crore: {', '.join(pts)}",
+                    f"Results filings, last five quarters (link: {rc['quarter']})",
+                    rc["source_url"],
+                )
+    seg = A.segments(c, ticker)
+    if seg:
+        # A lender's segment result is after interest (interest is its cost of goods); anyone else's is before it.
+        result = "before tax" if rc and rc["is_bank"] else "before interest and tax"
+        for i in seg.get("items", []):
+            if not i.get("revenue"):
+                continue  # "Unallocated": costs with no revenue
+            parts = [f"revenue Rs {_n(i['revenue'])} crore"]
+            if i.get("result") is not None:
+                parts.append(f"segment result ({result}) Rs {_n(i['result'])} crore")
+            if i.get("yoy") is not None:
+                parts.append(f"revenue YoY {_n(i['yoy'])}%")
+            add(
+                f"{seg['quarter']} segment {i['name']}: " + ", ".join(parts),
+                f"{seg['quarter']} results filing",
+                seg["source_url"],
+            )
+    annual = A.trajectory(c, ticker)["annual"]
+    for label in ("Revenue", "Net profit"):
+        pts = [f"FY ended {a['period']} {_n(a['value'])}" for a in annual.get(label, [])[-3:]]
+        if pts:
+            add(
+                f"{label}, full year, consolidated, Rs crore: {', '.join(pts)}",
+                "Annual accounts, compiled by Screener",
+                f"{screener.BASE}/company/{ticker}/consolidated/",
+            )
+    return out
+
+
+_NUM = re.compile(r"(?<![A-Za-z])\d[\d,]*(?:\.\d+)?")
+_LABELS = re.compile(r"\b(Q[1-4]|H[12]|FY|9M)\s?'?\d{0,4}|\b(19|20)\d{2}\b", re.I)
+
+
+def _numbers(text: str) -> list[float]:
+    return [float(m.replace(",", "")) for m in _NUM.findall(_LABELS.sub(" ", text))]
+
+
+def unmatched_numbers(answer: str, sources: list[str]) -> list[str]:
+    """Numbers in the answer that are in none of the sources, once rounded to the precision written: 34 matches
+    33.8, and 3.33 lakh crore matches 332,861 crore, but 39.7 does not match 40.2. On 2 Nov a looser 1% check let
+    DIXON's "YoY 39.7%" from an older call pass for the filed 40.2%."""
+    have = [n for s in sources for n in _numbers(s)]
+
+    def found(raw: str) -> bool:
+        x = float(raw.replace(",", ""))
+        d = len(raw.split(".")[1]) if "." in raw else 0
+        return any(abs(round(h, d) - x) < 1e-9 or abs(round(h / 1e5, d) - x) < 1e-9 for h in have)
+
+    out = []
+    for raw in _NUM.findall(_LABELS.sub(" ", answer)):
+        if float(raw.replace(",", "")) >= 10 and not found(raw) and raw not in out:  # 1 to 9 are mostly counts
+            out.append(raw)
+    return out
+
+
+def _drop_unbacked(answer: str, unmatched: list[str]) -> tuple[str, int]:
+    """Remove each sentence carrying a number no source has. A wrong figure costs more trust than a shorter answer."""
+    if not unmatched:
+        return answer, 0
+    sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z\"\u201c])", answer)
+    bad = re.compile(r"(?<![\d,.])(" + "|".join(re.escape(u) for u in unmatched) + r")(?![\d,]|\.\d)")
+    kept = [x for x in sentences if not bad.search(_LABELS.sub(" ", x))]
+    return " ".join(kept), len(sentences) - len(kept)
+
+
+_REF = re.compile(r"\s*\[(?:R\d+|F\d+|p\.|page)[^\]]*\]")  # "[R4]", "[R3, p. 3]": the model's own pointers
 
 
 def ask(ticker: str, question: str) -> dict:
     docs = load_transcripts(ticker)
-    if not docs:
-        return {"covered": False, "answer": "No readable transcripts for this company.", "citations": []}
-    texts = "\n\n".join(f"===== {d['period']} call =====\n{_paged(d)}" for d in docs)
+    with db.session() as c:
+        figs = _reported(c, ticker)
+    if not docs and not figs:
+        return {
+            "covered": False,
+            "answer": "No results or transcripts for this company yet.",
+            "figures": [],
+            "citations": [],
+        }
+    listing = "\n".join(f"[{k}] {v['text']}" for k, v in figs.items()) or "None"
+    texts = "\n\n".join(f"===== {d['period']} call =====\n{_paged(d)}" for d in docs) or "None"
+    latest = next(
+        (v["source"].removesuffix(" results filing") for v in figs.values() if "results filing" in v["source"]), None
+    )
+    if latest:  # "last quarter" means the latest filed one, not the one the latest call discussed
+        listing += f"\nThe latest reported quarter is {latest}."
     res: Answer = llm.generate(
         task="ask",
         model=llm.SMART,
         schema=Answer,
         system=_ASK_SYSTEM,
-        contents=f"Company: {ticker}\n\n{texts}\n\nQuestion: {question}",
+        contents=f"Company: {ticker}\n\nTRANSCRIPTS\n{texts}\n\nREPORTED FIGURES\n{listing}\n\nQuestion: {question}",
     )
     cites, dropped = [], 0
     for ct in res.citations:
@@ -710,18 +849,24 @@ def ask(ticker: str, question: str) -> dict:
             dropped += 1
             continue
         cites.append({"source": d["period"], "page": pg, "quote": ct.quote, "url": d["url"]})  # not "Apr 2026 call"
-    answer = res.answer
-    covered = res.covered
-    unverified = covered and not cites  # the calls may cover it, but no quote could be found word for word
+    used = [{"id": f, **figs[f]} for f in dict.fromkeys(res.figures) if f in figs]  # an unknown id is dropped
+    answer, covered = _REF.sub("", res.answer).replace(" .", "."), res.covered
+    # every reported figure is a filed number, so any of them may back a number, cited or not
+    unmatched = unmatched_numbers(answer, [f["text"] for f in figs.values()] + [c["quote"] for c in cites])
+    answer, removed = _drop_unbacked(answer, unmatched)
+    unverified = covered and (not (cites or used) or not answer)  # nothing left that traces to a source
     if unverified:
         covered = False
-        answer = "I could not back an answer with an exact quote from the transcripts, so I am not giving one."
+        answer = "I could not back an answer with a reported figure or an exact quote, so I am not giving one."
     return {
         "covered": covered,
         "unverified": unverified,
         "answer": answer,
+        "figures": used,
         "citations": cites,
         "unverified_dropped": dropped,
+        "removed_sentences": removed,
+        "unmatched_numbers": unmatched,
     }
 
 
