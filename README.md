@@ -4,7 +4,7 @@ A mobile-first investing agent for Indian equities. It reads every NSE filing an
 
 Built for the ENAM Holdings AI Engineer Build Challenge (27 Oct to 1 Nov 2026).
 
-> **Status (31 Oct 2026):** FINN runs end to end on live data on an AWS Lightsail server in Mumbai: scheduled ingestion, classification, results, management cards, alerts, research, the promise ledger and Ask, behind a FastAPI app with a mobile web app installable to the home screen. Anything marked *(planned)* is not built yet; nothing here is described as done unless it runs. Claims about data sources and models link to [docs/EVIDENCE.md](docs/EVIDENCE.md), where each one was checked live. The build order and what is left are in [plan.md](plan.md).
+> **Status (3 Nov 2026):** FINN runs end to end on live data on an AWS Lightsail server in Mumbai: scheduled ingestion, classification, results, management cards, alerts with phone notifications, research, the promise ledger and Ask, behind a FastAPI app with a mobile web app installable to the home screen. Anything marked *(planned)* is not built yet; nothing here is described as done unless it runs. Claims about data sources and models link to [docs/EVIDENCE.md](docs/EVIDENCE.md), where each one was checked live. The build order and what is left are in [plan.md](plan.md).
 
 **Try it on your phone:** https://finn-mu-three.vercel.app (open in the phone browser, then Add to Home Screen)
 
@@ -58,7 +58,7 @@ The defaults are a starting opinion, not a rule. Today you choose which categori
 
 ### Pull: the research brief
 
-Search any NSE ticker. FINN builds a brief from primary sources only: exchange filings, Screener's standardised financials (taken from the companies' audited statements), and concall transcripts. Reading the annual report itself is *(planned)*; links to it are shown. No news, no broker notes, and the model is told not to use what it already knows about the company.
+Search any NSE ticker. FINN builds a brief from primary sources only: exchange filings, Screener's standardised financials (taken from the companies' audited statements), concall transcripts and the latest annual report. No news, no broker notes, and the model is told not to use what it already knows about the company.
 
 | Section (in the order of the challenge brief) | What it answers | Source |
 | --- | --- | --- |
@@ -66,17 +66,19 @@ Search any NSE ticker. FINN builds a brief from primary sources only: exchange f
 | Financial snapshot | Market cap, P/E, ROCE or ROE, TTM revenue, margin and net profit, debt to equity (price to book for lenders), latest quarter with QoQ and YoY. | Screener tables, NSE results filing |
 | Trajectory | What is growing and what is compressing over 5 years. | Screener tables, computed in Python |
 | Balance sheet | Borrowings, debt to equity, interest coverage, funding mix (deposits for banks), capital work in progress, working-capital days. | Screener tables, computed in Python |
+| Lending (banks) | Net interest income and its growth, gross and net NPA, CET1, credit cost and NII to assets, by quarter (E41). | The bank's standalone NSE results filing |
 | Cash quality | Do profits turn into cash? CFO to operating profit, operating and free cash flow. | Screener tables, computed in Python |
 | **Narrative vs numbers** | The promise ledger: what management promised on past calls, and what happened. | Transcripts, reported numbers incl. segments |
 | Guidance | Open numeric targets from the same calls, grouped into revenue growth, margins, capex and other. | Transcripts |
-| Bull and bear | The tightest case each way, every point cited; a segment point on each side when there are segments. | Everything above |
-| Ask | Follow-up questions, answered only from the last four transcripts, with page citations. | Transcripts |
+| Bull and bear | The tightest case each way. Each point must join at least two cited facts into a cause, consequence or contradiction; a point that restates one number is removed (E41). | Everything above |
+| Ask | Follow-up questions. Number questions are answered from the filed results first, then management's words from the last four calls; the latest annual report is searched page by page for what calls do not cover (auditors, directors, related parties). Every quote is checked against its PDF, and a sentence whose number is in no source is removed (E39, E41). | NSE results filings, transcripts, annual report |
 
 **The promise ledger is the centre of Pull.** One model call reads the last four transcripts in date order. For each guidance statement ("we expect 8 to 10% volume growth this year") it records the metric, the target, the timeframe, the exact quote and the page, and then what happened on later calls. Python then checks everything:
 
 - **Every quote is looked up in the transcript.** A promise whose quote is not there is never shown. A verdict whose supporting quote is not there becomes **Unclear**.
 - **Growth promises** (revenue, profit) are decided in Python against reported numbers: **Delivered**, **Missed**, or **On track** / **Off track** while the period is open.
-- **Margin promises** rest on the quotes, with FINN's own margin shown as context. Companies define margins differently: Asian Paints guides on PBDIT including other income, which Screener's operating margin excludes ([E20](docs/EVIDENCE.md#e20-margin-promises-cannot-be-judged-by-our-margin-number-alone)).
+- **Margin promises** are decided in Python when the promise names its definition: EBIT, EBITDA or PBDIT is rebuilt from the filed line items (IT services companies say "operating margin" for EBIT; TCS's filing gives 23.98% and TCS said "24%"). A margin with no stated definition rests on the quotes, with FINN's number as context ([E20](docs/EVIDENCE.md#e20-margin-promises-cannot-be-judged-by-our-margin-number-alone), E41).
+- **Segment and full-year promises**: a target for a reported segment is checked against that segment's rows in the filings (Titan's jewellery EBIT margin), and a full-year revenue target in rupees against the quarters filed so far.
 - **Revised**: the same metric was guided again with a different target. Detected in Python.
 - **Dropped**: never mentioned again on a later call. Often the most telling one.
 - **Pending**: the timeframe has not ended.
@@ -87,7 +89,7 @@ Ledgers are prebuilt for 11 companies ([E26](docs/EVIDENCE.md#e26-ledger-batch-f
 
 Two real rows from TCS: in Jan 2026 management said international revenue growth in FY26 would beat FY25; the Apr 2026 call says "FY 2026 revenue declined by 2.4% in constant currency" (Missed, page 5). In Apr 2026 they guided a 150 to 200 bp margin hit from wage increments; the Jul 2026 call says "impacted margins by 170 bps" (Delivered, page 5).
 
-**Banks and NBFCs:** EBITDA does not mean anything for a lender, so FINN does not show it for one. BAJFINANCE is in the demo set to keep this honest.
+**Banks and NBFCs:** EBITDA does not mean anything for a lender, so FINN does not show it for one. Banks get a Lending section and an asset-quality tile from their standalone filings, since the consolidated ones leave NPA ratios blank. BAJFINANCE is in the demo set to keep this honest; NBFC asset quality is not in its integrated filing, so it is not shown.
 
 ## Where AI is used, and where it is not
 
@@ -96,14 +98,14 @@ The rule: **models read and judge text. Python does arithmetic.** No percentage,
 | Task | Method | Why |
 | --- | --- | --- |
 | Results numbers, QoQ, YoY | Parse iXBRL, compute in Python | Exact numbers exist in structured form ([E6](docs/EVIDENCE.md#e6-quarterly-results-numbers-are-available-as-structured-data)). A model could only add error. |
-| Price and volume alerts | Python over stored EOD data | Thresholds are arithmetic. |
+| Price and volume alerts | Python over stored EOD data; Web Push to the phone | Thresholds are arithmetic. After each refresh, anything new that crosses the rules is sent once to every phone that turned on notifications (E41). |
 | Filing classification, first 213 of 275 (77%) | Exchange label map, then keyword rules | Free, instant, auditable ([E3](docs/EVIDENCE.md#e3-exchange-labels-alone-are-not-enough-to-classify)). |
 | Filing classification, remaining 23% | `gemini-3.1-flash-lite`, 20 filings per call | Cheapest Gemini 3 tier, free on the free tier ([E10](docs/EVIDENCE.md#e10-gemini-model-availability-and-free-tier-checked-against-google-docs)). 63 filings took 4 calls and about 9 seconds ([E3](docs/EVIDENCE.md#e3-exchange-labels-alone-are-not-enough-to-classify)). |
 | One-line summary of a vague filing | Flash-Lite reads the first pages of the PDF, 5 filings per call | Exchange summaries like "General Updates" say nothing. Batching keeps us under the free tier's 15 requests a minute ([E17](docs/EVIDENCE.md#e17-free-tier-limits-hit-in-practice)). |
 | Name, role and company from a management-change PDF | Flash-Lite, structured output, read together with the one-line summary | Short extraction task. The schema has a field for a subsidiary, after the model once presented an ICICI Life change as ICICI Bank's ([E18](docs/EVIDENCE.md#e18-model-mistakes-caught-while-enriching-filings-and-the-guards-added)). |
 | Executive background | The filing's own profile first, then `ddgs` web search and Flash-Lite to condense with sources | Gemini's built-in Search grounding is not on the free tier for Gemini 3 models ([E10](docs/EVIDENCE.md#e10-gemini-model-availability-and-free-tier-checked-against-google-docs)). |
 | Promise ledger | `gemini-3.6-flash`, low thinking, one call per company; `gemini-3.8-flash` as fallback | Judging promises against later calls needs reasoning over about 50k tokens. On one TCS transcript, 3.6 Flash took 7 s and 3.8 Flash 40 s ([E14](docs/EVIDENCE.md#e14-reasoning-model-latency-on-the-free-tier)). Flash allows only 20 requests a day on the free tier, so the ledger went from 5 calls per company to 1 ([E19](docs/EVIDENCE.md#e19-free-tier-daily-limits-and-the-routing-they-forced)). ASIANPAINT: 52.8k tokens in, 13 promises, 0 dropped for bad quotes. |
-| Bull and bear, Ask | `gemini-3.5-flash-lite` (500 requests a day) | Bull and bear only gets numbered facts FINN computed plus the ledger, and must cite their ids; Python drops any point without a valid id. Ask answers must quote the transcripts; Python checks the quotes. 1.7 s for ASIANPAINT's bull and bear. |
+| Bull and bear, Ask | `gemini-3.5-flash-lite` (500 requests a day) | Bull and bear only gets numbered facts FINN computed plus the ledger, and must cite their ids; Python drops any point without a valid id. Ask must cite a filed figure or quote a transcript; Python checks the quotes and that every number in the answer is in a source. 1.7 s for ASIANPAINT's bull and bear. |
 
 **Rate limits, daily budgets and outages are handled in one place** (`backend/llm.py`): calls are spaced to each model's per-minute limit; each model's calls since Pacific midnight are counted against its daily limit; 429s wait for the delay the API asks for; and a model that is out of quota or overloaded hands over to a sibling ([E17](docs/EVIDENCE.md#e17-free-tier-limits-hit-in-practice), [E19](docs/EVIDENCE.md#e19-free-tier-daily-limits-and-the-routing-they-forced)). Everything a model produces is stored, so it is paid for once.
 
@@ -116,7 +118,21 @@ The rule: **models read and judge text. Python does arithmetic.** No percentage,
 3. After the model answers, FINN checks that each quoted sentence actually appears in the source text: exact match first, then a strict fuzzy match (90% of the words, in order) that tolerates PDF ligature glyphs but rejects a changed number. Claims whose quote is not found are dropped before they reach the screen. Tests: `tests/test_quote_check.py`.
 4. If the sources do not cover a question, the answer says so.
 
-**Cost tracking:** every model call is logged in the `llm_calls` table with model, tokens in, out, cached and thinking, and latency; `GET /api/meta` returns the totals. The totals for a full demo run will be reported here as measured numbers, not estimates.
+**Cost tracking:** every model call is logged in the `llm_calls` table with model, tokens in, out, cached and thinking, and latency; `GET /api/meta` returns the totals.
+
+Measured on the production server from its first run (31 Oct 2026, 13:30 IST) to 1 Nov 2026, covering all filings classified and read, 13 promise ledgers, bull and bear for every ledger company (rebuilt twice), and test questions in Ask:
+
+| Model | Calls | Failed attempts | Tokens in | Tokens out | Average latency |
+| --- | --- | --- | --- | --- | --- |
+| `gemini-3.1-flash-lite` (classify, read filings, bios) | 210 | 79 | 256,686 | 29,203 | 3.7 s |
+| `gemini-3.5-flash-lite` (bull and bear, Ask) | 99 | 0 | 534,887 | 34,448 | 3.9 s |
+| `gemini-3.6-flash` (promise ledger) | 87 | 58 | 951,209 | 33,953 | 5.9 s |
+| `gemini-3.8-flash` (ledger fallback) | 10 | 7 | 268,543 | 9,118 | 61.5 s |
+| **Total** | **406** | **144** | **2,011,325** | **106,722** | |
+
+- Cost: Rs 0. Everything runs on the Gemini free tier; the limits it imposes shaped the design ([E19](docs/EVIDENCE.md#e19-free-tier-daily-limits-and-the-routing-they-forced)).
+- A failed attempt is a refusal that was retried or handed to the fallback model: per-minute limits and "model is experiencing high demand" overloads, logged one row per attempt. Large ledger calls now wait 60 s, then 120 s, between retries ([E33](docs/EVIDENCE.md#e33-why-the-reliance-ledger-rebuild-failed-and-the-rebuild)).
+- Classification without a model: of 308 filings, 125 were placed by the exchange's own label and 120 by text rules; 63 needed the model.
 
 ## Architecture
 
@@ -162,7 +178,7 @@ flowchart LR
 - **Backend:** Python 3.12, FastAPI, Pydantic v2, SQLite. Ingestion writes to SQLite and the API only reads, so responses take 7 to 24 ms locally ([E21](docs/EVIDENCE.md#e21-api-speed-and-payload-and-what-that-says-about-caching)). SQLite is the cache: no Redis, because a server-side cache would save milliseconds nobody notices. Responses are gzipped (the 30-day brief goes from 157 KB to 29 KB). The only live work is research on a ticker FINN has not seen yet.
 - **Frontend:** React, Vite, Tailwind CSS, served from Vercel, 75 KB of JavaScript gzipped. An installable PWA: every screen draws the last copy saved on the phone at once, refreshes it in the background, and says how old it is when offline. Colours were sampled from the chosen design reference ([E24](docs/EVIDENCE.md#e24-colour-palette-sampled-from-the-chosen-reference-then-checked-for-contrast)). Settings offer two themes (Slate, Paper, or follow the system), four accents, three typefaces and a larger text size; the choices are curated, and all 8 theme and accent pairings were checked to keep every text colour at WCAG AA (lowest 5.02:1). The brief opens with a summary written in code from the data, never by a model, and with how the portfolio moved on the last session.
 - **Hosting:** AWS Lightsail in Mumbai (2 vCPU, 1 GB), always on, with a disk that keeps SQLite. NSE, Screener, BSE, yfinance and Gemini all answer from it ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Caddy serves HTTPS with a Let's Encrypt certificate. The public link is on Vercel's free plan, which serves the app and forwards `/api` to the server (`frontend/vercel.json`), so the address is a mainstream domain rather than an IP-based one that office web filters block ([E25](docs/EVIDENCE.md#e25-deploy-probe-every-source-answers-from-aws-lightsail-mumbai)). Render's free tier was ruled out: it sleeps after 15 minutes, takes about a minute to wake, and loses local files on restart ([E22](docs/EVIDENCE.md#e22-hosting-render-free-versus-aws-lightsail)).
-- **Schedule:** systemd timers on the server, in IST: filings, results and filing reads every 30 minutes from 08:00 to 22:30; prices after the close on trading days; Screener once a night. One lock keeps two refreshes from overlapping. Files in `deploy/`.
+- **Schedule:** systemd timers on the server, in IST: filings, results and filing reads every 30 minutes from 08:00 to 22:30; prices after the close on trading days; Screener once a night. One lock keeps two refreshes from overlapping. A watchdog checks `/api/health` every 2 minutes and restarts the API if it hangs (E38). Files in `deploy/`.
 
 ## Data sources and what we learned about them
 
@@ -185,7 +201,7 @@ flowchart LR
 - **Intraday data.** The brief asks for end-of-day. Intraday would add cost and noise without changing the workflow.
 - **Voice.** A spoken brief is a nice demo but adds little over a 30-second read. Next on the list, not now.
 - **A chat-first interface.** Chat makes the investor do the work of asking. FINN leads with a finished brief and keeps Ask for follow-ups.
-- **Vector search.** Four transcripts fit in one model call ([E8](docs/EVIDENCE.md#e8-concall-transcripts-are-text-pdfs-of-manageable-size)). Retrieval would add moving parts for no gain at this size.
+- **Vector search.** Four transcripts fit in one model call ([E8](docs/EVIDENCE.md#e8-concall-transcripts-are-text-pdfs-of-manageable-size)). Annual reports do not (187 to 756 pages), so Ask picks their best five pages by keyword weight; embeddings would add a model and an index for a gain we could not show.
 - **News and broker research.** Excluded from Pull by design: primary sources only.
 
 ## Run it locally
@@ -197,14 +213,14 @@ uv sync
 uv run python -m backend.jobs.refresh   # filings, EOD, results, Screener (about 3 minutes)
 uv run python -m backend.enrich         # read vague and management filings
 uv run uvicorn backend.main:app --port 8000
-uv run pytest                           # 27 tests, including the classifier regression on 90 labelled filings
+uv run pytest                           # 68 tests, including the classifier regression on 90 labelled filings
 uv run python -m eval.score             # re-score the classifier against eval/filings_labelled.json
 
 # frontend
 cd frontend
 bun install
 bun run dev                     # http://localhost:5173, proxies /api to :8000
-bun run test                    # 20 tests: formatting, the brief summary, routing
+bun run test                    # 40 tests: formatting, the brief summary, scorecard rules, routing
 bun run build                   # FastAPI then serves frontend/dist on :8000
 ```
 
@@ -217,11 +233,11 @@ No `uv`? `python -m venv .venv && source .venv/bin/activate && pip install -r re
 ## Where it goes next
 
 - Push the promise ledger into the brief: when a new transcript lands, FINN tells you which promises changed status.
-- Real phone notifications for threshold alerts.
 - A labelled evaluation set for the classifier that grows with every filing a user re-ranks.
-- Read the annual report for the snapshot and for Ask (related-party transactions, auditor remarks).
+- Use the annual report in the snapshot and the ledger, not only in Ask.
+- NBFC asset quality (stage 3 assets), which BAJFINANCE reports outside the integrated filing.
 - Per-category priority overrides in the app.
 
 ## Build history
 
-The Claude Code sessions used to build FINN are exported in `build-history/` *(planned)*.
+FINN was built in Claude Code sessions. The build history is shared with the submission as a separate document rather than kept in this repo. Each decision that came out of those sessions is backed in [`docs/EVIDENCE.md`](docs/EVIDENCE.md).

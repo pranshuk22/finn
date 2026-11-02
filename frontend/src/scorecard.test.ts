@@ -35,6 +35,14 @@ describe("scorecard rules", () => {
     expect(cashTile(r)).toMatchObject({ label: "Returns", value: "14.2%", verdict: "Fair" });
   });
 
+  it("shows a bank's asset quality from its filing instead of debt to equity", () => {
+    // HDFCBANK Q2 FY27 standalone filing: gross NPA 1.11%, net NPA 0.37%
+    const q = { quarter: "Q2 FY27", gnpa_pct: 1.11, nnpa_pct: 0.37 };
+    const r = research({ snapshot: { is_financial: true, ratios: {} }, bank_kpis: { quarters: [q] } });
+    expect(balanceTile(r)).toMatchObject({ label: "Asset quality", value: "0.37%", verdict: "Clean", tone: "good" });
+    expect(balanceTile(r).detail).toBe("Net NPA, gross 1.11%, Q2 FY27");
+  });
+
   it("judges the track record only once enough promises have come due", () => {
     const ledger = (st: string[]) => ({ status: "ok", items: st.map(promise) });
     expect(trackTile(research({ ledger: ledger(["pending", "delivered"]) }))).toMatchObject({ verdict: "Too early", tone: "neutral" });

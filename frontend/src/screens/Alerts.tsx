@@ -3,6 +3,7 @@ import { api, ApiError, useQuery } from "../api";
 import { HelpButton } from "../components/Help";
 import { Button, Card, ErrorState, Header, Pct, SectionTitle, Skeleton, Switch } from "../components/ui";
 import { when } from "../format";
+import { pushState, sendTest, turnOff, turnOn, type PushState } from "../push";
 import type { AlertRules, Scan } from "../types";
 
 const CATEGORIES: [string, string][] = [
@@ -68,6 +69,8 @@ export function Alerts() {
       <Header eyebrow="What counts as unusual" title="Alerts" right={<HelpButton />} sub="Tune it on real data: FINN replays your thresholds over the last 60 trading sessions." />
       {!rules && saved.loading && <Skeleton lines={2} />}
       {!rules && saved.error && <ErrorState message={saved.error.message} onRetry={saved.reload} />}
+
+      <PushCard />
 
       {rules && (
         <>
@@ -167,6 +170,53 @@ export function Alerts() {
         </>
       )}
     </>
+  );
+}
+
+const PUSH_NOTE: Record<PushState, string> = {
+  on: "This phone gets a notification after each refresh (every 30 minutes in market hours) when a filing or the day's price move crosses the rules below.",
+  off: "Get a notification on this phone when a filing or the day's price move crosses the rules below, without opening FINN.",
+  denied: "Notifications are blocked for FINN in this browser's settings. Allow them there, then come back.",
+  "needs-install": "On an iPhone, add FINN to the Home Screen first (Share, then Add to Home Screen) and open it from there. Apple allows web notifications only for installed apps.",
+  unsupported: "This browser cannot receive web notifications. Chrome, Edge, Firefox and Safari 16.4 or later can.",
+};
+
+function PushCard() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    pushState().then(setState, () => setState("unsupported"));
+  }, []);
+  if (!state) return null;
+  const run = async (f: () => Promise<PushState | void>, done?: string) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const next = await f();
+      if (next) setState(next);
+      if (done) setMsg(done);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const canToggle = state === "on" || state === "off";
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[15px] font-semibold">Notify this phone</p>
+        {canToggle && <Switch label="Notify this phone" on={state === "on"} onChange={(v) => !busy && run(v ? turnOn : turnOff)} />}
+      </div>
+      <p className="mt-1.5 text-[13px] text-muted">{PUSH_NOTE[state]}</p>
+      {state === "on" && (
+        <Button kind="ghost" className="mt-3" disabled={busy} onClick={() => run(sendTest, "Sent. It should arrive in a few seconds.")}>
+          Send a test
+        </Button>
+      )}
+      {msg && <p className="mt-2 text-[13px] text-muted" aria-live="polite">{msg}</p>}
+    </Card>
   );
 }
 

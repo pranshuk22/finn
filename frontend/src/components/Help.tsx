@@ -71,6 +71,14 @@ export function HelpContent() {
         </p>
       </Part>
 
+      <Part title="Alerts">
+        <p className="text-muted">
+          Set what counts as unusual on the Alerts tab: a price move, volume against its 20-day average, and filing types to always flag. Turn
+          on Notify this phone and FINN sends a notification after each refresh when something new crosses those rules. On an iPhone, add
+          FINN to the Home Screen first.
+        </p>
+      </Part>
+
       <Part title="Reading a results card">
         <dl className="space-y-2">
           <Term name="EBITDA*">Operating EBITDA: profit before tax + finance costs + depreciation - other income, so interest on cash does not count as business profit.</Term>
@@ -99,7 +107,16 @@ export function HelpContent() {
             </li>
           ))}
         </ul>
-        <p className="text-muted">Ask answers number questions from the results filed with NSE first, then adds what management said on the last four calls, with quotes. A sentence whose number is in neither is removed, and if nothing can be traced it says so instead of answering.</p>
+        <p className="text-muted">
+          A promise is decided by the numbers when the filings report it: revenue and profit growth, full-year revenue against the quarters
+          filed so far, a margin in the definition the promise names (EBIT, EBITDA or PBDIT, rebuilt from the filed line items), or a
+          reported segment's revenue and margin. Volumes, launches, plants and capex are not in the filings, so a later call settles those.
+        </p>
+        <p className="text-muted">
+          Ask answers number questions from the results filed with NSE first, then adds what management said on the last four calls, and
+          searches the latest annual report for what calls do not cover: auditors, directors, subsidiaries, related parties, risks. Every
+          quote is checked against its PDF, a sentence whose number is in no source is removed, and if nothing can be traced it says so.
+        </p>
       </Part>
 
       <Part title="The scorecard">
@@ -108,7 +125,7 @@ export function HelpContent() {
           <Term name="Growth">Revenue a year over 3 years: 15% or more strong, 8% steady, 0% slow, below that shrinking.</Term>
           <Term name="Margins">Latest quarter against a year earlier: up a point or more expanding, down a point or more slipping. Lenders show credit cost instead: provisions as a share of pre-provision profit, 15% or less low, 30% moderate.</Term>
           <Term name="Cash">Cash from operations over operating profit, 3 years: 90% or more strong, 70% fair. Lenders show return on equity: 15% strong, 10% fair.</Term>
-          <Term name="Balance sheet">Debt to equity: 0.3 or less light, up to 1 moderate, above 1 heavy.</Term>
+          <Term name="Balance sheet">Debt to equity: 0.3 or less light, up to 1 moderate, above 1 heavy. Banks show asset quality instead: net NPA 0.5% or less clean, up to 1.5% watch, above that stressed.</Term>
           <Term name="Track record">Promises kept of those a later result settled: 60% or more reliable, 40% mixed. Revised and not mentioned again are not counted as misses, and fewer than 3 settled is too early to say.</Term>
           <Term name="Valuation">P/E against 3-year profit growth a year: up to 1x cheap for its growth, up to 2x fair, above rich. If PAT fell 20% or more YoY in the latest quarter, growth is in doubt.</Term>
         </dl>
@@ -122,6 +139,8 @@ export function HelpContent() {
           <Term name="CAGR">Compound annual growth: a yearly rate, not a total.</Term>
           <Term name="Debt to equity">Borrowings divided by shareholders' equity.</Term>
           <Term name="Interest coverage">Profit before interest and tax divided by interest: how many times over the company earns its interest bill.</Term>
+          <Term name="NII, NPA">Net interest income: what a bank earns on loans and investments less what it pays on deposits and borrowings. A non-performing asset (NPA) is a loan unpaid for 90 days; net NPA is what is left after provisions.</Term>
+          <Term name="CET1">Common equity tier 1: the bank's core capital as a share of its risk-weighted assets.</Term>
           <Term name="Cash conversion">Cash from operations as a share of operating profit. Near or above 100% means profits are turning into cash.</Term>
         </dl>
       </Part>

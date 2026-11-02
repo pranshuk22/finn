@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend import analytics as A
-from backend import db, enrich, llm, pull
+from backend import db, enrich, llm, pull, push
 from backend.config import ADHOC, ALIASES, PORTFOLIO, ROOT, resolve_ticker
 from backend.sources.nse import NSE
 
@@ -490,6 +490,7 @@ def research(raw: str):
             "segments": A.segments(c, ticker),
             "cash_quality": A.cash_quality(c, ticker),
             "balance_sheet": A.balance_sheet(c, ticker),
+            "bank_kpis": A.bank_kpis(c, ticker),
             "documents": pull.document_list(c, ticker),
             "ledger": pull.get_section(c, ticker, "ledger"),
             "bull_bear": pull.get_section(c, ticker, "bull_bear"),
@@ -538,6 +539,38 @@ class Question(BaseModel):
 @app.post("/api/research/{raw}/ask")
 def ask(raw: str, q: Question):
     return pull.ask(resolve_ticker(raw), q.question)
+
+
+class PushSub(BaseModel):
+    endpoint: str = Field(min_length=10, max_length=1000)
+    keys: dict[str, str]
+
+
+@app.get("/api/push/key")
+def push_key():
+    return {"key": push.public_key()}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(sub: PushSub):
+    push.subscribe(sub.model_dump())
+    return {"ok": True}
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(sub: PushSub):
+    push.unsubscribe(sub.endpoint)
+    return {"ok": True}
+
+
+@app.post("/api/push/test")
+def push_test(sub: PushSub):
+    """Sends to the phone that asked, so a reader can see a real notification arrive."""
+    body = "You will get a note like this when a filing or price move crosses your rules."
+    ok = push.send(sub.model_dump(), "FINN alerts are on", body)
+    if not ok:
+        raise HTTPException(502, "The push service did not accept the message. Turn alerts off and on again.")
+    return {"ok": True}
 
 
 @app.get("/api/health")

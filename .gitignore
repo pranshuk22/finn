@@ -13,3 +13,6 @@ data/cache/
 Problem Statment/
 data/finn.db
 .vercel/
+tmp/
+build-history/
+data/vapid_private.pem

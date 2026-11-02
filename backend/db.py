@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS results (
     PRIMARY KEY (ticker, period_end, consolidated)
 );
 
+CREATE TABLE IF NOT EXISTS bank_kpis (
+    ticker TEXT NOT NULL,
+    period_end TEXT NOT NULL,         -- ISO date; from the bank's standalone filing
+    interest_earned REAL, interest_expended REAL, provisions REAL,
+    gross_npa REAL, advances REAL, total_assets REAL,   -- Rs crore; balance sheet only in half-year filings
+    gnpa_pct REAL, nnpa_pct REAL, cet1_pct REAL,        -- as filed
+    source_url TEXT,
+    PRIMARY KEY (ticker, period_end)
+);
+
 CREATE TABLE IF NOT EXISTS financials (
     ticker TEXT NOT NULL,
     statement TEXT NOT NULL,          -- quarters | profit-loss | balance-sheet | cash-flow | ratios

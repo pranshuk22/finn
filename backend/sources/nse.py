@@ -148,15 +148,8 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
-def parse_results_ixbrl(html: str) -> dict:
-    """Headline P&L numbers for the current quarter, converted to Rs crore.
-
-    Verified on TCS Sep 2026: revenue 73,188, PBT 18,638, PAT 13,934 crore,
-    all equal to Screener's quarterly table (EVIDENCE E6).
-    """
-    soup = BeautifulSoup(html, "lxml")
-    tables = soup.find_all("table")
-
+def _factor(tables) -> tuple[float, str]:
+    """Multiplier from the filing's own unit to Rs crore, and the unit as written."""
     unit = None
     currency_note = None
     for t in tables:
@@ -174,7 +167,18 @@ def parse_results_ixbrl(html: str) -> dict:
         unit = m.group(1) if m else None
     if unit not in _UNIT_TO_CRORE:
         raise ValueError(f"unknown rounding unit: {unit!r}")
-    factor = _UNIT_TO_CRORE[unit]
+    return _UNIT_TO_CRORE[unit], unit
+
+
+def parse_results_ixbrl(html: str) -> dict:
+    """Headline P&L numbers for the current quarter, converted to Rs crore.
+
+    Verified on TCS Sep 2026: revenue 73,188, PBT 18,638, PAT 13,934 crore,
+    all equal to Screener's quarterly table (EVIDENCE E6).
+    """
+    soup = BeautifulSoup(html, "lxml")
+    tables = soup.find_all("table")
+    factor, unit = _factor(tables)
 
     pl = None
     for t in tables:
@@ -216,6 +220,56 @@ def parse_results_ixbrl(html: str) -> dict:
     # figures in both columns; the caller then derives the quarter from earlier quarters.
     out["months"] = _months(period_start, period_end)
     out["segments"] = _segments(soup, tables, factor)
+    return out
+
+
+# Rows of a bank's standalone results filing. The consolidated filing leaves the NPA ratios at 0 (HDFCBANK and
+# ICICIBANK, Sep 2026), since asset quality is reported for the bank itself.
+_BANK_ROWS = {
+    "interest_earned": ["total interest earned"],
+    "interest_expended": ["interest expenses", "interest expended"],
+    "provisions": ["provisions other than tax and contingencies"],
+    "gross_npa": ["amount of gross non-performing assets", "gross npa"],
+    "gnpa_pct": ["% of gross npas", "% of gross npa"],
+    "nnpa_pct": ["% of net npas", "% of net npa"],
+    "cet1_pct": ["cet 1 ratio"],
+    "advances": ["advances"],
+    "total_assets": ["total assets"],
+}
+_BANK_PCT = {"gnpa_pct", "nnpa_pct", "cet1_pct"}
+
+
+def parse_bank_kpis(html: str) -> dict:
+    """Asset quality and interest income for the quarter, from a bank's standalone integrated filing.
+
+    Checked on HDFCBANK Sep 2026: gross NPA 1.11%, net NPA 0.37%, CET1 18.87%, interest earned 83,426.60 crore and
+    interest expended 48,807.42 crore. Ratios are kept as filed; amounts are converted to Rs crore. The balance
+    sheet (advances, total assets) is only in the half-year filings.
+    """
+    soup = BeautifulSoup(html, "lxml")
+    tables = soup.find_all("table")
+    factor, _ = _factor(tables)
+    out: dict = {}
+    for tr in soup.find_all("tr"):
+        cells = [_norm(c.get_text(" ", strip=True)) for c in tr.find_all(["td", "th"])]
+        labelled = [(i, c) for i, c in enumerate(cells) if re.search(r"[a-z]{3}", c)]
+        if not labelled:
+            continue
+        i, label = labelled[0]
+        values = cells[i + 1 :]
+        if label.startswith("date of end of reporting period") and "period_end" not in out and values:
+            out["period_end"] = _date(values[0])
+            continue
+        for key, names in _BANK_ROWS.items():
+            if key in out or label not in names or not values:
+                continue
+            v = _num(values[0])
+            if v is not None:
+                out[key] = v if key in _BANK_PCT else round(v * factor, 2)
+    # a 0 ratio is the consolidated filing's placeholder, not a bank with no bad loans
+    for k in _BANK_PCT:
+        if out.get(k) == 0:
+            out.pop(k)
     return out
 
 

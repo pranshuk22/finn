@@ -542,6 +542,30 @@ The prompt says that for a number question it starts from those figures and then
 - Ledgers built before the Nov 2026 calls have not been rebuilt (rebuilding costs reasoning-model quota).
 - Bull and bear points can read as restated metrics.
 
+## E41. Closing the five gaps the second review left open
+
+**Bank figures (3 Nov).** HDFCBANK's consolidated Q2 FY27 filing has "% of gross NPAs | 0"; its standalone filing has 1.11% gross and 0.37% net NPA, CET1 18.87%, interest earned Rs 83,426.60 crore and interest expended Rs 48,807.42 crore. On the Oct 2026 call management said "GNPA at 1.11%". So FINN reads banks' standalone filings (`parse_bank_kpis`), and a 0 ratio is dropped as the consolidated placeholder. NSE has seven quarters of these filings for each bank, from Mar 2025.
+- Net interest income = interest earned - interest expended: HDFCBANK Rs 34,619 crore, +9.7% YoY; ICICIBANK Rs 25,339 crore, +17.7%.
+- Two ratios are FINN's own and labelled so. NII to assets is NII x 4 over total assets (3.02% for HDFCBANK); banks report NIM on interest-earning assets, a smaller base. Credit cost is provisions x 4 over advances (0.45%). Assets and advances come from the half-year balance sheet in the same filings.
+- BAJFINANCE's NBFC filing has "Impairment on financial instruments" but no NPA or stage 3 rows, so no asset-quality figure is shown for it.
+- Ask on HDFCBANK, "How is asset quality trending?", answered "Gross NPA was 1.11% and Net NPA was 0.37%", citing the filing and the Oct 2026 call (page 4).
+
+**Annual reports.** The latest annual report of all 22 companies is read once and stored: 187 (RELIANCE) to 756 (LT) pages, about 32 MB of text, 71 s for all 22 locally. Ask picks the five pages that best match the question (keyword weights), and each quote is checked against the PDF like a transcript quote. "Who is the statutory auditor?" on TITAN: "M/s. BSR & Co., LLP", quoted from page 136. A company with no report stored yet is answered without it while the report is read in the background.
+
+**Ledger verdicts from numbers.** On the 101 stored promises, 8 were decided by numbers. Three new checks:
+- A margin in the definition the promise names, rebuilt from the filed lines: EBIT = PBT + finance costs - other income, EBITDA adds depreciation, PBDIT keeps other income. IT services companies say "operating margin" for EBIT. TCS Q2 FY27: (18,638 + 252 - 1,337) / 73,188 = 23.98%, and TCS said "operating margin of 24%". INFY: 20.98% and "21%".
+- A reported segment's margin and growth. A segment result is before interest and tax, so it can confirm an EBITDA target but never refute one.
+- A full-year revenue target in rupees, against the quarters filed so far. A target "ex" something is skipped.
+
+Result: 15 of 101 are decided by numbers. Examples: INFY 21.0% EBIT margin, on track for 20% to 22%. HAL 27.7% EBITDA margin, off track for 30% to 31%. TITAN jewellery 12.4% segment margin against "around 11%". A later call that settled an open target still stands: TCS "26% to 28%" stays Missed. The other 77 are volumes, launches, plants and capex, which the filings do not report.
+
+**Bull and bear.** On 2 Nov, 11 of 17 points on DIXON, HDFCBANK and RELIANCE cited a single fact, for example "ROCE improved from 23% in Mar 2022 to 29% in Mar 2026". The prompt now asks for an argument that joins facts. Python drops any point citing fewer than two, and the model also gets P/E, ROE or ROCE and the results notes. DIXON's bear case now reads: "Q2 FY27 PAT fell 44.9% year-over-year ... because other income dropped from 496 crore to 69 crore."
+
+**Push notifications.** Web Push with the server's own VAPID key (P-256, kept in `data/`, out of git). After each refresh, new filings that need you or are in a flagged category, and the latest session's moves past the thresholds, go once to every subscribed phone. Each is keyed, so it is never sent twice.
+- `tests/test_push.py` stands up a local push endpoint. It decrypts the received body with the phone's key (RFC 8291) and verifies the token's signature with the server's public key (RFC 8292).
+- Headless Chrome refuses push subscriptions ("Registration failed - permission denied"), so delivery to a real phone is checked by hand after deploy.
+- iPhones allow web push only for apps added to the Home Screen; the Alerts tab says so.
+
 ## Open questions (not yet verified)
 
 - Does NSE answer requests from a cloud host (Render, Fly, Railway) the same way it answers a home IP? Test on deploy. Fallback is a committed SQLite snapshot refreshed from a local machine.

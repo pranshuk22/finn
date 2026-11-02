@@ -65,7 +65,18 @@ export function cashTile(r: Research): Tile {
   return { ...base, value: `${Math.round(c)}%`, verdict, detail: "Of operating profit came in as cash, 3 years", tone };
 }
 
+// For a lender the balance sheet question is how many of its loans have gone bad, as filed.
+export function assetQualityTile(r: Research): Tile {
+  const base = { key: "balance", label: "Asset quality", section: "lending" };
+  const q = r.bank_kpis?.quarters.at(-1);
+  if (q?.nnpa_pct == null) return { ...base, value: "n/a", verdict: "No data", detail: "Net NPA from the bank's filing", tone: "neutral" };
+  const [verdict, tone]: [string, Tone] = q.nnpa_pct <= 0.5 ? ["Clean", "good"] : q.nnpa_pct <= 1.5 ? ["Watch", "mixed"] : ["Stressed", "weak"];
+  const gross = q.gnpa_pct != null ? `, gross ${q.gnpa_pct}%` : "";
+  return { ...base, value: `${q.nnpa_pct}%`, verdict, detail: `Net NPA${gross}, ${q.quarter}`, tone };
+}
+
 export function balanceTile(r: Research): Tile {
+  if (r.bank_kpis?.quarters.length) return assetQualityTile(r);
   const bs = r.balance_sheet;
   const y = bs?.years[bs.years.length - 1];
   const base = { key: "balance", label: "Balance sheet", section: "balance" };

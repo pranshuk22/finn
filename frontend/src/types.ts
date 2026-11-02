@@ -223,7 +223,7 @@ export interface LedgerItem {
     evidence_page: number | null;
     evidence_url?: string | null;
   };
-  check: { status: string; actual: number | null; basis: string } | null;
+  check: { status: string; actual: number | null; basis: string; definition?: string } | null; // definition: ebit, ebitda, pbdit, segment, revenue
   repeated_in?: string[]; // missing on ledgers built before 31 Oct for metrics marked "other"
   status: string;
   judged_by: "numbers" | "model" | "later guidance";
@@ -286,6 +286,25 @@ export interface BalanceSheet {
   is_financial: boolean;
 }
 
+export interface BankQuarter {
+  quarter: string;
+  period_end: string;
+  nii: number | null;
+  nii_yoy: number | null;
+  nii_to_assets: number | null; // FINN's ratio: NII x 4 over total assets
+  credit_cost: number | null; // FINN's ratio: provisions x 4 over advances
+  gnpa_pct: number | null;
+  nnpa_pct: number | null;
+  cet1_pct: number | null;
+  advances: number | null;
+}
+
+export interface BankKpis {
+  quarters: BankQuarter[];
+  basis: string;
+  source_url: string | null;
+}
+
 export interface Research {
   ticker: string;
   resolved_from: string | null;
@@ -297,6 +316,7 @@ export interface Research {
   segments: Segments | null;
   cash_quality: CashQuality | null;
   balance_sheet: BalanceSheet | null;
+  bank_kpis?: BankKpis | null;
   documents: { kind: string; period: string; url: string; loaded: number }[];
   ledger: Ledger | null;
   bull_bear: BullBear | null;

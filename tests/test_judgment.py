@@ -25,6 +25,35 @@ def test_margin_rests_on_quotes_even_with_a_number():
     assert v == {"status": "delivered", "judged_by": "model"}
 
 
+def test_margin_in_the_promised_definition_is_decided_by_numbers():
+    check = {"status": "on_track", "actual": 21.0, "basis": "", "definition": "ebit"}
+    assert pull._verdict(item("operating_margin", "pending", check)) == {"status": "on_track", "judged_by": "numbers"}
+
+
+def test_a_later_call_that_settled_an_open_target_stands():
+    # TCS "26% to 28%" in the coming quarters: a later call said it would not come; the latest quarter only says
+    # off track
+    check = {"status": "off_track", "actual": 24.0, "basis": "", "definition": "ebit"}
+    assert pull._verdict(item("operating_margin", "missed", check)) == {"status": "missed", "judged_by": "model"}
+
+
+def test_margins_rebuilt_from_filed_lines():
+    # TCS Q2 FY27 filing; on the Oct 2026 call: "operating margin of 24%"
+    tcs = {"revenue": 73188, "pbt": 18638, "finance_costs": 252, "depreciation": 1262, "other_income": 1337}
+    assert pull._margin_of([tcs], "ebit") == 24.0
+    assert pull._margin_of([tcs], "ebitda") == 25.7
+    assert pull._margin_of([tcs], "pbdit") == 27.5
+    assert pull._margin_kind("Operating margin", "TCS") == "ebit"  # IT services say operating margin for EBIT
+    assert pull._margin_kind("Operating margin", "PIDILITIND") is None  # unsaid: left to the calls
+    assert pull._margin_kind("Operating EBITDA margin", "HAL") == "ebitda"
+    assert pull._margin_kind("PBDIT margin", "ASIANPAINT") == "pbdit"
+
+
+def test_segment_names_match_across_filings():
+    assert pull._seg_key("a) Wires & Cables") == pull._seg_key("Wires and cables") == "wires and cables"
+    assert pull._seg_key("Jewellery (refer note 4)") == "jewellery"
+
+
 def test_revision_only_replaces_an_open_verdict():
     assert pull._verdict(item(status="pending", revised_by="P7"))["status"] == "revised"
     assert pull._verdict(item(status="missed", revised_by="P7"))["status"] == "missed"

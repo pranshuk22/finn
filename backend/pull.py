@@ -7,6 +7,7 @@ Guards against made-up answers:
 """
 
 import json
+import math
 import re
 import threading
 import time
@@ -18,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from backend import analytics as A
 from backend import db, llm
-from backend.config import USER_AGENT
+from backend.config import FINANCIALS, PORTFOLIO, USER_AGENT
 from backend.sources import pdf, screener
 
 N_TRANSCRIPTS = 4
@@ -143,6 +144,60 @@ def load_transcripts(ticker: str) -> list[dict]:
             out.append({"period": d["period"], "url": d["url"], "pages": pages})
     out.sort(key=lambda d: _period_date(d["period"]) or date.min)
     return out
+
+
+def load_annual_report(ticker: str, fetch: bool = True) -> dict | None:
+    """The latest annual report as {period, url, pages}. They run to hundreds of pages (RELIANCE's 2026 report is
+    several hundred), so they are read once, stored, and then searched page by page; never sent whole to a model."""
+    with db.session() as c:
+        row = next((d for d in document_list(c, ticker) if d["kind"] == "annual_report"), None)
+        if not row:
+            return None
+        stored = c.execute(
+            "SELECT pages FROM documents WHERE ticker=? AND kind='annual_report' AND period=?", (ticker, row["period"])
+        ).fetchone()
+    if stored and stored["pages"]:
+        return {"period": row["period"], "url": row["url"], "pages": json.loads(stored["pages"])}
+    if not fetch:
+        return None
+    try:
+        pages = pdf.pages(pdf.download(row["url"]))
+    except Exception:
+        return None
+    if sum(len(p) for p in pages) < 20000:  # scanned, or not the report
+        return None
+    with db.session() as c:
+        c.execute(
+            "UPDATE documents SET pages=? WHERE ticker=? AND kind='annual_report' AND period=?",
+            (json.dumps(pages), ticker, row["period"]),
+        )
+    return {"period": row["period"], "url": row["url"], "pages": pages}
+
+
+_STOP = set(
+    "the and for with what how why who when which does did has have had are was were its their this that from into "
+    "about over under more less than any all much many company companies year years last latest tell explain show "
+    "give list report annual business there they them our your between during".split()
+)
+
+
+def report_pages(doc: dict, question: str, k: int = 5) -> list[int]:
+    """Pages of a long report most likely to answer the question, 1-based, best first. Plain keyword scoring:
+    rare words count more (log inverse document frequency), and each word is matched on its first six letters so
+    "auditor" also finds "audit" and "auditors". On the TITAN 2026 report, "Who is the auditor?" ranks the
+    Independent Auditor's Report pages first."""
+    words = [w[:6] for w in dict.fromkeys(re.findall(r"[a-z]{3,}", question.lower())) if w not in _STOP]
+    if not words:
+        return []
+    low = [p.lower() for p in doc["pages"]]
+    n = len(low)
+    weight = {w: math.log(n / (1 + sum(1 for p in low if w in p))) for w in words}
+    scored = []
+    for i, p in enumerate(low):
+        score = sum(weight[w] * min(p.count(w), 5) for w in words if weight[w] > 0)
+        if score > 0:
+            scored.append((score, i + 1))
+    return [pg for _, pg in sorted(scored, reverse=True)[:k]]
 
 
 def _match_doc(source: str | None, docs: list[dict]) -> dict | None:
@@ -325,16 +380,216 @@ def _company_level(metric: str) -> bool:
     return not re.sub(r"[^a-z]", "", _GENERIC.sub("", metric.lower()))
 
 
+# ---------- checking promises against the filed results ----------
+#
+# A margin promise names its definition, and each one can be rebuilt from the line items in the results filing:
+#   EBIT   = PBT + finance costs - other income
+#   EBITDA = PBT + finance costs + depreciation - other income
+#   PBDIT  = PBT + finance costs + depreciation (other income included; Asian Paints guides on this)
+# Indian IT services companies say "operating margin" for EBIT: TCS's Q2 FY27 filing gives (18,638 + 252 - 1,337)
+# / 73,188 = 23.98%, and on the Oct 2026 call TCS said "operating margin of 24%"; Infosys, 20.98% and "21%".
+
+_MARGIN_NAME = {
+    "ebit": "EBIT margin",
+    "ebitda": "operating EBITDA margin",
+    "pbdit": "PBDIT margin (other income included)",
+}
+
+
+def _margin_kind(metric: str, ticker: str) -> str | None:
+    m = metric.lower()
+    if re.search(r"pbdit|including other income", m):
+        return "pbdit"
+    if "ebitda" in m:
+        return "ebitda"
+    if re.search(r"\bebit\b", m):
+        return "ebit"
+    if "operating margin" in m and PORTFOLIO.get(ticker, ("", ""))[1] == "IT services":
+        return "ebit"
+    return None
+
+
+def _filed_quarters(c, ticker: str) -> list[dict]:
+    """One row per quarter from the results filings, consolidated where both exist, oldest first."""
+    rows = c.execute(
+        "SELECT * FROM results WHERE ticker=? ORDER BY period_end, consolidated DESC", (ticker,)
+    ).fetchall()
+    out: dict[str, dict] = {}
+    for r in rows:
+        out.setdefault(r["period_end"], dict(r))
+    return list(out.values())
+
+
+def _margin_of(rows: list[dict], kind: str) -> float | None:
+    """Margin over one or more quarters, summing each line first."""
+    need = ("revenue", "pbt", "finance_costs", "depreciation", "other_income")
+    if not rows or any(r[k] is None for r in rows for k in need):
+        return None
+    tot = {k: sum(r[k] for r in rows) for k in need}
+    v = tot["pbt"] + tot["finance_costs"]
+    if kind != "ebit":
+        v += tot["depreciation"]
+    if kind != "pbdit":
+        v -= tot["other_income"]
+    return round(100 * v / tot["revenue"], 1) if tot["revenue"] else None
+
+
+def _fy_quarters(rows: list[dict], fy_end: date) -> list[dict]:
+    """The quarters of the financial year ending on fy_end that have been filed so far."""
+    start = date(fy_end.year - 1, 4, 1)
+    return [r for r in rows if start <= date.fromisoformat(r["period_end"]) <= fy_end]
+
+
+def _margin_check(c, ticker: str, p: dict, low: float, latest_q: date | None) -> dict | None:
+    kind = _margin_kind(p["metric"], ticker)
+    if not kind:
+        return None
+    rows = _filed_quarters(c, ticker)
+    if not rows:
+        return None
+    name = _MARGIN_NAME[kind]
+    due = date.fromisoformat(p["due"]) if p.get("due") else None
+    if due and latest_q and due <= latest_q:
+        fy = _fy_quarters(rows, due) if due.month == 3 else []
+        if len(fy) == 4:
+            actual, when = _margin_of(fy, kind), f"FY{due.year % 100:02d}"
+        else:
+            q = [r for r in rows if r["period_end"] == due.isoformat()]
+            actual, when = _margin_of(q, kind), A.quarter_label(due.isoformat()) if q else ""
+        if actual is None:
+            return None
+        return {
+            "status": "delivered" if actual >= low else "missed",
+            "actual": actual,
+            "basis": f"{when} {name} {actual}% from the filed results{_shortfall(actual, low)}",
+            "definition": kind,
+        }
+    last = rows[-1]
+    actual = _margin_of([last], kind)
+    if actual is None:
+        return None
+    return {
+        "status": "on_track" if actual >= low else "off_track",
+        "actual": actual,
+        "basis": f"Latest quarter ({A.quarter_label(last['period_end'])}) {name} {actual}% from the filed results",
+        "definition": kind,
+    }
+
+
+def _seg_key(name: str) -> str:
+    """ "a) Wires & Cables" and "Wires and cables" are one segment, as are "Jewellery (refer note 4)" and
+    "Jewellery"."""
+    n = re.sub(r"\(.*?\)|^[a-z]\)\s*", "", name.strip().lower()).replace("&", "and")
+    return " ".join(re.findall(r"[a-z]+", n))
+
+
+def _segment_for(c, ticker: str, metric: str) -> tuple[str, list[dict]] | None:
+    """The reported segment a promise names, with its quarters oldest first."""
+    merged: dict[str, dict[str, dict]] = {}
+    names: dict[str, str] = {}
+    for name, qs in A.segment_history(c, ticker).items():
+        k = _seg_key(name)
+        names.setdefault(k, name)
+        for q in qs:
+            merged.setdefault(k, {})[q["quarter"]] = q
+    m = metric.lower()
+    for k, qs in merged.items():
+        words = [w for w in k.split() if w not in ("and", "the", "segment", "business", "others", "other")]
+        if words and all(re.search(rf"\b{w}\b", m) for w in words):
+            order = sorted(qs.values(), key=lambda q: (int(q["quarter"][-2:]), int(q["quarter"][1])))
+            return re.sub(r"\s*\(.*?\)|^[a-z]\)\s*", "", names[k]).strip(), order
+    return None
+
+
+def _segment_check(c, ticker: str, p: dict, low: float) -> dict | None:
+    """A segment's result in the filing is before interest and tax, so it is an EBIT margin. EBITDA adds
+    depreciation back and can only be higher: a segment EBIT margin at or above an EBITDA target means the target
+    is met, but one below it says nothing."""
+    found = _segment_for(c, ticker, p["metric"])
+    if not found:
+        return None
+    name, qs = found
+    last = qs[-1]
+    if p["metric_key"] == "operating_margin":
+        if not last.get("revenue") or last.get("result") is None:
+            return None
+        actual = round(100 * last["result"] / last["revenue"], 1)
+        kind = _margin_kind(p["metric"], ticker)
+        if kind != "ebit" and actual < low:
+            return None
+        floor = "" if kind == "ebit" else ", and EBITDA is at least that"
+        return {
+            "status": "on_track" if actual >= low else "off_track",
+            "actual": actual,
+            "basis": f"{name} segment, {last['quarter']}: result {actual}% of revenue (before interest and tax){floor}",
+            "definition": "segment",
+        }
+    if p["metric_key"] == "revenue_growth":
+        fy, qn = int(last["quarter"][-2:]), last["quarter"][:2]
+        yago = next((q for q in qs if q["quarter"] == f"{qn} FY{fy - 1:02d}"), None)
+        g = A.pct(last.get("revenue"), yago.get("revenue")) if yago else None
+        if g is None:
+            return None
+        return {
+            "status": "on_track" if g >= low else "off_track",
+            "actual": g,
+            "basis": f"{name} segment revenue, {last['quarter']} YoY {g}%",
+            "definition": "segment",
+        }
+    return None
+
+
+_REVENUE_WORDS = re.compile(r"\b(revenue|revenues|sales|top[- ]?line|turnover)\b", re.I)
+
+
+def _revenue_pace(c, ticker: str, p: dict, low: float, latest_q: date | None) -> dict | None:
+    """A full-year revenue target in Rs crore, against the quarters of that year filed so far."""
+    due = date.fromisoformat(p["due"]) if p.get("due") else None
+    if not due or due.month != 3 or not _REVENUE_WORDS.search(p["metric"]) or not _company_level(p["metric"]):
+        return None
+    if re.search(r"\bex[- ]|excluding|organic", p["target"] + " " + p["metric"], re.I):
+        return None  # FINN cannot take the excluded part out of the filed total
+    fy = _fy_quarters(_filed_quarters(c, ticker), due)
+    if not fy or any(r["revenue"] is None for r in fy):
+        return None
+    done = sum(r["revenue"] for r in fy)
+    label = f"FY{due.year % 100:02d}"
+    if len(fy) == 4:
+        return {
+            "status": "delivered" if done >= low else "missed",
+            "actual": round(done),
+            "basis": f"{label} revenue Rs {_n(done)} crore from the filed results",
+            "definition": "revenue",
+        }
+    needed = low * len(fy) / 4
+    return {
+        "status": "on_track" if done >= needed else "off_track",
+        "actual": round(done),
+        "basis": f"{label} revenue so far Rs {_n(done)} crore in {len(fy)} of 4 quarters; an even pace to "
+        f"Rs {_n(low)} crore needs Rs {_n(needed)} crore. Seasonal businesses can be behind and still make it.",
+        "definition": "revenue",
+    }
+
+
 def _numeric_check(c, ticker: str, p: dict, latest_q: date | None) -> dict | None:
-    """Python verdict for promises we can measure against reported numbers. None if not measurable, including
-    a target for one segment or product: FINN checks only against company totals."""
-    if p["metric_key"] not in ("operating_margin", "revenue_growth", "pat_growth") or p["unit"] != "percent":
-        return None
-    if not _company_level(p["metric"]):
-        return None
+    """Python verdict for promises we can measure against reported numbers. None if not measurable.
+
+    Company totals come from the trajectory (growth) or the filed line items (margins in the definition the
+    promise names, full-year revenue). A promise for one reported segment is checked against that segment's
+    rows in the results filings; a product or unit that is not a reported segment cannot be checked."""
     low = p["target_low"]
     if low is None:
         return None
+    if p["unit"] == "rs_crore":
+        return _revenue_pace(c, ticker, p, low, latest_q)
+    if p["metric_key"] not in ("operating_margin", "revenue_growth", "pat_growth") or p["unit"] != "percent":
+        return None
+    if not _company_level(p["metric"]):
+        return _segment_check(c, ticker, p, low)
+    if p["metric_key"] == "operating_margin":
+        defined = _margin_check(c, ticker, p, low, latest_q)
+        if defined:
+            return defined
     tr = A.trajectory(c, ticker)
     due = date.fromisoformat(p["due"]) if p.get("due") else None
 
@@ -385,9 +640,13 @@ def _verdict(p: dict) -> dict:
     status, judged_by = a["status"], "model"
     check = p.get("check")
     # Growth is unambiguous, so Python decides it. Margin definitions differ (Asian Paints guides on PBDIT
-    # including other income, Screener's operating margin excludes it), so for margins the verdict rests on
-    # the verified quotes and our number is shown only as context (EVIDENCE E20).
-    if check and p["metric_key"] != "operating_margin":
+    # including other income, Screener's operating margin excludes it), so a margin is decided by numbers only
+    # when the promise names its definition and FINN rebuilt that one from the filing; otherwise the verdict
+    # rests on the verified quotes and our number is shown as context (EVIDENCE E20, E41).
+    # An open-ended target can only be on or off track by the numbers; a later call that settled it (TCS said its
+    # "26% to 28%" would not come in the coming quarters) is worth more than the latest quarter, so it stands.
+    settled = status in ("delivered", "missed", "revised") and check and check["status"] in ("on_track", "off_track")
+    if check and not settled and (p["metric_key"] != "operating_margin" or check.get("definition")):
         status, judged_by = check["status"], "numbers"
     elif p.get("revised_by") and status not in ("delivered", "missed"):
         status, judged_by = "revised", "later guidance"
@@ -536,8 +795,8 @@ def build_ledger(ticker: str) -> dict:
 
 
 class Point(BaseModel):
-    text: str = Field(description="One sentence, at most 25 words")
-    refs: list[str] = Field(description="Ids of the facts or promises this point rests on")
+    text: str = Field(description="One or two sentences, at most 35 words")
+    refs: list[str] = Field(description="Ids of the facts or promises this point rests on, at least two")
 
 
 class BullBear(BaseModel):
@@ -545,12 +804,20 @@ class BullBear(BaseModel):
     bear: list[Point]
 
 
-_BB_SYSTEM = """You write the tightest bull case and bear case for a stock, for a professional investor.
-Use only the numbered facts and promises given. Every point must cite at least one id from them.
-At most 3 points each side. No adjectives like 'strong' or 'robust' unless a number backs them.
-When segment facts are given, at least one point on each side rests on a segment: a group total can hide a business
-that is shrinking or carrying the rest.
-Prefer a point that sets a promise against a number that confirms or contradicts it over a point about either alone.
+_BB_SYSTEM = """You write the bull case and the bear case for a stock, for a professional investor deciding whether to
+own it. Use only the numbered facts and promises given.
+
+Each point is an argument, not a statistic. The reader already sees every number on the page; your job is to say
+what they mean together.
+- A point joins at least two facts that bear on each other and says what follows for future earnings or for the
+  price: a cause, a consequence or a contradiction. Cite every id it rests on.
+- Restating one fact with its number is not a point.
+- Say the mechanism in plain words (what drives what), then give the figures that show it.
+Useful shapes: a promise against the number that tests it; a segment carrying or dragging the total; growth against
+what it costs in cash, debt or margin; the P/E against the growth that has to justify it; a one-off (tax, other
+income) that flatters or hides the trend.
+At most 3 points each side, each at most 35 words. No adjectives like 'strong' or 'robust' unless a number backs them.
+When segment facts are given, at least one point on each side rests on a segment.
 Do not use anything you know about the company from elsewhere."""
 
 
@@ -606,12 +873,27 @@ def _facts(c, ticker: str, ledger: dict | None) -> dict[str, str]:
         if i["share_change_pts"] is not None:
             parts.append(f"share change from a year ago {_n(i['share_change_pts'])} points")
         facts[f"F{len(facts) + 1}"] = f"{seg['quarter']} segment {i['name']}: " + ", ".join(parts)
+    bk = A.bank_kpis(c, ticker)
+    for text in _bank_lines(bk) if bk else []:
+        facts[f"F{len(facts) + 1}"] = text
     rc = A.results_card(c, ticker)
     if rc:
         for r in rc["rows"]:
             facts[f"F{len(facts) + 1}"] = (
                 f"{rc['quarter']} {r['label']}: Rs {_n(r['value'])} crore, QoQ {_n(r['qoq'])}%, YoY {_n(r['yoy'])}%"
             )
+        for note in (rc.get("tax_note"), rc.get("below_ebitda")):
+            if note:
+                facts[f"F{len(facts) + 1}"] = f"{rc['quarter']} results note: {note}"
+        if rc.get("other_income_pct_of_pbt") is not None and rc["other_income_pct_of_pbt"] >= 20:
+            facts[f"F{len(facts) + 1}"] = f"{rc['quarter']} other income: {_n(rc['other_income_pct_of_pbt'])}% of PBT"
+    snap = A.snapshot(c, ticker)
+    ratios = (snap or {}).get("ratios") or {}
+    if ratios.get("Stock P/E") is not None:
+        facts[f"F{len(facts) + 1}"] = f"Price to earnings (P/E): {_n(ratios['Stock P/E'])}"
+    roe_key = "ROE" if ticker in FINANCIALS else "ROCE"
+    if ratios.get(roe_key) is not None:
+        facts[f"F{len(facts) + 1}"] = f"{'Return on equity' if roe_key == 'ROE' else 'ROCE'}: {_n(ratios[roe_key])}%"
     if ledger:
         for it in ledger.get("items", []):
             facts[it["id"]] = (
@@ -667,8 +949,9 @@ def build_bull_bear(ticker: str) -> dict:
     for side in ("bull", "bear"):
         pts = []
         for p in getattr(res, side):
-            refs = [r for r in p.refs if r in facts]
-            if refs:  # a point with no valid reference is dropped
+            refs = list(dict.fromkeys(r for r in p.refs if r in facts))
+            # A point on one fact restates a number already on the page; the review of 2 Nov found most did.
+            if len(refs) >= 2:
                 pts.append({"text": _yearly(p.text), "refs": [{"id": r, "fact": facts[r]} for r in refs]})
         out[side] = pts[:3]
     return out
@@ -678,9 +961,9 @@ def build_bull_bear(ticker: str) -> dict:
 
 
 class Citation(BaseModel):
-    source: str = Field(description="Which call, as given in its header")
+    source: str = Field(description="Which call or annual report, as given in its header")
     page: int
-    quote: str = Field(description="Exact words from that transcript, 10 to 40 words")
+    quote: str = Field(description="Exact words from that document, 10 to 40 words")
 
 
 class Answer(BaseModel):
@@ -690,10 +973,13 @@ class Answer(BaseModel):
     citations: list[Citation]
 
 
-_ASK_SYSTEM = """Answer an investor's question about a company. You have two sources:
+_ASK_SYSTEM = """Answer an investor's question about a company. You have up to three sources:
 1. REPORTED FIGURES, numbered [R1], [R2] and so on: the company's own numbers from its results filed with the exchange
    (and its annual accounts).
 2. Earnings call transcripts, where management explains the numbers.
+3. ANNUAL REPORT pages: the few pages of the latest annual report that best match the question, with [page N]
+   markers. Use them for what calls and results do not cover: auditors, directors and pay, subsidiaries, related
+   party dealings, risks, policies, plants, employees.
 
 For a question about numbers (revenue, profit, margins, growth, a segment, a quarter or a year):
 - Answer from the REPORTED FIGURES first: the latest quarter with its change from the previous quarter and from a
@@ -702,9 +988,11 @@ For a question about numbers (revenue, profit, margins, growth, a segment, a qua
   with exact quotes. Each call discusses the quarter that ended just before it.
 - "Profit" for the company means its consolidated PAT. A segment's or subsidiary's profit is never the company's
   profit: name the business whenever you use one.
-- The calls can be older than the latest results. Never present a number from a call as the latest.
-For anything else, answer from the transcripts.
-If neither source answers it, set covered to false and say what they do cover.
+- The calls and the annual report can be older than the latest results. Never present a number from them as the
+  latest.
+For anything else, answer from the transcripts or the annual report. A quote from the annual report has source
+"Annual report" followed by its year, as in its header.
+If no source answers it, set covered to false and say what they do cover.
 Every sentence needs a figure id or an exact quote, but keep ids and page numbers out of the answer text; they go in
 figures and citations. Copy numbers as written. Do not use outside knowledge."""
 
@@ -769,6 +1057,10 @@ def _reported(c, ticker: str) -> dict[str, dict]:
                 f"{seg['quarter']} results filing",
                 seg["source_url"],
             )
+    bk = A.bank_kpis(c, ticker)
+    if bk:
+        for text in _bank_lines(bk):
+            add(text, f"{bk['quarters'][-1]['quarter']} standalone results filing", bk["source_url"])
     annual = A.trajectory(c, ticker)["annual"]
     for label in ("Revenue", "Net profit"):
         pts = [f"FY ended {a['period']} {_n(a['value'])}" for a in annual.get(label, [])[-3:]]
@@ -778,6 +1070,27 @@ def _reported(c, ticker: str) -> dict[str, dict]:
                 "Annual accounts, compiled by Screener",
                 f"{screener.BASE}/company/{ticker}/consolidated/",
             )
+    return out
+
+
+def _bank_lines(bk: dict) -> list[str]:
+    """A lender's asset quality and interest income as short facts, oldest quarter to latest in each line."""
+    qs = bk["quarters"][-3:]
+    out = []
+    for key, label, unit in (
+        ("nii", "Net interest income (interest earned less interest expended), Rs crore", ""),
+        ("gnpa_pct", "Gross NPA, as filed", "%"),
+        ("nnpa_pct", "Net NPA, as filed", "%"),
+        ("cet1_pct", "CET1 capital ratio, as filed", "%"),
+        ("nii_to_assets", "NII x 4 over total assets (FINN's ratio, not the bank's NIM)", "%"),
+        ("credit_cost", "Provisions x 4 over advances (FINN's credit cost)", "%"),
+    ):
+        pts = [f"{q['quarter']} {_n(q[key])}{unit}" for q in qs if q[key] is not None]
+        if pts:
+            out.append(f"Bank standalone {label}: {', '.join(pts)}")
+    last = qs[-1]
+    if last["nii_yoy"] is not None:
+        out.append(f"Bank standalone net interest income {last['quarter']} YoY: {_n(last['nii_yoy'])}%")
     return out
 
 
@@ -820,14 +1133,35 @@ def _drop_unbacked(answer: str, unmatched: list[str]) -> tuple[str, int]:
 _REF = re.compile(r"\s*\[(?:R\d+|F\d+|p\.|page)[^\]]*\]")  # "[R4]", "[R3, p. 3]": the model's own pointers
 
 
+def _load_report_later(ticker: str) -> None:
+    with _lock:
+        if _jobs.get(ticker, {}).get("annual_report") == "running":
+            return
+        _jobs.setdefault(ticker, {})["annual_report"] = "running"
+
+    def run() -> None:
+        try:
+            load_annual_report(ticker)
+        finally:
+            _set_job(ticker, "annual_report", "done")
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 def ask(ticker: str, question: str) -> dict:
     docs = load_transcripts(ticker)
+    # Reading a 400-page report takes longer than anyone waits for an answer: if it is not stored yet, answer
+    # without it and read it in the background for the next question. The nightly job reads the portfolio's.
+    ar = load_annual_report(ticker, fetch=False)
+    if ar is None:
+        _load_report_later(ticker)
+    ar_pages = report_pages(ar, question) if ar else []
     with db.session() as c:
         figs = _reported(c, ticker)
-    if not docs and not figs:
+    if not docs and not figs and not ar_pages:
         return {
             "covered": False,
-            "answer": "No results or transcripts for this company yet.",
+            "answer": "No results, transcripts or annual report for this company yet.",
             "figures": [],
             "citations": [],
         }
@@ -838,21 +1172,31 @@ def ask(ticker: str, question: str) -> dict:
     )
     if latest:  # "last quarter" means the latest filed one, not the one the latest call discussed
         listing += f"\nThe latest reported quarter is {latest}."
+    report = "None"
+    if ar_pages:
+        report = f"===== Annual report {ar['period']} =====\n" + "\n".join(
+            f"[page {pg}]\n{ar['pages'][pg - 1]}" for pg in sorted(ar_pages)
+        )
     res: Answer = llm.generate(
         task="ask",
         model=llm.SMART,
         schema=Answer,
         system=_ASK_SYSTEM,
-        contents=f"Company: {ticker}\n\nTRANSCRIPTS\n{texts}\n\nREPORTED FIGURES\n{listing}\n\nQuestion: {question}",
+        contents=f"Company: {ticker}\n\nTRANSCRIPTS\n{texts}\n\nANNUAL REPORT PAGES\n{report}\n\n"
+        f"REPORTED FIGURES\n{listing}\n\nQuestion: {question}",
     )
     cites, dropped = [], 0
     for ct in res.citations:
-        d = _match_doc(ct.source, docs)
+        if ar and "annual" in ct.source.lower():
+            d, label = ar, f"Annual report {ar['period']}"
+        else:
+            d = _match_doc(ct.source, docs)
+            label = d["period"] if d else ""  # not "Apr 2026 call"
         pg = verify_quote(ct.quote, d, ct.page) if d else None
         if pg is None:
             dropped += 1
             continue
-        cites.append({"source": d["period"], "page": pg, "quote": ct.quote, "url": d["url"]})  # not "Apr 2026 call"
+        cites.append({"source": label, "page": pg, "quote": ct.quote, "url": d["url"]})
     used = [{"id": f, **figs[f]} for f in dict.fromkeys(res.figures) if f in figs]  # an unknown id is dropped
     answer, covered = _REF.sub("", res.answer).replace(" .", "."), res.covered
     # every reported figure is a filed number, so any of them may back a number, cited or not

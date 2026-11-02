@@ -212,10 +212,10 @@ function ItemDetail({ it }: { it: LedgerItem }) {
               {it.check.basis}
               {it.judged_by === "numbers" && <span className="text-muted"> (this decides the status)</span>}
             </p>
-            {it.metric_key === "operating_margin" && (
+            {it.metric_key === "operating_margin" && !it.check.definition && (
               <p className="mt-1 text-xs text-muted">
-                Our margin excludes other income, and companies often guide on their own definition, so for margins the status rests on what
-                management reported on later calls.
+                The promise does not say which margin, and companies define it differently, so the status rests on what management reported on
+                later calls.
               </p>
             )}
           </div>
@@ -227,6 +227,12 @@ function ItemDetail({ it }: { it: LedgerItem }) {
           </div>
         ) : (
           !it.check && <p className="mt-2 text-xs text-muted">No later call addressed this directly.</p>
+        )}
+        {!it.check && (
+          <p className="mt-2 text-xs text-muted">
+            FINN checks revenue, profit and margins (in the definition the promise names) against the filed results, company-wide or for a
+            reported segment. This target is not in the filings, so only a later call can settle it.
+          </p>
         )}
       </section>
 

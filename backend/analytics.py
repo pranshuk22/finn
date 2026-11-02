@@ -552,6 +552,57 @@ def balance_sheet(c: sqlite3.Connection, ticker: str) -> dict:
     }
 
 
+def bank_kpis(c: sqlite3.Connection, ticker: str) -> dict | None:
+    """What a lender is judged on, by quarter, from the bank's standalone exchange filings.
+
+    Net interest income (NII) = interest earned - interest expended. Two ratios are FINN's own, worked out from the
+    same filings and labelled as such:
+    - NII to assets: quarterly NII x 4 over total assets at the last half-year end. Banks report NIM on
+      interest-earning assets, a smaller base, so their NIM reads higher (HDFCBANK: 3.0% here).
+    - Credit cost: quarterly provisions x 4 over advances at the last half-year end.
+    Gross and net NPA % and CET1 are as filed.
+    """
+    rows = [
+        dict(r) for r in c.execute("SELECT * FROM bank_kpis WHERE ticker=? ORDER BY period_end", (ticker,)).fetchall()
+    ]
+    if not rows:
+        return None
+    by_end = {r["period_end"]: r for r in rows}
+    assets = advances = None
+    quarters = []
+    for r in rows:
+        assets = r["total_assets"] or assets
+        advances = r["advances"] or advances
+        nii = (
+            round(r["interest_earned"] - r["interest_expended"], 2)
+            if r["interest_earned"] is not None and r["interest_expended"] is not None
+            else None
+        )
+        yago = by_end.get(_quarter_back(date.fromisoformat(r["period_end"]), 4))
+        nii_yago = (
+            yago["interest_earned"] - yago["interest_expended"]
+            if yago and yago["interest_earned"] is not None and yago["interest_expended"] is not None
+            else None
+        )
+        quarters.append(
+            {
+                "quarter": quarter_label(r["period_end"]),
+                "period_end": r["period_end"],
+                "nii": nii,
+                "nii_yoy": pct(nii, nii_yago),
+                "nii_to_assets": round(400 * nii / assets, 2) if nii is not None and assets else None,
+                "credit_cost": round(400 * r["provisions"] / advances, 2)
+                if r["provisions"] is not None and advances
+                else None,
+                "gnpa_pct": r["gnpa_pct"],
+                "nnpa_pct": r["nnpa_pct"],
+                "cet1_pct": r["cet1_pct"],
+                "advances": r["advances"],
+            }
+        )
+    return {"quarters": quarters[-5:], "basis": "standalone", "source_url": rows[-1]["source_url"]}
+
+
 def segments(c: sqlite3.Connection, ticker: str) -> dict | None:
     """Revenue mix and segment margins for the latest quarter, from the segment table in the same exchange filing.
 

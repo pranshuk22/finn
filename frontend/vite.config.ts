@@ -30,6 +30,7 @@ export default defineConfig({
         // The app shell is cached by the service worker; API responses are cached by the app itself
         // (src/api.ts), so it can show the last brief instantly and say how old it is.
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ["push-sw.js"], // shows pushed alerts (public/push-sw.js)
       },
     }),
   ],

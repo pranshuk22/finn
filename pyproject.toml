@@ -17,6 +17,7 @@ dependencies = [
     "pymupdf>=2.0",
     "google-genai>=2.34.0,<3.0.0",
     "ddgs>=9.16.1",
+    "pywebpush==2.5.0",
 ]
 
 [dependency-groups]

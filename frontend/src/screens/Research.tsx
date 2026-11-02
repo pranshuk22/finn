@@ -9,12 +9,13 @@ import { GuidanceView, LedgerBuilder, LedgerView, TrackRecord } from "../compone
 import { Card, ErrorState, ExtLink, Icon, jumpTo, Pct, SectionTitle, Sheet, Skeleton, StaleNote } from "../components/ui";
 import { crore, dayMonthYear, inr, plain, when } from "../format";
 import { navigate } from "../router";
-import type { Answer, BalanceSheet, Research, Segments, Trajectory } from "../types";
+import type { Answer, BalanceSheet, BankKpis, Research, Segments, Trajectory } from "../types";
 
 // In the order of the research brief: business, financials, trajectory, balance sheet, cash, narrative, guidance, cases.
 const SECTIONS = [
   { id: "business", label: "Business" },
   { id: "results", label: "Results" },
+  { id: "lending", label: "Lending" },
   { id: "trajectory", label: "Trajectory" },
   { id: "balance", label: "Balance sheet" },
   { id: "cash", label: "Cash" },
@@ -106,6 +107,13 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
         <p className="mx-4 text-[14px] text-muted">No quarterly results found in NSE's integrated filings for this company.</p>
       )}
 
+      {r.bank_kpis && r.bank_kpis.quarters.length > 0 && (
+        <>
+          <SectionTitle id="lending">Lending</SectionTitle>
+          <Lending k={r.bank_kpis} />
+        </>
+      )}
+
       {r.trajectory && (
         <>
           <SectionTitle id="trajectory">Trajectory</SectionTitle>
@@ -151,7 +159,7 @@ export function ResearchScreen({ ticker, section }: { ticker: string; section: s
             <BullBearList title="Bull case" tone="up" points={r.bull_bear.bull} />
             <div className="my-4 border-t border-line" />
             <BullBearList title="Bear case" tone="down" points={r.bull_bear.bear} />
-            <p className="mt-4 text-[12px] text-muted">Written by Flash-Lite from the numbered facts shown under each point; points citing no valid fact are removed.</p>
+            <p className="mt-4 text-[12px] text-muted">Written by Flash-Lite from the numbered facts shown under each point. Each point must join at least two of them; a point that only restates one number, or cites a fact that does not exist, is removed.</p>
           </Card>
         </>
       )}
@@ -435,6 +443,58 @@ function Business({ seg }: { seg: Segments | null }) {
   );
 }
 
+// What a bank is judged on, from its standalone filings: the consolidated ones leave the NPA ratios blank.
+const LENDING: [keyof BankKpis["quarters"][number], string, (v: number) => string][] = [
+  ["nii", "Net interest income, Rs cr", (v) => inr(v)],
+  ["nii_yoy", "NII, YoY", (v) => `${v > 0 ? "+" : ""}${v}%`],
+  ["nii_to_assets", "NII to assets*", (v) => `${v}%`],
+  ["credit_cost", "Credit cost*", (v) => `${v}%`],
+  ["gnpa_pct", "Gross NPA", (v) => `${v}%`],
+  ["nnpa_pct", "Net NPA", (v) => `${v}%`],
+  ["cet1_pct", "CET1 capital", (v) => `${v}%`],
+];
+
+function Lending({ k }: { k: BankKpis }) {
+  const qs = k.quarters.slice(-3);
+  return (
+    <Card>
+      <table className="w-full border-collapse text-[13px]">
+        <thead>
+          <tr className="text-muted">
+            <th className="border-b border-line py-1.5 text-left font-medium" />
+            {qs.map((q) => (
+              <th key={q.quarter} className="border-b border-line py-1.5 text-right font-medium">
+                {q.quarter}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {LENDING.map(([key, label, fmt]) => (
+            <tr key={key} className="border-b border-line last:border-0">
+              <td className="py-2">{label}</td>
+              {qs.map((q, i) => {
+                const v = q[key] as number | null;
+                return (
+                  <td key={q.quarter} className={`tabular py-2 text-right ${i < qs.length - 1 ? "text-muted" : ""}`}>
+                    {v == null ? "n/a" : fmt(v)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-[12px] leading-relaxed text-muted">
+        From the bank's standalone results filed with NSE. NPA and CET1 are as filed. *FINN's ratios: NII to assets is the quarter's net
+        interest income x 4 over total assets (banks report NIM on interest-earning assets, so theirs reads higher); credit cost is
+        provisions x 4 over advances. Assets and advances are from the last half-year balance sheet.{" "}
+        {k.source_url && <ExtLink href={k.source_url}>Latest filing</ExtLink>}
+      </p>
+    </Card>
+  );
+}
+
 const MIX: [keyof BalanceSheet["years"][number]["mix"], string][] = [
   ["deposits", "Deposits"],
   ["debt", "Borrowings"],
@@ -662,7 +722,8 @@ function AskBar({ ticker, show }: { ticker: string; show: boolean }) {
                   <figure key={`${c.source}-${c.page}-${c.quote.slice(0, 20)}`} className="m-0 border-l-2 border-accent pl-4">
                     <blockquote className="m-0 font-serif text-[17px] leading-relaxed">{plain(c.quote)}</blockquote>
                     <figcaption className="mt-2 text-[12px] text-muted">
-                      {c.source} call, page {c.page} · <ExtLink href={`${c.url}#page=${c.page}`}>Open PDF</ExtLink>
+                      {c.source.startsWith("Annual report") ? c.source : `${c.source} call`}, page {c.page} ·{" "}
+                      <ExtLink href={`${c.url}#page=${c.page}`}>Open PDF</ExtLink>
                     </figcaption>
                   </figure>
                 ))}
