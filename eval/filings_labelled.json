@@ -1,5 +1,5 @@
 {
- "labeller": "Claude, blind to FINN's output, from the exchange label, summary and attachment text",
+ "labeller": "AI, blind to FINN's output, from the exchange label, summary and attachment text",
  "labelled_on": "2026-10-31",
  "policy": "README priority table",
  "items": [

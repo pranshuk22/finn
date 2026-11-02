@@ -2,13 +2,13 @@
 
 **How FINN was built with AI, in five days.**
 
-FINN was built in [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, between 30 Oct and 3 Nov 2026. I set the direction, the rules and the design, and checked everything myself, several times over: the app on my phone, the numbers against the filings, and every change before it shipped. Claude Code wrote the code, ran the tests and deploys, and checked every claim against live data. Inside the product, Gemini models read and judge text; Python does all the arithmetic.
+FINN was built with an AI coding assistant between 30 Oct and 3 Nov 2026. I set the direction, the rules and the design, and checked everything myself, several times over: the app on my phone, the numbers against the filings, and every change before it shipped. The AI wrote the code, ran the tests and deploys, and checked every claim against live data. Inside the product, Gemini models read and judge text; Python does all the arithmetic.
 
 | At a glance | |
 | --- | --- |
 | **Working time** | 30 Oct to 3 Nov 2026, one session (the context was summarised and continued as it grew) |
 | **My instructions** | about 40, plus screenshots and pasted briefs |
-| **Agent work** | 400+ replies, 1,300+ tool calls (reading, running, testing, deploying) |
+| **AI work** | 400+ replies, 1,300+ tool calls (reading, running, testing, deploying) |
 | **Independent reviews** | 2 blind reviews of the live app, 31 Oct and 2 Nov |
 | **Commits** | all mine, none with an AI co-author |
 | **Model cost** | Rs 0, on the Gemini free tier |
@@ -25,14 +25,14 @@ FINN was built in [Claude Code](https://claude.com/claude-code), Anthropic's cod
 
 ## Checks, not trust
 
-Nothing was taken on trust. I went through the app and its numbers by hand, more than once, and every result from the agent or a model was also checked against the source before it shipped. Some of what those checks caught:
+Nothing was taken on trust. I went through the app and its numbers by hand, more than once, and every result from the AI or a model was also checked against the source before it shipped. Some of what those checks caught:
 
 - **A wrong number in an answer.** Ask once quoted Dixon's revenue growth as 39.7%, from an older call; the filing says 40.2%. Numbers in answers are now matched to a source at the precision written.
 - **A false finding.** A reviewer said the prices looked seeded. NSE's own closing-price file for 2 Nov has the same round closes, so nothing was changed.
 - **A definition before a verdict.** "TCS's operating margin means EBIT" was tested against the filing (23.98%) and the call ("24%") before the ledger used it.
 - **Its own test.** A push signature check failed; the bug was in the test's header parsing, not the server, and was fixed there.
 
-## What the agent did not decide
+## What the AI did not decide
 
 - **What FINN is for:** a brief you can finish, not a feed.
 - **What counts as important:** which filings need you, and the trade-offs in the README.
