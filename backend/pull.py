@@ -1584,6 +1584,16 @@ _FELL_MINUS = re.compile(
 )
 
 
+_DOWN_WORD = re.compile(r"\b(f[ae]ll|drop|declin|decreas|slip|contract|lower|down)", re.I)
+
+
+def _unsigned(text: str) -> str:
+    """No sign after a direction verb, next to it or later in the sentence ("falling on a year earlier by -352 bps",
+    PIDILITIND, 3 Nov)."""
+    text = _FELL_MINUS.sub(r"\1 \2", text)
+    return re.sub(r"\bby -(\d)", r"by \1", text) if _DOWN_WORD.search(text) else text
+
+
 def build_note(ticker: str) -> dict | None:
     """Two checked sentences on the latest quarter. A sentence citing no real fact, or carrying a number that is in
     none of the facts it cites, is dropped; with nothing left, there is no note."""
@@ -1600,7 +1610,7 @@ def build_note(ticker: str) -> dict | None:
         refs = [r for r in dict.fromkeys(line.refs) if r in facts]
         text = _REF.sub("", line.text).replace(" .", ".").strip()
         if refs and not unmatched_numbers(text, [facts[r] for r in refs]):
-            text = _FELL_MINUS.sub(r"\1 \2", _yearly(text))  # "fell by -71 bps" reads "fell by 71 bps"
+            text = _unsigned(_yearly(text))  # "fell by -71 bps" reads "fell by 71 bps"
             kept.append({"text": text, "refs": [{"id": r, "fact": facts[r]} for r in refs]})
     if not kept:
         return None

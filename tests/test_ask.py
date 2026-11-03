@@ -131,3 +131,8 @@ def test_a_direction_verb_takes_no_sign():
     assert fix("the EBITDA margin falling by -104 bps") == "the EBITDA margin falling by 104 bps"
     assert fix("EBITDA rose +6.3% YoY") == "EBITDA rose 6.3% YoY"
     assert fix("a loss of -5 crore") == "a loss of -5 crore"
+    # PIDILITIND: the verb and its number apart
+    assert pull._unsigned("Watch the EBITDA margin falling on a year earlier by -352 bps.") == (
+        "Watch the EBITDA margin falling on a year earlier by 352 bps."
+    )
+    assert pull._unsigned("Margin moved by -30 bps") == "Margin moved by -30 bps"  # no direction word: sign kept
