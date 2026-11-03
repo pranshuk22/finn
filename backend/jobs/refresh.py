@@ -331,6 +331,9 @@ def main() -> None:
     if "results" in steps:
         refresh_results(nse, everyone)
         refresh_bank_kpis(nse, [t for t in everyone if t in FINANCIALS])
+        from backend.pull import refresh_notes
+
+        log(f"notes: {refresh_notes(everyone)} written")
     if "screener" in steps:
         refresh_screener(everyone)
         refresh_annual_reports(everyone)

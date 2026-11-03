@@ -1481,6 +1481,111 @@ def ask_agent(ticker: str, question: str) -> dict:
     return {**_checked(res, src, question), "trace": trace}
 
 
+# ---------- analyst note on a results card ----------
+
+
+class NoteLine(BaseModel):
+    text: str = Field(description="One sentence, at most 30 words")
+    refs: list[str] = Field(description="Ids of the facts it rests on")
+
+
+class Note(BaseModel):
+    sentences: list[NoteLine]
+
+
+_NOTE_SYSTEM = """You write a two-sentence note on a company's quarterly results for an investor.
+Sentence one: why profit moved the way it did. If an "explanation" fact is given, it is the answer: use it.
+Otherwise join the facts that explain each other (revenue growth and a margin change, a segment carrying the total).
+Sentence two: the one thing to watch next, from the facts: a margin falling, a one-off that will not repeat, a
+segment slowing, asset quality turning. The tiles already show the headline numbers; say what they mean together.
+Use only the numbered facts and cite the ids each sentence rests on. Copy numbers exactly as written in the facts.
+No adjectives like 'strong' or 'robust' unless a number backs them. No advice to buy or sell."""
+
+
+def _note_facts(c, ticker: str) -> tuple[dict | None, dict[str, str]]:
+    rc = A.results_card(c, ticker)
+    if not rc:
+        return None, {}
+    facts: dict[str, str] = {}
+
+    def add(t: str) -> None:
+        facts[f"N{len(facts) + 1}"] = t
+
+    q = rc["quarter"]
+    # What explains a profit swing goes first: the note's job is to say why, not to restate the tiles.
+    for note in (rc.get("tax_note"), rc.get("below_ebitda")):
+        if note:
+            add(f"{q} explanation: {note}")
+    for r in rc["rows"]:
+        if r["label"] in rc.get("suspect", []) or r["value"] is None:
+            continue
+        add(f"{q} {r['label']}: Rs {_n(r['value'])} crore, QoQ {_n(r['qoq'])}%, YoY {_n(r['yoy'])}%")
+    for m in rc.get("margins", []):
+        if m["now"] is not None:
+            add(f"{q} {m['label']}: {_n(m['now'])}%, change on a year earlier {_n(m['yoy_bps'])} bps")
+    if rc.get("other_income_pct_of_pbt") is not None:
+        add(f"{q} other income as a share of PBT: {_n(rc['other_income_pct_of_pbt'])}%")
+    seg = A.segments(c, ticker)
+    for i in (seg or {}).get("items", []):
+        if i.get("yoy") is not None and i.get("share_pct") is not None:
+            share, yoy = _n(i["share_pct"]), _n(i["yoy"])
+            add(f"{seg['quarter']} segment {i['name']}: {share}% of segment revenue, revenue YoY {yoy}%")
+    bk = A.bank_kpis(c, ticker)
+    for text in _bank_lines(bk) if bk else []:
+        add(text)
+    return rc, facts
+
+
+_FELL_MINUS = re.compile(r"\b((?:fell|dropped|declined|decreased|slipped|contracted)(?: by)?) -(\d)", re.I)
+
+
+def build_note(ticker: str) -> dict | None:
+    """Two checked sentences on the latest quarter. A sentence citing no real fact, or carrying a number that is in
+    none of the facts it cites, is dropped; with nothing left, there is no note."""
+    with db.session() as c:
+        rc, facts = _note_facts(c, ticker)
+    if not rc or len(facts) < 3:
+        return None
+    listing = "\n".join(f"[{k}] {v}" for k, v in facts.items())
+    res: Note = llm.generate(
+        task="note", model=llm.SMART, schema=Note, system=_NOTE_SYSTEM, contents=f"Company: {ticker}\n\n{listing}"
+    )
+    kept = []
+    for line in res.sentences[:2]:
+        refs = [r for r in dict.fromkeys(line.refs) if r in facts]
+        text = _REF.sub("", line.text).replace(" .", ".").strip()
+        if refs and not unmatched_numbers(text, [facts[r] for r in refs]):
+            text = _FELL_MINUS.sub(r"\1 \2", _yearly(text))  # "fell by -71 bps" reads "fell by 71 bps"
+            kept.append({"text": text, "refs": [{"id": r, "fact": facts[r]} for r in refs]})
+    if not kept:
+        return None
+    return {"period_end": rc["period_end"], "quarter": rc["quarter"], "sentences": kept}
+
+
+def note_for(c, ticker: str, period_end: str) -> dict | None:
+    n = get_section(c, ticker, "note")
+    return n if n and n.get("period_end") == period_end else None
+
+
+def refresh_notes(tickers: list[str]) -> int:
+    """Write a note for each company whose latest quarter has none yet. Cheap model, one call each."""
+    made = 0
+    for t in tickers:
+        with db.session() as c:
+            rc = A.results_card(c, t)
+            if not rc or note_for(c, t, rc["period_end"]):
+                continue
+        try:
+            n = build_note(t)
+        except Exception as e:  # noqa: BLE001  a missing note is fine; the card stands without it
+            print(f"note: {t} failed: {e}", flush=True)
+            continue
+        if n:
+            _save(t, "note", n)
+            made += 1
+    return made
+
+
 # ---------- ledgers that follow new calls ----------
 
 

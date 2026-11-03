@@ -99,3 +99,27 @@ def test_a_beginner_question_shows_the_definition_it_rests_on(c, monkeypatch):
     assert "GLOSSARY" in seen["contents"] and "EBITDA: operating EBITDA" in seen["contents"]
     out = pull.ask("X", "What does EBITDA mean?")
     assert any(f["source"] == "FINN's glossary" and f["text"].startswith("EBITDA:") for f in out["figures"])
+
+
+def test_note_keeps_only_sentences_backed_by_the_facts_they_cite(monkeypatch):
+    facts = {
+        "N1": "Q2 FY27 explanation: EBITDA +6.3% YoY while PBT -42.6%: other income fell from Rs 496 crore to "
+        "Rs 69 crore.",
+        "N2": "Q2 FY27 EBITDA margin: 2.7%, change on a year earlier -104 bps",
+        "N3": "Q2 FY27 PAT: Rs 411 crore, QoQ -42.8%, YoY -44.9%",
+    }
+    rc = {"period_end": "2026-09-30", "quarter": "Q2 FY27"}
+    monkeypatch.setattr(pull, "_note_facts", lambda c, t: (rc, facts))
+    lines = [
+        pull.NoteLine(text="PBT fell 42.6% because other income fell from Rs 496 crore to Rs 69 crore.", refs=["N1"]),
+        pull.NoteLine(text="Watch the margin, which fell by -104 bps to 2.7%.", refs=["N2"]),
+        pull.NoteLine(text="Phones grew 60% this quarter.", refs=["N3"]),  # 60 is in no cited fact
+    ]
+    monkeypatch.setattr(pull.llm, "generate", lambda **kw: pull.Note(sentences=lines))
+    note = pull.build_note("DIXON")
+    assert [s["text"] for s in note["sentences"]] == [
+        "PBT fell 42.6% because other income fell from Rs 496 crore to Rs 69 crore.",
+        "Watch the margin, which fell by 104 bps to 2.7%.",
+    ]
+    lines[:] = [pull.NoteLine(text="Margins look fine.", refs=["N9"])]  # cites nothing real
+    assert pull.build_note("DIXON") is None

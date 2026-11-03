@@ -88,7 +88,7 @@ export function ResultsTiles({ r }: { r: ResultsCard }) {
       >
         <span>{open ? "Hide details" : "Details"}</span>
         <span className="flex items-center gap-2 font-normal text-muted">
-          {!open && "QoQ table, margins, source"}
+          {!open && (r.note ? "AI note, QoQ, margins, source" : "QoQ table, margins, source")}
           <span className={`transition-transform ${open ? "-rotate-90" : "rotate-90"}`}>
             <Icon.chevron />
           </span>
@@ -96,6 +96,17 @@ export function ResultsTiles({ r }: { r: ResultsCard }) {
       </button>
       {open && (
         <div className="mt-2 animate-fade rounded-[10px] border border-line px-3 pt-1 pb-3">
+          {r.note && (
+            <div className="border-b border-line py-2.5">
+              <p className="text-[12px] font-medium text-muted">AI note</p>
+              {r.note.sentences.map((x) => (
+                <p key={x.text} className="mt-1 text-[14px] leading-snug">
+                  {x.text}
+                </p>
+              ))}
+              <p className="mt-1.5 text-[11px] text-muted">Written by a model from the figures on this card; every number in it was checked against them.</p>
+            </div>
+          )}
           <ResultsGrid r={r} />
           <ResultsNotes r={r} skip={key} />
         </div>

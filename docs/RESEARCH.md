@@ -253,9 +253,12 @@ The free tier allows 250k input tokens a minute, so context mode stalls after ab
 - **Verdicts:** 16 of 20 correct, 1 conservative (unclear where pending fitted), and 3 overclaims. All three were "delivered" on weak evidence: "our fastest growing business", a deal size repeated, "the first phase will commence by August".
 - **Fix:** the prompt now defines delivered as a result stated as achieved, not progress or a plan restated. It applies to ledgers built from now on and has not yet been re-measured.
 
-## R17. Ledgers that follow new calls
+## R17. Ledgers that follow new calls, and a note on each quarter
 
 **A new call updates the ledger by itself.** After each filings refresh, a transcript filed in the last three days whose call is not yet in the company's ledger triggers a rebuild, at most two a run while the reasoning quota lasts. The old and new ledgers are compared: a promise is matched by its quote, else by its metric and call. The Brief and the phone then say what moved.
 
 First run, 3 Nov: RELIANCE's Nov 2026 transcript, filed 1 Nov, was missing from its ledger. The scheduled refresh rebuilt it in about 30 s and reported "Promise ledger after the Nov 2026 call: 2 new promises". Both have their quotes found in the PDF: 20 GW of solar modules (page 24), and New Energy earnings from FY28 (page 3).
 
+**Analyst note.** Two sentences on each latest quarter, from numbered facts about that quarter only. Python keeps a sentence only if it cites real facts and every number in it is in the facts it cites. The note sits inside Details, labelled as written by AI.
+- The first prompt restated the tiles: DIXON's note missed that other income, not the business, explained the profit fall.
+- With the explanatory facts first, and the rule that sentence one must use them, DIXON's note now reads "EBITDA rose 6.3% YoY while PBT dropped 42.6% because other income fell from Rs 496 crore to Rs 69 crore." MAXHEALTH's names its year-ago tax credit.

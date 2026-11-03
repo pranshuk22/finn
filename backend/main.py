@@ -214,6 +214,10 @@ def _amount_in(text: str | None) -> float | None:
     return round(v / 100, 4) if m.group(2).lower() == "lakh" else v
 
 
+def _with_note(c, ticker: str, rc: dict | None) -> dict | None:
+    return {**rc, "note": pull.note_for(c, ticker, rc["period_end"])} if rc else None
+
+
 def _immaterial(scale: dict) -> bool:
     """Under 0.1% of both revenue and market cap: worth knowing at most, never an alert."""
     rev, cap = scale.get("pct_of_revenue"), scale.get("pct_of_market_cap")
@@ -287,7 +291,7 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             if cat == "results":
                 rc = A.results_card(c, ticker)
                 if rc and rc["broadcast_at"] and rc["broadcast_at"] >= (since - timedelta(days=2)).isoformat():
-                    card["results"] = rc
+                    card["results"] = {**rc, "note": pull.note_for(c, ticker, rc["period_end"])}
                     card["headline"] = f"{rc['quarter']}: {A.results_headline(rc)}"
             people: dict[tuple[str, str], dict] = {}
             amount = None
@@ -534,7 +538,7 @@ def research(raw: str):
             "resolved_from": raw.upper() if raw.upper() != ticker else None,
             "in_portfolio": ticker in PORTFOLIO,
             "snapshot": snap,
-            "results": A.results_card(c, ticker),
+            "results": _with_note(c, ticker, A.results_card(c, ticker)),
             "trajectory": A.trajectory(c, ticker),
             "price": _price_story(c, ticker),
             "segments": A.segments(c, ticker),

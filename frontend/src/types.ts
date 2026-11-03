@@ -34,6 +34,7 @@ export interface ResultsCard {
   has_prev: boolean;
   has_year_ago: boolean;
   stale?: boolean; // the quarter is over about 140 days old: a newer one should exist
+  note?: { quarter: string; sentences: { text: string; refs: { id: string; fact: string }[] }[] } | null; // AI note, checked
 }
 
 export interface Source {
