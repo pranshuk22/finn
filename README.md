@@ -90,7 +90,7 @@ Ledgers are built for all 17 portfolio companies that publish call transcripts (
 
 | Eval | Result |
 | --- | --- |
-| Ask: 31 questions with known answers (figures, definitions, call quotes, annual report, out of scope) | 30 of 31 in the default mode; refuses all 5 questions its sources cannot answer |
+| Ask: 31 questions with known answers (figures, definitions, call quotes, annual report, out of scope) | 28 of 31 on the live app, median answer 2.8 s; the 3 misses were declines, never a wrong figure, and all 5 out-of-scope questions were refused |
 | Ask, three designs compared | All four transcripts in one call: 31 of 31 but 80,353 tokens a question, so it stalled on the free tier's per-minute limit and dropped 6 live requests. Matching pages in one call (default): 30 of 31 at 18,027 tokens, no refusals, 6.0 s. A tool-using agent: 30 of 31 at 8,445 tokens, but 12.6 s |
 | Promise ledger: 20 promises drawn at random and read against their quotes | Targets right 18 of 20; verdicts right 16 of 20, 1 too cautious, 3 overclaimed "delivered" (prompt tightened since) |
 | Filing classifier: 30 filings held out from tuning | Category 30 of 30, priority 25 of 30 |

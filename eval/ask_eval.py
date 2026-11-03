@@ -58,7 +58,9 @@ def score_one(q: dict, a: dict) -> tuple[bool, str]:
 
 def run(questions: list[dict]) -> list[dict]:
     out = []
-    with httpx.Client(timeout=120) as client:
+    # A fresh connection per question: on 3 Nov, 3 of 31 requests failed with "Server disconnected" because the
+    # client reused a connection the proxy had closed; the API's log shows they never arrived.
+    with httpx.Client(timeout=120, limits=httpx.Limits(max_keepalive_connections=0)) as client:
         for q in questions:
             t0 = time.time()
             try:

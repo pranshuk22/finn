@@ -230,6 +230,7 @@ All three reviewers were agents given only the two challenge PDFs and the live a
 | Live app, before fixes | 25 of 31 | refusals 5 of 5, annual report 3 of 3, figures 8 of 12 |
 | Same questions after the fixes below | 31 of 31 | all four transcripts in one call |
 | Live app after the fixes, questions every few seconds | 24 of 31 | 6 requests dropped: see the modes below |
+| Live app, pages mode (the default) | 28 of 31 | median 2.8 s; the server answered all 31 with no rate-limit refusal; all 3 misses were declines ("not covered"), never a wrong figure |
 
 What the misses showed, and the fixes:
 - L&T's other income share of PBT was on the card but not in Ask's facts.
@@ -253,6 +254,7 @@ The fixes add the missing fact, link question words to glossary terms, and tell 
 - **Why context failed live:** the free tier allows 250k input tokens a minute, so context mode stalls after about three questions. On the live app, questions a few seconds apart made Gemini ask for waits past the proxy's limit, and 6 of 31 requests were dropped. The server logged no restart and no memory kill.
 - **Decision:** pages mode is the default. It gives up one question (HAL's order inflow, where the guard withheld an answer it could not quote) for a 4.5x token cut and no refusals, so about 13 questions a minute fit instead of 3, at nearly the same speed. The agent uses the fewest tokens but takes twice as long; both other modes are one setting away (`FINN_ASK=context` or `agent`).
 - **Fail fast:** Ask now stops when the model asks it to wait more than 20 s, and the app says the model is busy, instead of the request being dropped.
+- **A fault in the eval, not the app:** in the live pages run, 3 of 31 requests failed with "Server disconnected". The API's log shows 28 requests, all 200 OK; the other 3 never arrived, because the eval client reused a connection the proxy had closed. The client now opens a fresh connection per question, and the 3 were asked again.
 
 **Ledger eval** (`eval/ledger_labels.json`): 20 promises drawn at random (seed 2026) from the 193 in the 23 stored ledgers, each read against its quote, the later evidence and the filed numbers.
 - **Targets:** 18 of 20 right. Twice the quoted words were not management's own promise: an analyst restating guidance, and a target that is not in the quoted sentence.

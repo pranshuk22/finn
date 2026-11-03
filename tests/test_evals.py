@@ -15,6 +15,7 @@ def _ask(path: str) -> dict:
 
 def test_ask_eval_as_reported():
     assert _ask("ask_answers_pages.json")["passed"] == 30  # matching pages in one call: the default
+    assert _ask("ask_answers_live.json")["passed"] == 28  # the default, on the live app
     assert _ask("ask_answers_context.json")["passed"] == 31  # all four transcripts in one call
     assert _ask("ask_answers_agent.json")["passed"] == 30  # tool-using agent
 
