@@ -103,6 +103,13 @@ def pending(c, rules: dict, now: datetime | None = None) -> list[dict]:
         if f"filing:{f['id']}" in sent:
             continue
         out.append({"key": f"filing:{f['id']}", "ticker": f["ticker"], "line": f"{f['ticker']}: {f['summary']}"})
+    from backend.pull import update_headline
+
+    for r in c.execute("SELECT ticker, payload FROM research WHERE section = 'ledger_update'"):
+        u = json.loads(r["payload"])
+        key = f"ledger:{u['ticker']}:{u['call']}"
+        if key not in sent and u.get("filed_at", "") >= since:
+            out.append({"key": key, "ticker": u["ticker"], "line": f"{u['ticker']}: {update_headline(u)}"})
     last = c.execute("SELECT MAX(date) FROM eod").fetchone()[0]
     if last:
         for h in A.eod_scan(c, list(PORTFOLIO), rules.get("price_pct", 3.0), rules.get("vol_mult", 2.0), days=1):

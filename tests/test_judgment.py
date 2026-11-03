@@ -133,3 +133,30 @@ def test_only_company_wide_targets_are_checked_against_company_numbers(metric, c
     from backend.pull import _company_level
 
     assert _company_level(metric) is company
+
+
+def _p(source, metric, quote, status, key="other"):
+    return {"source": source, "metric": metric, "metric_key": key, "quote": quote, "status": status}
+
+
+def test_a_new_call_reports_what_moved_and_what_is_new():
+    old = {
+        "transcripts": [{"period": "Jul 2026"}],
+        "items": [
+            _p("Jul 2026", "Retail EBITDA", "we expect to double retail EBITDA over three years", "pending"),
+            _p("Jul 2026", "Jio IPO", "the listing should happen in the next few months", "pending"),
+        ],
+    }
+    new = {
+        "transcripts": [{"period": "Jul 2026"}, {"period": "Nov 2026"}],
+        "items": [
+            _p("Jul 2026", "Retail EBITDA", "we expect to double retail EBITDA over three years", "pending"),
+            _p("Jul 2026", "Jio IPO", "the listing should happen in the next few months", "delivered"),
+            _p("Nov 2026", "Battery plant", "the first battery line will start next quarter", "pending"),
+        ],
+    }
+    u = {"call": "Nov 2026", **pull.ledger_changes(old, new)}
+    assert u["moved"] == [{"metric": "Jio IPO", "from": "pending", "to": "delivered"}]
+    assert u["added"] == 1
+    assert pull.update_headline(u) == "Promise ledger after the Nov 2026 call: 1 now delivered, 1 new promise."
+    assert pull.update_headline({"call": "Nov 2026", "moved": [], "added": 0}).endswith("no status changed.")

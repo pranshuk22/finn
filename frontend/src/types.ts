@@ -93,6 +93,7 @@ export interface BriefCard {
   reaction: Reaction | null;
   ledger: { counts: Record<string, number>; promises: number } | null;
   note?: string; // e.g. a press release whose figures are on another basis than the filed results
+  moved?: { metric: string; from: string; to: string }[]; // a promise ledger rebuilt after a new call
 }
 
 export interface Move {

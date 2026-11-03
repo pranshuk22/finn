@@ -1481,6 +1481,98 @@ def ask_agent(ticker: str, question: str) -> dict:
     return {**_checked(res, src, question), "trace": trace}
 
 
+# ---------- ledgers that follow new calls ----------
+
+
+def ledger_changes(old: dict, new: dict) -> dict:
+    """What a rebuilt ledger changed: promises whose status moved, and promises the new call added.
+
+    A promise is matched by its quote (the same words from the same call), else by its metric and source call, so a
+    re-extracted promise is not mistaken for a new one."""
+
+    def key_q(it):
+        return _norm(it["quote"])[:80]
+
+    def key_m(it):
+        return (it["source"], it["metric_key"], _norm(it["metric"]))
+
+    before_q = {key_q(it): it for it in old.get("items", [])}
+    before_m = {key_m(it): it for it in old.get("items", [])}
+    known_calls = {t["period"] for t in old.get("transcripts", [])}
+    moved, added = [], 0
+    for it in new.get("items", []):
+        prev = before_q.get(key_q(it)) or before_m.get(key_m(it))
+        if prev is None:
+            added += it["source"] not in known_calls
+            continue
+        if prev["status"] != it["status"]:
+            moved.append({"metric": it["metric"], "from": prev["status"], "to": it["status"]})
+    return {"moved": moved, "added": added}
+
+
+_MOVED_WORD = {
+    "delivered": "delivered",
+    "missed": "missed",
+    "on_track": "on track",
+    "off_track": "off track",
+    "revised": "revised",
+    "dropped": "not mentioned again",
+    "unclear": "unclear",
+    "awaiting": "due, not settled",
+    "pending": "pending",
+}
+
+
+def update_headline(u: dict) -> str:
+    """ "Promise ledger after the Nov 2026 call: 2 now delivered, 1 revised; 3 new promises." """
+    to: dict[str, int] = {}
+    for m in u["moved"]:
+        to[m["to"]] = to.get(m["to"], 0) + 1
+    parts = [f"{n} now {_MOVED_WORD.get(k, k)}" for k, n in to.items()]
+    if u["added"]:
+        parts.append(f"{u['added']} new {'promise' if u['added'] == 1 else 'promises'}")
+    return f"Promise ledger after the {u['call']} call: " + (", ".join(parts) if parts else "no status changed") + "."
+
+
+def update_ledgers_for_new_calls(days: int = 3, limit: int = 2) -> list[dict]:
+    """After a filings refresh: rebuild the ledger of any company whose new call transcript was filed in the last
+    `days` and is not in its ledger yet, then record what changed for the brief and the phone. At most `limit`
+    a run, and only while the reasoning model has quota (20 calls a day; RESEARCH R9)."""
+    with db.session() as c:
+        rows = c.execute(
+            "SELECT DISTINCT ticker, an_dt FROM filings WHERE category = 'earnings_call' AND an_dt >= date('now', ?)"
+            " AND (text LIKE '%ranscript%' OR nse_label LIKE '%ranscript%') ORDER BY an_dt DESC",
+            (f"-{days} days",),
+        ).fetchall()
+        ledgers = {t: get_section(c, t, "ledger") for t in {r["ticker"] for r in rows}}
+    done = []
+    for r in rows:
+        t = r["ticker"]
+        old = ledgers.get(t)
+        period = datetime.fromisoformat(r["an_dt"]).strftime("%b %Y")
+        if not old or old.get("status") != "ok" or period in {x["period"] for x in old.get("transcripts", [])}:
+            continue
+        if len(done) >= limit or not (llm.has_budget(llm.REASON) or llm.has_budget(llm.REASON_FALLBACK)):
+            break
+        sync_nse_transcripts(t)
+        try:
+            new = build_ledger(t)
+        except Exception as e:  # noqa: BLE001  keep the old ledger; the next run tries again
+            print(f"ledger update: {t} failed: {e}", flush=True)
+            continue
+        if new.get("status") != "ok" or period not in {x["period"] for x in new.get("transcripts", [])}:
+            continue
+        _save(t, "ledger", new)
+        try:
+            _save(t, "bull_bear", build_bull_bear(t))
+        except Exception:  # noqa: BLE001  bull and bear can wait for the next build
+            pass
+        update = {"ticker": t, "call": period, "filed_at": r["an_dt"], **ledger_changes(old, new)}
+        _save(t, "ledger_update", update)
+        done.append(update)
+    return done
+
+
 # ---------- section cache and background jobs ----------
 
 

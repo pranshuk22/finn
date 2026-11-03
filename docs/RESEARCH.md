@@ -1,6 +1,6 @@
 # Research log
 
-What was checked before FINN relied on it: data sources, models, and the numbers FINN computes. Each entry says how it was checked, what came back, and the decision it led to. The README and the code cite entries by number (R1 to R16). A later check that contradicts an entry updates it.
+What was checked before FINN relied on it: data sources, models, and the numbers FINN computes. Each entry says how it was checked, what came back, and the decision it led to. The README and the code cite entries by number (R1 to R17). A later check that contradicts an entry updates it.
 
 Checks were run between 31 Oct and 3 Nov 2026 (IST), from a home connection in India unless noted.
 
@@ -252,4 +252,10 @@ The free tier allows 250k input tokens a minute, so context mode stalls after ab
 - **Targets:** 18 of 20 right. Twice the quoted words were not management's own promise: an analyst restating guidance, and a target that is not in the quoted sentence.
 - **Verdicts:** 16 of 20 correct, 1 conservative (unclear where pending fitted), and 3 overclaims. All three were "delivered" on weak evidence: "our fastest growing business", a deal size repeated, "the first phase will commence by August".
 - **Fix:** the prompt now defines delivered as a result stated as achieved, not progress or a plan restated. It applies to ledgers built from now on and has not yet been re-measured.
+
+## R17. Ledgers that follow new calls
+
+**A new call updates the ledger by itself.** After each filings refresh, a transcript filed in the last three days whose call is not yet in the company's ledger triggers a rebuild, at most two a run while the reasoning quota lasts. The old and new ledgers are compared: a promise is matched by its quote, else by its metric and call. The Brief and the phone then say what moved.
+
+First run, 3 Nov: RELIANCE's Nov 2026 transcript, filed 1 Nov, was missing from its ledger. The scheduled refresh rebuilt it in about 30 s and reported "Promise ledger after the Nov 2026 call: 2 new promises". Both have their quotes found in the PDF: 20 GW of solar modules (page 24), and New Energy earnings from FY28 (page 3).
 

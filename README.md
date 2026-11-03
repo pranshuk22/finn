@@ -6,7 +6,7 @@ FINN is a mobile-first investing agent for Indian equities. It reads every NSE f
 
 **Open it on your phone:** https://finn-mu-three.vercel.app (then Add to Home Screen)
 
-Built for the ENAM Holdings AI Engineer Build Challenge. It runs on live data from a server in Mumbai that refreshes through the trading day. Every claim below about data, models or numbers links to the [research log](docs/RESEARCH.md) (R1 to R16), where it was checked. Unfamiliar terms are explained in [Terms used here](#terms-used-here) at the end.
+Built for the ENAM Holdings AI Engineer Build Challenge. It runs on live data from a server in Mumbai that refreshes through the trading day. Every claim below about data, models or numbers links to the [research log](docs/RESEARCH.md) (R1 to R17), where it was checked. Unfamiliar terms are explained in [Terms used here](#terms-used-here) at the end.
 
 ### Try it in two minutes
 
@@ -33,6 +33,7 @@ Most investor apps never end: more filings, more news, more charts. FINN does th
 | Results card | Revenue, EBITDA, PBT and PAT with QoQ and YoY; margins and their change in basis points; how the stock traded in the next session; the company's promise ledger in one line. Banks get pre-provision profit and provisions. | Parsed from the exchange's own iXBRL filing, never generated, and cross-checked against Screener ([R4](docs/RESEARCH.md#r4-quarterly-results-from-nses-ixbrl-filings)). Notes explain what distorts a quarter: tax, other income, a one-off below EBITDA ([R5](docs/RESEARCH.md#r5-what-a-results-card-has-to-explain)). |
 | Management change | Who joined or left, their role, family ties to the board as the filing states them, and a three-line career background with sources. | The person is read from the filing PDF, then a web search fills in their career. A background counts as confident only if a source names the company ([R3](docs/RESEARCH.md#r3-management-changes-and-executive-bios)). |
 | Everything else | A one-line summary at the priority the category deserves. A stated amount is shown as a share of revenue, and for deals and fund raises of market cap. | When the exchange summary says nothing ("General Updates"), a small model reads the PDF. Polycab's insolvency filings concern a Rs 2.79 crore debt against Rs 9,899 crore of quarterly revenue ([R5](docs/RESEARCH.md#r5-what-a-results-card-has-to-explain)). |
+| Promise ledger update | When a company files a new earnings call transcript, its promise ledger is rebuilt by itself and a card says what moved: "Promise ledger after the Nov 2026 call: 2 new promises." | The scheduled refresh spots the new transcript, rebuilds within the daily model quota, and compares old and new verdicts promise by promise ([R17](docs/RESEARCH.md#r17-ledgers-that-follow-new-calls)). |
 | Alerts | Price and volume thresholds you set, filing types to always flag, and a notification on your phone when something new crosses them. | FINN replays your thresholds over the last 60 sessions so you tune "unusual" on real data: ±3% or 2x volume fires 119 alerts, ±5% or 3x fires 25 ([R8](docs/RESEARCH.md#r8-prices-and-how-many-alerts-a-threshold-fires)). Web Push sends each alert once ([R13](docs/RESEARCH.md#r13-push-notifications)). |
 
 **What needs you.** This is a judgment call, so it is written down:

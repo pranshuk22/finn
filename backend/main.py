@@ -322,6 +322,32 @@ def brief(hours: int = Query(24, ge=1, le=24 * 90)):
             if led and led.get("status") == "ok":
                 card["ledger"] = {"counts": led["counts"], "promises": len(led["items"])}
             cards.append(card)
+        # A new call rebuilt a company's promise ledger: say what moved, as a card of its own.
+        for r in c.execute("SELECT ticker, payload FROM research WHERE section = 'ledger_update'"):
+            u = json.loads(r["payload"])
+            if u["ticker"] not in PORTFOLIO or u.get("filed_at", "") < since.replace(tzinfo=None).isoformat():
+                continue
+            cards.append(
+                {
+                    "id": f"ledger-{u['ticker']}-{u['call']}",
+                    "ticker": u["ticker"],
+                    "name": _name(u["ticker"]),
+                    "category": "ledger_update",
+                    "category_label": "Promise ledger",
+                    "priority": "worth_knowing",
+                    "latest_at": u["filed_at"],
+                    "first_at": u["filed_at"],
+                    "headline": pull.update_headline(u),
+                    "alert": False,
+                    "filings": [],
+                    "results": None,
+                    "people": None,
+                    "scale": None,
+                    "reaction": None,
+                    "ledger": None,
+                    "moved": u["moved"],
+                }
+            )
         # A company's own release often states other figures than its filed results: MAXHEALTH's said revenue
         # Rs 3,219 crore and PAT +10% (network gross revenue, adjusted profit) beside filed Rs 2,569 crore and PAT
         # -15.6%. Say which is which instead of leaving two sets of numbers side by side (review, 3 Nov).

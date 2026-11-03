@@ -304,7 +304,7 @@ function Group({
 }
 
 function BriefCardView({ card, onOpen, onDone, onNote }: { card: BriefCard; onOpen: () => void; onDone: () => void; onNote: (m: string) => void }) {
-  const dig = `/research/${card.ticker}${card.results ? "#ledger" : ""}`;
+  const dig = `/research/${card.ticker}${card.results || card.moved ? "#ledger" : ""}`;
   const body = useRef<HTMLDivElement>(null);
   const share = async () => {
     try {
@@ -345,14 +345,25 @@ function BriefCardView({ card, onOpen, onDone, onNote }: { card: BriefCard; onOp
           </p>
         )}
 
+        {card.moved && card.moved.length > 0 && (
+          <ul className="space-y-1 text-[13px] text-muted">
+            {card.moved.slice(0, 3).map((m) => (
+              <li key={m.metric}>
+                {m.metric}: {STATUS_WORD[m.from] ?? m.from} to <span className="font-medium text-ink">{STATUS_WORD[m.to] ?? m.to}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {card.note && <p className="mt-2 text-[12px] text-muted">{card.note}</p>}
         <Facts card={card} />
 
         {/* wraps whole actions, never mid-label: Large text once broke "2 filings" over two lines (review, 3 Nov) */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 border-t border-line" data-noshare>
-          <TextAction onClick={onOpen} icon={<Icon.doc />}>
-            {filingSpan(card)}
-          </TextAction>
+          {card.filings.length > 0 && (
+            <TextAction onClick={onOpen} icon={<Icon.doc />}>
+              {filingSpan(card)}
+            </TextAction>
+          )}
           <span className="flex-1" />
           {card.results && (
             <button type="button" onClick={share} aria-label="Share as an image" className="flex h-11 w-9 items-center justify-center text-muted">

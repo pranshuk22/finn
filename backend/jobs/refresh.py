@@ -338,6 +338,15 @@ def main() -> None:
         from backend.pull import recheck_ledgers
 
         log(f"ledgers: rechecked against new numbers, {recheck_ledgers()} changed")
+    if "filings" in steps:
+        from backend.pull import update_ledgers_for_new_calls
+
+        try:
+            for u in update_ledgers_for_new_calls():
+                moved, added = len(u["moved"]), u["added"]
+                log(f"ledger: {u['ticker']} rebuilt after the {u['call']} call, {moved} moved, {added} new")
+        except Exception as e:  # a model outage must not fail the refresh
+            log(f"ledger update: failed: {e}")
     if {"filings", "eod"} & set(steps):
         from backend import push
 
