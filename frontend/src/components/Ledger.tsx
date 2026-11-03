@@ -367,7 +367,7 @@ export function TrackRecord({ ledger }: { ledger: Ledger }) {
           <span className="text-[20px] font-semibold">{kept}</span>
           <span className="text-muted">
             {" "}
-            of {judged.length} settled promises were kept{rest && `; ${rest}, not counted`}
+            of {judged.length} settled {judged.length === 1 ? "promise was" : "promises were"} kept{rest && `; ${rest}, not counted`}
           </span>
         </p>
       ) : (
@@ -385,8 +385,10 @@ export function TrackRecord({ ledger }: { ledger: Ledger }) {
         {calls.map((call) => {
           const said = items.filter((i) => i.source === call);
           return (
-            <div key={call} className="flex flex-col items-center">
-              <div className="flex min-h-[44px] flex-wrap content-end justify-center gap-1.5">
+            // Every column is as tall as the tallest and its dots sit at the bottom, so the month labels share one line
+            // however many promises each call made.
+            <div key={call} className="flex h-full flex-col items-center">
+              <div className="flex min-h-[44px] flex-1 flex-wrap content-end justify-center gap-1.5">
                 {said.map((it) => {
                   const c = colorOf(it.status);
                   return (
@@ -420,7 +422,7 @@ export function TrackRecord({ ledger }: { ledger: Ledger }) {
         ))}
         <li className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full border-2 border-faint" />
-          Not due yet <span className="tabular text-ink">{items.length - judged.length}</span>
+          Not due yet <span className="tabular text-ink">{items.length - outcomes.length}</span>
         </li>
       </ul>
 
