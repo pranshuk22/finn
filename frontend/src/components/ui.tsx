@@ -243,31 +243,46 @@ export function ResultsGrid({ r }: { r: ResultsCard }) {
 }
 
 /** What FINN wants you to check about these numbers, and where they come from. */
-export function ResultsNotes({ r }: { r: ResultsCard }) {
+type NoteKey = "stale" | "suspect" | "tax" | "below" | "other";
+
+/** The one note worth reading first, in order of how much it changes the reading of the quarter. The card shows only
+ * this one up front; the rest wait behind Details, so a results card can be read at a glance (owner, 3 Nov). */
+export function keyNote(r: ResultsCard): NoteKey | null {
+  if (r.stale) return "stale";
+  if (r.suspect?.length) return "suspect";
+  if (r.tax_note) return "tax";
+  if (r.below_ebitda) return "below";
+  if (r.other_income_pct_of_pbt != null && r.other_income_pct_of_pbt >= 25) return "other";
+  return null;
+}
+
+export function ResultsNotes({ r, only, skip }: { r: ResultsCard; only?: NoteKey | null; skip?: NoteKey | null }) {
+  const show = (k: NoteKey) => (only === undefined ? k !== skip : k === only);
+  const all = only === undefined;
   return (
     <>
-      {r.stale && (
+      {r.stale && show("stale") && (
         <p className="mt-2 text-[12px] font-medium text-needs">
           These are the latest results FINN found on NSE, for the quarter ended {dayMonthYear(r.period_end)}. A newer quarter should have
           been filed by now, so treat these as old.
         </p>
       )}
-      {r.other_income_pct_of_pbt != null && (
+      {r.other_income_pct_of_pbt != null && (all ? skip !== "other" : only === "other") && (
         <p className={`mt-2 text-[12px] ${r.other_income_pct_of_pbt >= 25 ? "text-needs" : "text-muted"}`}>
           Other income is {r.other_income_pct_of_pbt.toFixed(0)}% of PBT
           {r.other_income_pct_of_pbt >= 25 && ": a large part of profit does not come from operations"}.
         </p>
       )}
-      {r.tax_note && <p className="mt-2 text-[12px] text-needs">{r.tax_note}</p>}
-      {r.below_ebitda && <p className="mt-2 text-[12px] text-needs">{r.below_ebitda}</p>}
-      {r.suspect?.length > 0 && (
+      {r.tax_note && show("tax") && <p className="mt-2 text-[12px] text-needs">{r.tax_note}</p>}
+      {r.below_ebitda && show("below") && <p className="mt-2 text-[12px] text-needs">{r.below_ebitda}</p>}
+      {r.suspect?.length > 0 && show("suspect") && (
         <p className="mt-2 text-[12px] text-needs">
           Check the filing: {r.suspect.join(" and ")} {r.suspect.length > 1 ? "differ" : "differs"} from Screener by more than 10%, so
           FINN does not headline {r.suspect.length > 1 ? "them" : "it"}.
         </p>
       )}
-      {r.derived && <p className="mt-2 text-[12px] text-muted">Quarter worked out from the filing: {r.derived}.</p>}
-      {r.rows.some((x) => x.check) && (
+      {all && r.derived && <p className="mt-2 text-[12px] text-muted">Quarter worked out from the filing: {r.derived}.</p>}
+      {all && r.rows.some((x) => x.check) && (
         <p className="mt-2 text-[12px] text-muted">
           {r.rows
             .filter((x) => x.check)
@@ -275,17 +290,19 @@ export function ResultsNotes({ r }: { r: ResultsCard }) {
             .join(" ")}
         </p>
       )}
-      <p className="mt-2 text-[12px] leading-relaxed text-muted">
-        {r.consolidated ? "Consolidated" : "Standalone"}
-        {r.rows.some((x) => x.derived) &&
-          (r.is_bank ? ". *PPOP computed from the filed lines" : ". *Operating EBITDA = PBT + finance costs + depreciation - other income")}
-        {r.source_url && (
-          <>
-            {". "}
-            <ExtLink href={r.source_url}>NSE filing</ExtLink>
-          </>
-        )}
-      </p>
+      {all && (
+        <p className="mt-2 text-[12px] leading-relaxed text-muted">
+          {r.consolidated ? "Consolidated" : "Standalone"}
+          {r.rows.some((x) => x.derived) &&
+            (r.is_bank ? ". *PPOP computed from the filed lines" : ". *Operating EBITDA = PBT + finance costs + depreciation - other income")}
+          {r.source_url && (
+            <>
+              {". "}
+              <ExtLink href={r.source_url}>NSE filing</ExtLink>
+            </>
+          )}
+        </p>
+      )}
     </>
   );
 }

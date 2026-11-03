@@ -3,7 +3,7 @@ import { explainResults } from "../explain";
 import { inr } from "../format";
 import { useSettings } from "../settings";
 import type { ResultsCard } from "../types";
-import { Bps, Pct, ResultsGrid, ResultsNotes } from "./ui";
+import { Bps, keyNote, Pct, ResultsGrid, ResultsNotes } from "./ui";
 
 // A quarter at a glance: four figures in one row, each with its year-on-year change and a five-quarter trend.
 // The full table with QoQ, margins in bps and the EBITDA definition is one tap away.
@@ -38,7 +38,8 @@ function Trend({ values }: { values: (number | null)[] }) {
 const SHORT: Record<string, string> = { "Pre-provision profit": "PPOP" };
 
 export function ResultsTiles({ r }: { r: ResultsCard }) {
-  const [table, setTable] = useState(false);
+  const [open, setOpen] = useState(false);
+  const key = keyNote(r);
   const tiles = r.rows.filter((x) => x.label !== "Provisions").slice(0, 4);
   const yoy = r.has_year_ago;
   const { explain } = useSettings();
@@ -74,24 +75,29 @@ export function ResultsTiles({ r }: { r: ResultsCard }) {
           ))}
         </ul>
       )}
-      {r.margins?.length > 0 && (
-        <p className="mt-2 flex flex-wrap gap-x-4 text-[13px] text-muted">
-          {r.margins.map((m) => (
-            <span key={m.label}>
-              {m.label} <span className="tabular font-semibold text-ink">{m.now != null ? `${m.now.toFixed(1)}%` : "n/a"}</span>{" "}
-              <Bps value={yoy ? m.yoy_bps : m.qoq_bps} />
-            </span>
-          ))}
-        </p>
-      )}
-      {table && (
-        <div className="mt-3 animate-fade">
-          <ResultsGrid r={r} />
+      {/* Up front: the one note that changes the reading most. Margins, the QoQ table, other notes and the source wait
+          behind Details, so the card reads at a glance. */}
+      <ResultsNotes r={r} only={key} />
+      {open && (
+        <div className="animate-fade">
+          {r.margins?.length > 0 && (
+            <p className="mt-2 flex flex-wrap gap-x-4 text-[13px] text-muted">
+              {r.margins.map((m) => (
+                <span key={m.label}>
+                  {m.label} <span className="tabular font-semibold text-ink">{m.now != null ? `${m.now.toFixed(1)}%` : "n/a"}</span>{" "}
+                  <Bps value={yoy ? m.yoy_bps : m.qoq_bps} />
+                </span>
+              ))}
+            </p>
+          )}
+          <div className="mt-3">
+            <ResultsGrid r={r} />
+          </div>
+          <ResultsNotes r={r} skip={key} />
         </div>
       )}
-      <ResultsNotes r={r} />
-      <button type="button" onClick={() => setTable(!table)} className="mt-1 h-9 text-[13px] font-semibold text-accent-ink" aria-expanded={table}>
-        {table ? "Hide full table" : "Full table with QoQ"}
+      <button type="button" onClick={() => setOpen(!open)} className="mt-1 h-9 text-[13px] font-semibold text-accent-ink" aria-expanded={open}>
+        {open ? "Hide details" : "Details: margins, QoQ, source"}
       </button>
     </div>
   );

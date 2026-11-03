@@ -355,9 +355,9 @@ function BriefCardView({ card, onOpen, onDone, onNote }: { card: BriefCard; onOp
           </TextAction>
           <span className="flex-1" />
           {card.results && (
-            <TextAction onClick={share} icon={<Icon.share />}>
-              Share
-            </TextAction>
+            <button type="button" onClick={share} aria-label="Share as an image" className="flex h-11 w-9 items-center justify-center text-muted">
+              <Icon.share />
+            </button>
           )}
           <TextAction onClick={onDone} icon={<Icon.check />}>
             Done
@@ -413,11 +413,14 @@ function Facts({ card }: { card: BriefCard }) {
       )}
       {led && (
         <button type="button" onClick={() => navigate(`/research/${card.ticker}#ledger`)} className="flex min-h-9 items-center gap-1 text-left text-accent-ink">
-          Promise ledger:{" "}
+          {/* the two most telling counts; the full ledger is one tap away */}
+          Promises:{" "}
           {Object.entries(led.counts)
+            .filter(([k]) => !["pending", "unclear"].includes(k))
             .sort((a, b) => ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]))
+            .slice(0, 2)
             .map(([k, n]) => `${n} ${STATUS_WORD[k] ?? k}`)
-            .join(", ")}
+            .join(", ") || `${led.promises} tracked`}
           <Icon.chevron />
         </button>
       )}
