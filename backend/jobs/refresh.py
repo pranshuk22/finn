@@ -293,7 +293,10 @@ def store_screener(ticker: str, page: dict) -> None:
         for kind, d in docs:
             c.execute(
                 "INSERT INTO documents(ticker, kind, period, url) VALUES(?,?,?,?) "
-                "ON CONFLICT(ticker, kind, period) DO UPDATE SET url=excluded.url",
+                # a readable NSE transcript is the better source (RESEARCH R7); Screener's link fills the gaps
+                "ON CONFLICT(ticker, kind, period) DO UPDATE SET url=excluded.url,"
+                " pages=CASE WHEN documents.url = excluded.url THEN documents.pages END"
+                " WHERE documents.url NOT LIKE '%nseindia.com%'",
                 (ticker, kind, d["period"], d["url"]),
             )
 

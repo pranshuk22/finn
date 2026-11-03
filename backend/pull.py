@@ -105,9 +105,18 @@ def sync_nse_transcripts(ticker: str) -> None:
             ).fetchone()
             if old and old["url"] == f["pdf_url"]:
                 continue
+            # Some companies file only a cover letter saying the transcript is on their website: L&T's NSE
+            # "transcripts" are one page of about 1,800 characters. Storing one replaced Screener's link to the real
+            # call for that month and left L&T's ledger with one call (3 Nov). Only a readable transcript is kept.
+            try:
+                pages = pdf.pages(pdf.download(f["pdf_url"]))
+            except Exception:
+                continue
+            if sum(len(p) for p in pages) < 2000:
+                continue
             c.execute(
-                "INSERT OR REPLACE INTO documents(ticker, kind, period, url, pages) VALUES(?,?,?,?,NULL)",
-                (ticker, "transcript", period, f["pdf_url"]),
+                "INSERT OR REPLACE INTO documents(ticker, kind, period, url, pages) VALUES(?,?,?,?,?)",
+                (ticker, "transcript", period, f["pdf_url"], json.dumps(pages)),
             )
         db.set_meta(c, f"nse_transcripts_synced:{ticker}", db.now_iso())
 
@@ -1650,23 +1659,33 @@ def update_ledgers_for_new_calls(days: int = 3, limit: int = 2) -> list[dict]:
             (f"-{days} days",),
         ).fetchall()
         ledgers = {t: get_section(c, t, "ledger") for t in {r["ticker"] for r in rows}}
-    done = []
+    done, seen = [], set()
     for r in rows:
         t = r["ticker"]
         old = ledgers.get(t)
-        period = datetime.fromisoformat(r["an_dt"]).strftime("%b %Y")
-        if not old or old.get("status") != "ok" or period in {x["period"] for x in old.get("transcripts", [])}:
+        if not old or old.get("status") != "ok" or t in seen:
+            continue
+        seen.add(t)
+        # The newest call available from any source (NSE, or Screener when NSE has only a cover letter) must be
+        # newer than the newest call the ledger already read; otherwise there is nothing new to read yet.
+        sync_nse_transcripts(t)
+        with db.session() as c:
+            calls = [d for d in document_list(c, t) if d["kind"] == "transcript"]
+        newest = max((_period_date(d["period"]) or date.min for d in calls), default=date.min)
+        read = max((_period_date(x["period"]) or date.min for x in old.get("transcripts", [])), default=date.min)
+        if newest <= read:
             continue
         if len(done) >= limit or not (llm.has_budget(llm.REASON) or llm.has_budget(llm.REASON_FALLBACK)):
             break
-        sync_nse_transcripts(t)
         try:
             new = build_ledger(t)
         except Exception as e:  # noqa: BLE001  keep the old ledger; the next run tries again
             print(f"ledger update: {t} failed: {e}", flush=True)
             continue
-        if new.get("status") != "ok" or period not in {x["period"] for x in new.get("transcripts", [])}:
-            continue
+        got = max((_period_date(x["period"]) or date.min for x in new.get("transcripts", [])), default=date.min)
+        if new.get("status") != "ok" or got <= read:
+            continue  # the new call could not be read; keep the old ledger
+        period = max(new["transcripts"], key=lambda x: _period_date(x["period"]) or date.min)["period"]
         _save(t, "ledger", new)
         try:
             _save(t, "bull_bear", build_bull_bear(t))
