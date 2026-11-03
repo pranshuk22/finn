@@ -78,6 +78,7 @@ def run(questions: list[dict]) -> list[dict]:
 
 def run_local(questions: list[dict], mode: str) -> list[dict]:
     from backend import db, pull
+    from backend.main import _no_dashes
 
     fn = {"agent": pull.ask_agent, "context": pull.ask_context, "pages": pull.ask_pages}[mode]
     with db.session() as c:
@@ -90,7 +91,7 @@ def run_local(questions: list[dict], mode: str) -> list[dict]:
         except Exception as e:  # noqa: BLE001
             a = {"error": str(e)}
         a["seconds"] = round(time.time() - t0, 1)
-        out.append({"id": q["id"], **a})
+        out.append(_no_dashes({"id": q["id"], **a}))  # as the app serves it (backend/main.py)
         print(f"{q['id']:>4} {a['seconds']:>5}s  {q['q']}", flush=True)
     with db.session() as c:
         calls, tokens = c.execute(
