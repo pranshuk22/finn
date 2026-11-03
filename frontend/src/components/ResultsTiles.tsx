@@ -3,7 +3,7 @@ import { explainResults } from "../explain";
 import { inr } from "../format";
 import { useSettings } from "../settings";
 import type { ResultsCard } from "../types";
-import { Bps, keyNote, Pct, ResultsGrid, ResultsNotes } from "./ui";
+import { Icon, keyNote, Pct, ResultsGrid, ResultsNotes } from "./ui";
 
 // A quarter at a glance: four figures in one row, each with its year-on-year change and a five-quarter trend.
 // The full table with QoQ, margins in bps and the EBITDA definition is one tap away.
@@ -78,27 +78,28 @@ export function ResultsTiles({ r }: { r: ResultsCard }) {
       {/* Up front: the one note that changes the reading most. Margins, the QoQ table, other notes and the source wait
           behind Details, so the card reads at a glance. */}
       <ResultsNotes r={r} only={key} />
+      {/* Details is a row of its own with a chevron, and opens into an inset box, so it is clear what it holds and
+          where the card carries on (owner, 3 Nov: the expanded part blended into the card). */}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="mt-3 flex h-10 w-full items-center justify-between rounded-[10px] bg-base px-3 text-[13px] font-semibold text-accent-ink"
+      >
+        <span>{open ? "Hide details" : "Details"}</span>
+        <span className="flex items-center gap-2 font-normal text-muted">
+          {!open && "QoQ table, margins, source"}
+          <span className={`transition-transform ${open ? "-rotate-90" : "rotate-90"}`}>
+            <Icon.chevron />
+          </span>
+        </span>
+      </button>
       {open && (
-        <div className="animate-fade">
-          {r.margins?.length > 0 && (
-            <p className="mt-2 flex flex-wrap gap-x-4 text-[13px] text-muted">
-              {r.margins.map((m) => (
-                <span key={m.label}>
-                  {m.label} <span className="tabular font-semibold text-ink">{m.now != null ? `${m.now.toFixed(1)}%` : "n/a"}</span>{" "}
-                  <Bps value={yoy ? m.yoy_bps : m.qoq_bps} />
-                </span>
-              ))}
-            </p>
-          )}
-          <div className="mt-3">
-            <ResultsGrid r={r} />
-          </div>
+        <div className="mt-2 animate-fade rounded-[10px] border border-line px-3 pt-1 pb-3">
+          <ResultsGrid r={r} />
           <ResultsNotes r={r} skip={key} />
         </div>
       )}
-      <button type="button" onClick={() => setOpen(!open)} className="mt-1 h-9 text-[13px] font-semibold text-accent-ink" aria-expanded={open}>
-        {open ? "Hide details" : "Details: margins, QoQ, source"}
-      </button>
     </div>
   );
 }
