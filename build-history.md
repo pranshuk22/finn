@@ -7,9 +7,9 @@ FINN was built with an AI coding assistant between 30 Oct and 3 Nov 2026. I set 
 | At a glance | |
 | --- | --- |
 | **Working time** | 30 Oct to 3 Nov 2026, one session (the context was summarised and continued as it grew) |
-| **My instructions** | about 40, plus screenshots and pasted briefs |
-| **AI work** | 400+ replies, 1,300+ tool calls (reading, running, testing, deploying) |
-| **Independent reviews** | 2 blind reviews of the live app, 31 Oct and 2 Nov |
+| **My instructions** | about 60, plus screenshots and pasted briefs |
+| **AI work** | 550+ replies, 1,600+ tool calls (reading, running, testing, deploying) |
+| **Independent reviews** | 3 blind reviews of the live app, 31 Oct, 2 Nov and 3 Nov |
 | **Commits** | all mine, none with an AI co-author |
 | **Model cost** | Rs 0, on the Gemini free tier |
 
@@ -21,7 +21,7 @@ FINN was built with an AI coding assistant between 30 Oct and 3 Nov 2026. I set 
 | **Sat 31 Oct** | The product | API, analytics and the promise ledger, cut from 5 model calls to 1 to fit the free tier ([R9](docs/RESEARCH.md#r9-gemini-models-availability-speed-and-free-tier-limits)). Deployed to Lightsail Mumbai behind Vercel. I chose a reference design; the look was reworked on my feedback ("looks AI-ish", "all text and numbers") until it was quiet and readable. First blind review. |
 | **Sun 1 Nov** | Reliability | I saw a 502 in Ask. The cause was security updates restarting the API; fixed with a watchdog and retries ([R12](docs/RESEARCH.md#r12-hosting-speed-and-uptime)). |
 | **Mon 2 Nov** | Ask and review two | Ask answers number questions from filed results first ([R11](docs/RESEARCH.md#r11-keeping-model-answers-traceable-ask-and-bull-and-bear)). The second blind review scored 6 to 8 out of 10 in each category; ten findings fixed ([R15](docs/RESEARCH.md#r15-three-independent-blind-reviews)). |
-| **Tue 3 Nov** | Closing the gaps | Bank NPA and NII from filings, annual reports in Ask, more promises decided by numbers, sharper bull and bear, phone notifications. |
+| **Tue 3 Nov** | Closing the gaps, then measuring | Bank NPA and NII from filings, annual reports in Ask, more promises decided by numbers, sharper bull and bear, phone notifications. A third blind review (7 or 8 out of 10 in every area), its fixes, and a plain-English mode for new investors. Then evals for Ask and the ledger ([R16](docs/RESEARCH.md#r16-measuring-the-ai-ask-and-the-promise-ledger)): three Ask designs compared, the default changed on the evidence. Ledgers that rebuild when a new call is filed, and an AI note on each quarter ([R17](docs/RESEARCH.md#r17-ledgers-that-follow-new-calls-and-a-note-on-each-quarter)). |
 
 ## Checks, not trust
 
@@ -31,6 +31,7 @@ Nothing was taken on trust. I went through the app and its numbers by hand, more
 - **A false finding.** A reviewer said the prices looked seeded. NSE's own closing-price file for 2 Nov has the same round closes, so nothing was changed.
 - **A definition before a verdict.** "TCS's operating margin means EBIT" was tested against the filing (23.98%) and the call ("24%") before the ledger used it.
 - **Its own test.** A push signature check failed; the bug was in the test's header parsing, not the server, and was fixed there.
+- **A failure that was not the app's.** The live Ask eval showed 3 requests "disconnected". The server's log showed every request it received answered; those 3 never arrived, because the eval client reused a closed connection. The client was fixed, not the app.
 
 ## What the AI did not decide
 

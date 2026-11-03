@@ -41,7 +41,7 @@ Most investor apps never end: more filings, more news, more charts. FINN does th
 | Category | Priority |
 | --- | --- |
 | Results; a CEO, CFO, MD, chair or KMP joining or leaving; insolvency or regulator action; a rating downgrade; a pledge created or invoked | Needs you |
-| Board changes and changes at subsidiaries; deals, fund raises, listings and capex; dividends; other legal matters; promoter sales; rating upgrades; monthly sales; results decks | Worth knowing |
+| Board changes and changes at subsidiaries; deals, fund raises, listings and capex; dividends; other legal matters; promoter sales; rating upgrades; monthly sales; results decks; a promise ledger updated after a new call | Worth knowing |
 | Meeting notices, certificates, investor meet schedules, newspaper copies, reaffirmed ratings, ESG scores | Routine |
 
 On 30 filings held out from tuning, FINN's category matched a blind label on all 30 and its priority on 25. The 90 labelled filings run as a regression test in CI ([R2](docs/RESEARCH.md#r2-classifying-filings-labels-then-rules-then-a-model)).
@@ -60,7 +60,7 @@ Search any NSE company. FINN builds its brief from primary sources only: exchang
 | **Narrative vs numbers** | What management promised on past calls, and what happened. |
 | Guidance | Open targets from the same calls, grouped by metric. |
 | Bull and bear | The case each way. Each point must join at least two cited facts ([R11](docs/RESEARCH.md#r11-keeping-model-answers-traceable-ask-and-bull-and-bear)). |
-| Ask | Follow-up questions, answered from the filed results first, then the last four calls, then the annual report ([R7](docs/RESEARCH.md#r7-transcripts-and-annual-reports)). A beginner can ask what a term means, or whether a value is high, and gets FINN's own definition with this company's figure. |
+| Ask | Follow-up questions, answered from the filed results first, then the pages of the last four calls that match the question, then the annual report ([R7](docs/RESEARCH.md#r7-transcripts-and-annual-reports)). A beginner can ask what a term means, or whether a value is high, and gets FINN's own definition with this company's figure. |
 
 **The promise ledger is the centre of Pull.** One model call reads the last four transcripts in order. For each forward-looking statement ("8 to 10% volume growth this year") it records the metric, target, timeframe, exact quote and page, then what later calls said. Python then checks everything:
 
@@ -83,7 +83,7 @@ Ledgers are built for all 17 portfolio companies that publish call transcripts (
 | Results, QoQ, YoY, margins, alerts | Parsed and computed in Python |
 | Sorting filings | Exchange labels and text rules first; `gemini-3.1-flash-lite` for the rest, 20 per call |
 | Reading vague filings, people and bios | `gemini-3.1-flash-lite`, five filings per call, with web search for careers |
-| Promise ledger | `gemini-3.6-flash`, one call per company, with `gemini-3.8-flash` as fallback |
+| Promise ledger | `gemini-3.6-flash`, one call per company, with `gemini-3.8-flash` as fallback; rebuilt by itself when a new call is filed |
 | Bull and bear, Ask, the note on each quarter | `gemini-3.5-flash-lite` |
 
 **Measured, not assumed** ([R16](docs/RESEARCH.md#r16-measuring-the-ai-ask-and-the-promise-ledger)). Each AI feature has an eval in `eval/`, and CI re-scores the saved results:
@@ -106,13 +106,13 @@ The free tier's limits shaped the design: Flash allows 20 requests a day, so the
 
 | Model | Calls | Tokens in | Tokens out | Average latency |
 | --- | --- | --- | --- | --- |
-| `gemini-3.1-flash-lite` | 220 | 272,364 | 30,391 | 3.7 s |
-| `gemini-3.5-flash-lite` | 142 | 1,760,447 | 48,504 | 3.4 s |
-| `gemini-3.6-flash` | 104 | 1,565,932 | 59,281 | 8.2 s |
+| `gemini-3.1-flash-lite` | 224 | 272,588 | 30,457 | 3.8 s |
+| `gemini-3.5-flash-lite` | 299 | 6,747,412 | 67,923 | 3.8 s |
+| `gemini-3.6-flash` | 117 | 1,979,379 | 77,081 | 8.3 s |
 | `gemini-3.8-flash` | 10 | 268,543 | 9,118 | 61.5 s |
-| **Total** | **476** | **3,867,286** | **147,294** | |
+| **Total** | **650** | **9,267,922** | **184,579** | |
 
-*Production server, 31 Oct to 3 Nov 2026. Cost: Rs 0, all on the Gemini free tier.*
+*Production server, 31 Oct to 3 Nov 2026, including the eval runs against the live app. Cost: Rs 0, all on the Gemini free tier.*
 
 ## Architecture
 
@@ -212,7 +212,8 @@ bun run test                            # 44 tests
 
 ## Where it goes next
 
-- Bring the promise ledger into the brief: when a new transcript lands, say which promises changed status.
+- Re-measure the promise ledger after the tightened "delivered" rule, and grow the labelled set beyond 20 promises.
+- Make the tool-using Ask the default once it is as accurate and fast as the one-call mode; it already uses a tenth of the tokens.
 - Use the annual report in the snapshot and the ledger, not only in Ask.
 - NBFC asset quality (stage 3 assets), which BAJFINANCE reports outside the integrated filing.
 - Let users move a category's priority up or down, and learn from it.
