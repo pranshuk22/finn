@@ -1545,7 +1545,13 @@ def _note_facts(c, ticker: str) -> tuple[dict | None, dict[str, str]]:
     return rc, facts
 
 
-_FELL_MINUS = re.compile(r"\b((?:fell|dropped|declined|decreased|slipped|contracted)(?: by)?) -(\d)", re.I)
+# A verb already gives the direction, so its number needs no sign: "falling by -104 bps", "rose +6.3%".
+_FELL_MINUS = re.compile(
+    r"\b((?:f[ae]ll(?:ing|en|s)?|drop(?:ped|ping|s)?|declin(?:ed|ing|es)|decreas(?:ed|ing|es)|slipp?(?:ed|ing|s)?|"
+    r"contract(?:ed|ing|s)|ris(?:es|ing|en)|rose|grew|grow(?:ing|s)?|increas(?:ed|ing|es)|expand(?:ed|ing|s)?)"
+    r"(?: by)?) [-+](\d)",
+    re.I,
+)
 
 
 def build_note(ticker: str) -> dict | None:
@@ -1576,13 +1582,13 @@ def note_for(c, ticker: str, period_end: str) -> dict | None:
     return n if n and n.get("period_end") == period_end else None
 
 
-def refresh_notes(tickers: list[str]) -> int:
+def refresh_notes(tickers: list[str], force: bool = False) -> int:
     """Write a note for each company whose latest quarter has none yet. Cheap model, one call each."""
     made = 0
     for t in tickers:
         with db.session() as c:
             rc = A.results_card(c, t)
-            if not rc or note_for(c, t, rc["period_end"]):
+            if not rc or (note_for(c, t, rc["period_end"]) and not force):
                 continue
         try:
             n = build_note(t)

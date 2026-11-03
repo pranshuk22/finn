@@ -197,7 +197,7 @@ uv sync
 uv run python -m backend.jobs.refresh   # filings, prices, results, financials (about 3 minutes)
 uv run python -m backend.enrich         # read vague and management filings
 uv run uvicorn backend.main:app --port 8000
-uv run pytest                           # 77 tests, including the classifier regression on 90 labelled filings
+uv run pytest                           # 78 tests, including the classifier regression on 90 labelled filings
 
 # frontend
 cd frontend

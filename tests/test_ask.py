@@ -123,3 +123,11 @@ def test_note_keeps_only_sentences_backed_by_the_facts_they_cite(monkeypatch):
     ]
     lines[:] = [pull.NoteLine(text="Margins look fine.", refs=["N9"])]  # cites nothing real
     assert pull.build_note("DIXON") is None
+
+
+def test_a_direction_verb_takes_no_sign():
+    # live DIXON note, 3 Nov: "the EBITDA margin falling by -104 bps"
+    fix = lambda t: pull._FELL_MINUS.sub(r"\1 \2", t)  # noqa: E731
+    assert fix("the EBITDA margin falling by -104 bps") == "the EBITDA margin falling by 104 bps"
+    assert fix("EBITDA rose +6.3% YoY") == "EBITDA rose 6.3% YoY"
+    assert fix("a loss of -5 crore") == "a loss of -5 crore"
