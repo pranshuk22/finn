@@ -719,3 +719,47 @@ def reaction(c: sqlite3.Connection, ticker: str, at: str, lookback: int = 20) ->
         "move_pct": round(100 * (rows[i]["close"] / rows[i - 1]["close"] - 1), 2),
         "vol_mult": round(rows[i]["volume"] / avg, 2) if avg else None,
     }
+
+
+# ---------- valuation, as the scorecard reads it ----------
+
+
+def one_off_jump(tr: dict, item: str) -> dict | None:
+    """A single year in the 3-year window that grew 40% or more while last year grew under half the 3-year rate: a
+    merger or a one-off, not a trend (HDFCBANK FY24, +66% revenue). Mirrors oneOffJump in frontend/src/scorecard.ts."""
+    pts = [p for p in tr["annual"].get(item, []) if p["value"] and p["value"] > 0][-4:]
+    g = tr["growth"].get(item) or {}
+    if len(pts) < 4 or g.get("cagr_3y") is None or g.get("last_year") is None:
+        return None
+    if g["last_year"] >= g["cagr_3y"] / 2:
+        return None
+    best = None
+    for a, b in zip(pts, pts[1:], strict=False):
+        p = 100 * (b["value"] - a["value"]) / a["value"]
+        if p >= 40 and (best is None or p > best["pct"]):
+            best = {"period": b["period"], "pct": round(p, 1)}
+    return best and {**best, "last_year": g["last_year"]}
+
+
+def valuation(c: sqlite3.Connection, ticker: str) -> dict | None:
+    """P/E against yearly profit growth, the scorecard's Valuation rule (frontend/src/scorecard.ts, valuationTile)."""
+    snap = snapshot(c, ticker)
+    pe = ((snap or {}).get("ratios") or {}).get("Stock P/E")
+    if pe is None:
+        return None
+    tr = trajectory(c, ticker)
+    jump = one_off_jump(tr, "Net profit")
+    g = jump["last_year"] if jump else (tr["growth"].get("Net profit") or {}).get("cagr_3y")
+    basis = "last year's profit growth" if jump else "3-year profit growth a year"
+    if g is None:
+        return {"pe": pe, "growth": None, "basis": basis, "multiple": None, "verdict": "No history", "jump": jump}
+    if g <= 0:
+        return {"pe": pe, "growth": g, "basis": basis, "multiple": None, "verdict": "Rich", "jump": jump}
+    multiple = round(pe / g, 1)
+    rc = results_card(c, ticker)
+    pat = next((r for r in (rc or {}).get("rows", []) if r["label"] == "PAT"), None)
+    if multiple <= 2 and pat and pat["yoy"] is not None and pat["yoy"] <= -20:
+        verdict = "Growth in doubt"
+    else:
+        verdict = "Cheap for its growth" if multiple <= 1 else "Fair" if multiple <= 2 else "Rich"
+    return {"pe": pe, "growth": g, "basis": basis, "multiple": multiple, "verdict": verdict, "jump": jump}

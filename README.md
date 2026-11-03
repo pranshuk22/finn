@@ -51,7 +51,7 @@ Search any NSE company. FINN builds its brief from primary sources only: exchang
 | **Narrative vs numbers** | What management promised on past calls, and what happened. |
 | Guidance | Open targets from the same calls, grouped by metric. |
 | Bull and bear | The case each way. Each point must join at least two cited facts ([R11](docs/RESEARCH.md#r11-keeping-model-answers-traceable-ask-and-bull-and-bear)). |
-| Ask | Follow-up questions, answered from the filed results first, then the last four calls, then the annual report ([R7](docs/RESEARCH.md#r7-transcripts-and-annual-reports)). |
+| Ask | Follow-up questions, answered from the filed results first, then the last four calls, then the annual report ([R7](docs/RESEARCH.md#r7-transcripts-and-annual-reports)). A beginner can ask what a term means, or whether a value is high, and gets FINN's own definition with this company's figure. |
 
 **The promise ledger is the centre of Pull.** One model call reads the last four transcripts in order. For each forward-looking statement ("8 to 10% volume growth this year") it records the metric, target, timeframe, exact quote and page, then what later calls said. Python then checks everything:
 
@@ -61,7 +61,7 @@ Search any NSE company. FINN builds its brief from primary sources only: exchang
 - **Segment and full-year targets** are checked against the segment's own rows and the quarters filed so far.
 - **Revised** and **not mentioned again** are detected from later calls, and are never counted as misses.
 
-Ledgers are built for every portfolio company that publishes call transcripts, and any other company can build one from the app.
+Ledgers are built for all 17 portfolio companies that publish call transcripts (Trent publishes none), and any other company can build one from the app.
 
 **New to investing?** Turn on *Explain the numbers* and every scorecard verdict and results figure gets a plain line: "Of every Rs 100 lent, about 37 paise is in loans that have stopped paying, after the money already set aside for them." Each line is written in code from the figure itself.
 

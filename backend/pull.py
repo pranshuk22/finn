@@ -978,13 +978,19 @@ class Answer(BaseModel):
     citations: list[Citation]
 
 
-_ASK_SYSTEM = """Answer an investor's question about a company. You have up to three sources:
+_ASK_SYSTEM = """Answer an investor's question about a company. You have up to four sources:
 1. REPORTED FIGURES, numbered [R1], [R2] and so on: the company's own numbers from its results filed with the exchange
    (and its annual accounts).
 2. Earnings call transcripts, where management explains the numbers.
 3. ANNUAL REPORT pages: the few pages of the latest annual report that best match the question, with [page N]
    markers. Use them for what calls and results do not cover: auditors, directors and pay, subsidiaries, related
    party dealings, risks, policies, plants, employees.
+4. GLOSSARY, numbered [G1], [G2] and so on: FINN's own definitions and rules. The reader may be new to investing.
+
+For "what does this term mean" or "is this number high or low": give the GLOSSARY definition in plain words, then
+this company's own figure from the REPORTED FIGURES, then FINN's rule if the glossary gives one. List the G and R
+ids you used in figures. Define terms only from the GLOSSARY; if a term is not there, say FINN has no definition
+for it.
 
 For a question about numbers (revenue, profit, margins, growth, a segment, a quarter or a year):
 - Answer from the REPORTED FIGURES first: the latest quarter with its change from the previous quarter and from a
@@ -1002,6 +1008,62 @@ For anything else, answer from the transcripts or the annual report. A quote fro
 If no source answers it, set covered to false and say what they do cover.
 Every sentence needs a figure id or an exact quote, but keep ids and page numbers out of the answer text; they go in
 figures and citations. Copy numbers as written. Do not use outside knowledge."""
+
+
+# FINN's own definitions and rules, the same as Help and "Explain the numbers" in the app. Ask may use these, and
+# only these, to explain a term, so a beginner's "What does EBITDA mean?" is answered from FINN rather than refused,
+# and never from the model's own knowledge. Thresholds are the scorecard's (frontend/src/scorecard.ts).
+GLOSSARY = {
+    "Revenue": "the money a company takes in from sales in a period.",
+    "EBITDA": "operating EBITDA: profit from running the business before interest, depreciation and tax, leaving "
+    "out other income. FINN computes it as PBT + finance costs + depreciation - other income.",
+    "PBT": "profit before tax.",
+    "PAT": "profit after tax: what is left for shareholders after all costs and tax. 'Profit' means this.",
+    "Margin": "a profit line divided by revenue: of every Rs 100 of sales, how much is left as that profit.",
+    "QoQ and YoY": "change against the previous quarter, and against the same quarter a year earlier; YoY avoids "
+    "seasonal swings.",
+    "Basis points (bps)": "hundredths of a percentage point: 100 bps is one point.",
+    "Other income": "income outside the business, mostly interest on cash and gains on investments.",
+    "P/E": "price to earnings: what buyers pay for every Rs 1 of the company's yearly profit.",
+    "Valuation rule": "FINN divides the P/E by yearly profit growth (in %): 1x or less reads cheap for its growth, "
+    "up to 2x fair, above 2x rich. It uses 3-year growth, or last year's when one year in three grew 40% or more "
+    "and last year grew less than half the 3-year rate. If PAT fell 20% or more YoY in the latest quarter, growth "
+    "is in doubt.",
+    "ROE": "return on equity: profit in a year for every Rs 100 of shareholders' money. FINN reads 15% or more as "
+    "strong for a lender, 10% as fair.",
+    "ROCE": "return on capital employed: operating profit for every Rs 100 of debt and equity in the business.",
+    "Debt to equity": "borrowings divided by shareholders' money. FINN reads 0.3 or less as light, up to 1 as "
+    "moderate, above 1 as heavy. It says little for a lender, which borrows to lend.",
+    "Cash conversion": "cash from operations as a share of operating profit; near or above 100% means profit turns "
+    "into cash. FINN reads 90% or more over 3 years as strong, 70% as fair.",
+    "Market cap": "the value of all the company's shares at today's price.",
+    "CAGR": "compound annual growth: a yearly rate, not a total.",
+    "Net interest income (NII)": "what a bank earns on loans and investments less what it pays on deposits and "
+    "borrowings.",
+    "NPA": "a non-performing asset is a loan unpaid for 90 days. Gross NPA counts all of them; net NPA is what is "
+    "left after the money already set aside. FINN reads net NPA of 0.5% or less as clean, above 1.5% as stressed.",
+    "CET1": "common equity tier 1: a bank's core capital as a share of its risk-weighted assets; higher is safer.",
+    "Credit cost": "money a lender sets aside for loans that may not be repaid. FINN shows provisions as a share "
+    "of pre-provision profit: 15% or less low, up to 30% moderate.",
+}
+
+
+def _valuation_lines(c, ticker: str) -> list[str]:
+    v = A.valuation(c, ticker)
+    if not v:
+        return []
+    out = [f"Price to earnings (P/E): {_n(v['pe'])}"]
+    if v["growth"] is not None:
+        out.append(f"Profit growth FINN's valuation uses ({v['basis']}): {_n(v['growth'])}%")
+    if v["jump"]:
+        out.append(
+            f"Profit rose {_n(v['jump']['pct'])}% in the year to {v['jump']['period']}, a one-off FINN sets aside"
+        )
+    if v["multiple"] is not None:
+        out.append(f"P/E over that growth: {_n(v['multiple'])}x, which FINN's scorecard reads as {v['verdict']}")
+    else:
+        out.append(f"FINN's scorecard valuation: {v['verdict']}")
+    return out
 
 
 def _reported(c, ticker: str) -> dict[str, dict]:
@@ -1068,6 +1130,15 @@ def _reported(c, ticker: str) -> dict[str, dict]:
     if bk:
         for text in _bank_lines(bk):
             add(text, f"{bk['quarters'][-1]['quarter']} standalone results filing", bk["source_url"])
+    snap = A.snapshot(c, ticker) or {}
+    ratios = snap.get("ratios") or {}
+    src_ratios, url_ratios = "Company ratios, compiled by Screener", f"{screener.BASE}/company/{ticker}/"
+    for text in _valuation_lines(c, ticker):
+        add(text, src_ratios, url_ratios)
+    for key, label in (("ROE", "Return on equity (ROE)"), ("ROCE", "ROCE"), ("Market Cap", "Market cap")):
+        if ratios.get(key) is not None:
+            unit = " crore" if key == "Market Cap" else "%"
+            add(f"{label}: {'Rs ' if key == 'Market Cap' else ''}{_n(ratios[key])}{unit}", src_ratios, url_ratios)
     annual = A.trajectory(c, ticker)["annual"]
     for label in ("Revenue", "Net profit"):
         pts = [f"FY ended {a['period']} {_n(a['value'])}" for a in annual.get(label, [])[-3:]]
@@ -1143,7 +1214,7 @@ def _drop_unbacked(answer: str, unmatched: list[str]) -> tuple[str, int]:
     return " ".join(kept), len(sentences) - len(kept)
 
 
-_REF = re.compile(r"\s*\[(?:R\d+|F\d+|p\.|page)[^\]]*\]")  # "[R4]", "[R3, p. 3]": the model's own pointers
+_REF = re.compile(r"\s*\[(?:R\d+|F\d+|G\d+|p\.|page)[^\]]*\]")  # "[R4]", "[R3, p. 3]": the model's own pointers
 
 
 def _load_report_later(ticker: str) -> None:
@@ -1185,6 +1256,11 @@ def ask(ticker: str, question: str) -> dict:
     )
     if latest:  # "last quarter" means the latest filed one, not the one the latest call discussed
         listing += f"\nThe latest reported quarter is {latest}."
+    gloss = {
+        f"G{i + 1}": {"text": f"{k}: {v}", "source": "FINN's glossary", "url": None}
+        for i, (k, v) in enumerate(GLOSSARY.items())
+    }
+    glossary = "\n".join(f"[{k}] {v['text']}" for k, v in gloss.items())
     report = "None"
     if ar_pages:
         report = f"===== Annual report {ar['period']} =====\n" + "\n".join(
@@ -1196,7 +1272,7 @@ def ask(ticker: str, question: str) -> dict:
         schema=Answer,
         system=_ASK_SYSTEM,
         contents=f"Company: {ticker}\n\nTRANSCRIPTS\n{texts}\n\nANNUAL REPORT PAGES\n{report}\n\n"
-        f"REPORTED FIGURES\n{listing}\n\nQuestion: {question}",
+        f"REPORTED FIGURES\n{listing}\n\nGLOSSARY\n{glossary}\n\nQuestion: {question}",
     )
     cites, dropped = [], 0
     for ct in res.citations:
@@ -1218,10 +1294,20 @@ def ask(ticker: str, question: str) -> dict:
             dropped += 1
             continue
         cites.append({"source": label, "page": pg, "quote": ct.quote, "url": d["url"]})
-    used = [{"id": f, **figs[f]} for f in dict.fromkeys(res.figures) if f in figs]  # an unknown id is dropped
+    known = {**figs, **gloss}
+    ids = list(res.figures)
+    # Show the definition the answer rests on even when the model did not list it: the term the question names.
+    q = question.lower()
+    for gid, g in gloss.items():
+        term = g["text"].split(":", 1)[0].lower()
+        names = [term] + re.findall(r"\(([^)]+)\)", term) + [term.split(" (")[0]]
+        if any(re.search(rf"(?<![a-z]){re.escape(n.strip())}(?![a-z])", q) for n in names if len(n.strip()) >= 2):
+            ids.append(gid)
+    used = [{"id": f, **known[f]} for f in dict.fromkeys(ids) if f in known]  # an unknown id is dropped
     answer, covered = _REF.sub("", res.answer).replace(" .", "."), res.covered
     # every reported figure is a filed number, so any of them may back a number, cited or not
-    unmatched = unmatched_numbers(answer, [f["text"] for f in figs.values()] + [c["quote"] for c in cites])
+    sources = [f["text"] for f in known.values()] + [c["quote"] for c in cites]
+    unmatched = unmatched_numbers(answer, sources)
     answer, removed = _drop_unbacked(answer, unmatched)
     unverified = covered and (not (cites or used) or not answer)  # nothing left that traces to a source
     if unverified:

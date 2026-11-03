@@ -91,3 +91,11 @@ def test_an_answer_with_no_traceable_source_is_withheld(c, monkeypatch):
     out, _ = ask_with(monkeypatch, ["R9"], [])
     assert out["unverified"] and not out["covered"]
     assert "not giving one" in out["answer"]
+
+
+def test_a_beginner_question_shows_the_definition_it_rests_on(c, monkeypatch):
+    # "What does EBITDA mean?" on DIXON, 3 Nov: answered from FINN's glossary, so the glossary entry is shown with it
+    out, seen = ask_with(monkeypatch, ["R1"], [])
+    assert "GLOSSARY" in seen["contents"] and "EBITDA: operating EBITDA" in seen["contents"]
+    out = pull.ask("X", "What does EBITDA mean?")
+    assert any(f["source"] == "FINN's glossary" and f["text"].startswith("EBITDA:") for f in out["figures"])

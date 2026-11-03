@@ -606,11 +606,12 @@ function BullBearList({ title, tone, points }: { title: string; tone: "up" | "do
 }
 
 // Most people do not know what to ask a set of earnings calls; these show what Ask is good at.
+// Four, so the chips stay one glance: two an investor asks, two a beginner asks (answered from FINN's glossary).
 export const SUGGESTED = [
   "How did profit change last quarter?",
   "What did they guide for revenue growth?",
-  "What did they say about margins?",
-  "What risks did management flag?",
+  "What does EBITDA mean here?",
+  "Is this valuation high?",
 ];
 
 function AskBar({ ticker, show }: { ticker: string; show: boolean }) {
@@ -699,7 +700,9 @@ function AskBar({ ticker, show }: { ticker: string; show: boolean }) {
                 <p className="text-[15px]">{plain(answer.a.answer)}</p>
                 {!!answer.a.figures?.length && (
                   <div className="rounded-[10px] border border-line bg-card px-3 py-2.5">
-                    <p className="text-[12px] font-medium text-muted">Reported figures</p>
+                    <p className="text-[12px] font-medium text-muted">
+                      {answer.a.figures.some((f) => f.source === "FINN's glossary") ? "Figures and definitions" : "Reported figures"}
+                    </p>
                     <ul className="mt-1.5 space-y-2">
                       {answer.a.figures.map((f) => (
                         <li key={f.id} className="tabular text-[13px] leading-snug">

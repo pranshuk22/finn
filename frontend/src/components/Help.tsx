@@ -114,7 +114,7 @@ export function HelpContent() {
         </p>
         <p className="text-muted">
           Ask answers number questions from the results filed with NSE first, then adds what management said on the last four calls, and
-          searches the latest annual report for what calls do not cover: auditors, directors, subsidiaries, related parties, risks. Every
+          searches the latest annual report for what calls do not cover: auditors, directors, subsidiaries, related parties, risks. Ask what a term means ("What does EBITDA mean here?") and it answers from FINN's own glossary, with this company's figure. Every
           quote is checked against its PDF, a sentence whose number is in no source is removed, and if nothing can be traced it says so.
         </p>
       </Part>
