@@ -478,7 +478,9 @@ export function Swipeable({ onSwipe, label, children }: { onSwipe: () => void; l
   const dxNow = useRef(0); // read on touchend: a fast flick can end before React re-renders with the new dx
   const THRESHOLD = 96;
   return (
-    <div className="relative mx-4 mb-3">
+    // Clipped here, not only at the page: a card swiped 480px right briefly widened the page on a phone (owner, 3 Nov),
+    // because some mobile browsers ignore overflow-x on <html>. The card now slides out of its own frame.
+    <div className="relative mx-4 mb-3 overflow-hidden rounded-[12px]">
       <div
         className="absolute inset-0 flex items-center rounded-[12px] px-5 text-[14px] font-semibold"
         style={{ background: "var(--viz-up)", color: "var(--bg)", opacity: Math.min(1, dx / THRESHOLD) }}
