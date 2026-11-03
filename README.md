@@ -89,9 +89,10 @@ The free tier's limits shaped the design: Flash allows 20 requests a day, so the
 | Model | Calls | Tokens in | Tokens out | Average latency |
 | --- | --- | --- | --- | --- |
 | `gemini-3.1-flash-lite` | 220 | 272,364 | 30,391 | 3.7 s |
-| `gemini-3.5-flash-lite` | 129 | 1,559,185 | 43,889 | 3.5 s |
-| `gemini-3.6-flash` | 87 | 951,209 | 33,953 | 5.9 s |
+| `gemini-3.5-flash-lite` | 142 | 1,760,447 | 48,504 | 3.4 s |
+| `gemini-3.6-flash` | 104 | 1,565,932 | 59,281 | 8.2 s |
 | `gemini-3.8-flash` | 10 | 268,543 | 9,118 | 61.5 s |
+| **Total** | **476** | **3,867,286** | **147,294** | |
 
 *Production server, 31 Oct to 3 Nov 2026. Cost: Rs 0, all on the Gemini free tier.*
 
