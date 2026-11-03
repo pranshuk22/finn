@@ -108,8 +108,9 @@ def generate(
     thinking: str | None = None,
     retries: int = 3,
     _tried: tuple[str, ...] = (),
+    tools: list | None = None,
 ):
-    """Returns the parsed object when `schema` is given, else text.
+    """Returns the parsed object when `schema` is given, the raw response when `tools` are given, else text.
 
     Falls back to a sibling model when the chosen one is out of daily quota or overloaded.
     """
@@ -118,7 +119,7 @@ def generate(
     def fallback():
         nxt = FALLBACK.get(model)
         if nxt and nxt not in tried:
-            return generate(task, nxt, contents, schema, system, _thinking_for(nxt, thinking), retries, tried)
+            return generate(task, nxt, contents, schema, system, _thinking_for(nxt, thinking), retries, tried, tools)
         raise BudgetExhausted(f"no model with quota left for {task} (tried {', '.join(tried)})")
 
     if not has_budget(model):
@@ -129,6 +130,9 @@ def generate(
         response_mime_type="application/json" if schema else None,
         response_schema=schema,
         thinking_config=types.ThinkingConfig(thinking_level=thinking) if thinking else None,
+        # FINN runs each tool itself, so every result can be checked and shown; the SDK must not call them.
+        tools=tools,
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True) if tools else None,
     )
     for attempt in range(retries):
         _wait_turn(model)
@@ -136,6 +140,8 @@ def generate(
         try:
             r = client().models.generate_content(model=model, contents=contents, config=cfg)
             _log(task, model, r.usage_metadata, t0, ok=True)
+            if tools:
+                return r
             return r.parsed if schema else r.text
         except errors.APIError as e:
             _log(task, model, None, t0, ok=False)

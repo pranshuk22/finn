@@ -8,6 +8,7 @@ Guards against made-up answers:
 
 import json
 import math
+import os
 import re
 import threading
 import time
@@ -313,7 +314,8 @@ past results, and vague aspirations with neither a target nor a timeframe. At mo
 when the company reports several segments, cover each segment's guidance, not only the group's.
 
 Step 2. For each one, judge what happened using only the LATER calls and the numbers:
-- delivered: a later call or the numbers show it happened as promised.
+- delivered: a later call or the numbers state the result was achieved: the number reached, or the event done.
+  Progress, a plan restated, a deal size repeated or "our fastest growing business" is unclear, not delivered.
 - missed: the timeframe has passed and it did not happen, or management said it would not.
 - revised: a later call changed the target or the timeframe.
 - dropped: no later call mentions it at all.
@@ -993,6 +995,7 @@ ids you used in figures. Define terms only from the GLOSSARY; if a term is not t
 for it.
 
 For a question about numbers (revenue, profit, margins, growth, a segment, a quarter or a year):
+- If the question names no period, give the latest quarter's figure from the REPORTED FIGURES.
 - Answer from the REPORTED FIGURES first: the latest quarter with its change from the previous quarter and from a
   year earlier, then the last full year if it helps. List the ids you used in figures.
 - Then, in a sentence or two at most, add what management said about it, naming the call by its header,
@@ -1003,8 +1006,9 @@ For a question about numbers (revenue, profit, margins, growth, a segment, a qua
   latest.
 - When the question names a period (a quarter, a year), answer for that period, preferring the call that discussed
   it over the annual report. If no source covers that period, say which period your figure is for.
-For anything else, answer from the transcripts or the annual report. A quote from the annual report has source
-"Annual report" followed by its year, as in its header.
+For anything else, answer from the transcripts or the annual report, and quote them: a number taken from a call
+or the report without its quote in citations is removed before the reader sees it. A quote from the annual report
+has source "Annual report" followed by its year, as in its header.
 If no source answers it, set covered to false and say what they do cover.
 Every sentence needs a figure id or an exact quote, but keep ids and page numbers out of the answer text; they go in
 figures and citations. Copy numbers as written. Do not use outside knowledge."""
@@ -1100,6 +1104,14 @@ def _reported(c, ticker: str) -> dict[str, dict]:
             )
         if rc.get("tax_note"):
             add(f"{rc['quarter']} note: {rc['tax_note']}", src, rc["source_url"])
+        if rc.get("below_ebitda"):
+            add(f"{rc['quarter']} note: {rc['below_ebitda']}", src, rc["source_url"])
+        if rc.get("other_income_pct_of_pbt") is not None:  # L&T's 30% was on the card but not in Ask (eval F12)
+            add(
+                f"{rc['quarter']} other income as a share of PBT: {_n(rc['other_income_pct_of_pbt'])}%",
+                src,
+                rc["source_url"],
+            )
         hist = rc.get("history") or []
         for label in ("Revenue", "PAT"):
             pts = [f"{h['quarter']} {_n(h[label])}" for h in hist if h.get(label) is not None]
@@ -1232,48 +1244,89 @@ def _load_report_later(ticker: str) -> None:
     threading.Thread(target=run, daemon=True).start()
 
 
-def ask(ticker: str, question: str) -> dict:
+ASK_MODE = os.getenv("FINN_ASK", "context")  # "agent": the model looks things up with tools first (eval/ask_eval.py)
+
+
+def _sources(ticker: str) -> dict:
+    """Everything Ask may draw on for one company: transcripts, the annual report, filed figures and the glossary."""
     docs = load_transcripts(ticker)
     # Reading a 400-page report takes longer than anyone waits for an answer: if it is not stored yet, answer
     # without it and read it in the background for the next question. The nightly job reads the portfolio's.
     ar = load_annual_report(ticker, fetch=False)
     if ar is None:
         _load_report_later(ticker)
-    ar_pages = report_pages(ar, question) if ar else []
     with db.session() as c:
         figs = _reported(c, ticker)
-    if not docs and not figs and not ar_pages:
-        return {
-            "covered": False,
-            "answer": "No results, transcripts or annual report for this company yet.",
-            "figures": [],
-            "citations": [],
-        }
+    gloss = {
+        f"G{i + 1}": {"text": f"{k}: {v}", "source": "FINN's glossary", "url": None}
+        for i, (k, v) in enumerate(GLOSSARY.items())
+    }
     listing = "\n".join(f"[{k}] {v['text']}" for k, v in figs.items()) or "None"
-    texts = "\n\n".join(f"===== {d['period']} call =====\n{_paged(d)}" for d in docs) or "None"
     latest = next(
         (v["source"].removesuffix(" results filing") for v in figs.values() if "results filing" in v["source"]), None
     )
     if latest:  # "last quarter" means the latest filed one, not the one the latest call discussed
         listing += f"\nThe latest reported quarter is {latest}."
-    gloss = {
-        f"G{i + 1}": {"text": f"{k}: {v}", "source": "FINN's glossary", "url": None}
-        for i, (k, v) in enumerate(GLOSSARY.items())
-    }
     glossary = "\n".join(f"[{k}] {v['text']}" for k, v in gloss.items())
-    report = "None"
-    if ar_pages:
-        report = f"===== Annual report {ar['period']} =====\n" + "\n".join(
-            f"[page {pg}]\n{ar['pages'][pg - 1]}" for pg in sorted(ar_pages)
-        )
+    return {"docs": docs, "ar": ar, "figs": figs, "gloss": gloss, "listing": listing, "glossary": glossary}
+
+
+# Other ways a question names a glossary term ("Is this valuation high?" rests on the valuation rule: eval G3).
+_ALIASES = {
+    "valuation rule": ["valuation", "valued", "expensive", "cheap", "overvalued", "undervalued"],
+    "p/e": ["pe ratio", "price to earnings", "earnings multiple"],
+    "npa": ["bad loans", "non-performing"],
+    "debt to equity": ["debt", "leverage"],
+}
+
+_EMPTY = {
+    "covered": False,
+    "answer": "No results, transcripts or annual report for this company yet.",
+    "figures": [],
+    "citations": [],
+}
+
+
+def _contents(ticker: str, question: str, src: dict, texts: str, report: str) -> str:
+    return (
+        f"Company: {ticker}\n\nTRANSCRIPTS\n{texts or 'None'}\n\nANNUAL REPORT PAGES\n{report or 'None'}\n\n"
+        f"REPORTED FIGURES\n{src['listing']}\n\nGLOSSARY\n{src['glossary']}\n\nQuestion: {question}"
+    )
+
+
+def _ar_section(ar: dict | None, pages: list[int]) -> str:
+    if not ar or not pages:
+        return ""
+    return f"===== Annual report {ar['period']} =====\n" + "\n".join(
+        f"[page {pg}]\n{ar['pages'][pg - 1]}" for pg in sorted(pages)
+    )
+
+
+def ask(ticker: str, question: str) -> dict:
+    return ask_agent(ticker, question) if ASK_MODE == "agent" else ask_context(ticker, question)
+
+
+def ask_context(ticker: str, question: str) -> dict:
+    """One call that reads all four transcripts, the best annual report pages, the figures and the glossary."""
+    src = _sources(ticker)
+    ar_pages = report_pages(src["ar"], question) if src["ar"] else []
+    if not src["docs"] and not src["figs"] and not ar_pages:
+        return dict(_EMPTY)
+    texts = "\n\n".join(f"===== {d['period']} call =====\n{_paged(d)}" for d in src["docs"])
     res: Answer = llm.generate(
         task="ask",
         model=llm.SMART,
         schema=Answer,
         system=_ASK_SYSTEM,
-        contents=f"Company: {ticker}\n\nTRANSCRIPTS\n{texts}\n\nANNUAL REPORT PAGES\n{report}\n\n"
-        f"REPORTED FIGURES\n{listing}\n\nGLOSSARY\n{glossary}\n\nQuestion: {question}",
+        contents=_contents(ticker, question, src, texts, _ar_section(src["ar"], ar_pages)),
     )
+    return _checked(res, src, question)
+
+
+def _checked(res: "Answer", src: dict, question: str) -> dict:
+    """The guards every answer passes, however it was produced: quotes found word for word in their PDF, numbers
+    matched to a source, and nothing shown that does not trace to one."""
+    docs, ar, figs, gloss = src["docs"], src["ar"], src["figs"], src["gloss"]
     cites, dropped = [], 0
     for ct in res.citations:
         if ar and "annual" in ct.source.lower():
@@ -1300,7 +1353,7 @@ def ask(ticker: str, question: str) -> dict:
     q = question.lower()
     for gid, g in gloss.items():
         term = g["text"].split(":", 1)[0].lower()
-        names = [term] + re.findall(r"\(([^)]+)\)", term) + [term.split(" (")[0]]
+        names = [term] + re.findall(r"\(([^)]+)\)", term) + [term.split(" (")[0]] + _ALIASES.get(term, [])
         if any(re.search(rf"(?<![a-z]){re.escape(n.strip())}(?![a-z])", q) for n in names if len(n.strip()) >= 2):
             ids.append(gid)
     used = [{"id": f, **known[f]} for f in dict.fromkeys(ids) if f in known]  # an unknown id is dropped
@@ -1323,6 +1376,109 @@ def ask(ticker: str, question: str) -> dict:
         "removed_sentences": removed,
         "unmatched_numbers": unmatched,
     }
+
+
+# ---------- Ask as an agent: the model looks things up first ----------
+
+_AGENT_SYSTEM = """You gather what is needed to answer an investor's question about one Indian listed company.
+Call the tools, then reply DONE when you have enough. Do not answer the question yourself.
+- get_figures: the company's filed results, growth, margins, ratios, valuation and bank figures. Use it for any
+  question about numbers.
+- lookup_term: FINN's own definition of a term, for "what does X mean" questions.
+- search_calls: pages of the last four earnings call transcripts that match a few key words. Use it for what
+  management said, guided or promised. Try a second query with other words if the first finds nothing useful.
+- search_annual_report: pages of the latest annual report that match a few key words: auditors, directors,
+  subsidiaries, related parties, risks, policies, plants, employees.
+Use at most three tools in all."""
+
+
+def _agent_tool():
+    from google.genai import types
+
+    def fn(name: str, doc: str, arg: str | None = None):
+        params = (
+            types.Schema(type="OBJECT", properties={arg: types.Schema(type="STRING")}, required=[arg]) if arg else None
+        )
+        return types.FunctionDeclaration(name=name, description=doc, parameters=params)
+
+    return types.Tool(
+        function_declarations=[
+            fn("get_figures", "The company's filed figures and ratios, numbered R1, R2 and so on."),
+            fn("lookup_term", "FINN's definition of a financial term.", "term"),
+            fn("search_calls", "Earnings call pages matching a few key words.", "query"),
+            fn("search_annual_report", "Annual report pages matching a few key words.", "query"),
+        ]
+    )
+
+
+def _call_pages(docs: list[dict], query: str, per_call: int = 2) -> list[tuple[dict, int]]:
+    """The best pages for a query in each call, newest call first, at most six in all."""
+    out = []
+    for d in reversed(docs):
+        out += [(d, pg) for pg in report_pages(d, query, k=per_call)]
+    return out[:6]
+
+
+def ask_agent(ticker: str, question: str) -> dict:
+    """The model plans its own lookups with tools; only what it retrieved reaches the answering call, which then
+    passes the same checks as ask_context. Each tool call is returned as a trace the app can show."""
+    from google.genai import types
+
+    src = _sources(ticker)
+    if not src["docs"] and not src["figs"] and not src["ar"]:
+        return dict(_EMPTY)
+    tool = _agent_tool()
+    contents = [
+        types.Content(role="user", parts=[types.Part.from_text(text=f"Company: {ticker}\nQuestion: {question}")])
+    ]
+    trace: list[dict] = []
+    call_pages: dict[str, set[int]] = {}
+    ar_pages: set[int] = set()
+    for _ in range(3):
+        r = llm.generate(task="ask_plan", model=llm.SMART, contents=contents, system=_AGENT_SYSTEM, tools=[tool])
+        calls = r.function_calls or []
+        if not calls or not r.candidates:
+            break
+        contents.append(r.candidates[0].content)
+        replies = []
+        for fc in calls[:3]:
+            arg = dict(fc.args or {})
+            text = str(arg.get("query") or arg.get("term") or "")
+            if fc.name == "get_figures":
+                out, found = src["listing"], f"{len(src['figs'])} figures"
+            elif fc.name == "lookup_term":
+                hits = [v["text"] for v in src["gloss"].values() if text.lower() in v["text"].split(":", 1)[0].lower()]
+                out, found = ("\n".join(hits) or "No definition in FINN's glossary."), f"{len(hits)} definitions"
+            elif fc.name == "search_calls":
+                hits = _call_pages(src["docs"], text)
+                for d, pg in hits:
+                    call_pages.setdefault(d["period"], set()).add(pg)
+                out = "\n\n".join(f"===== {d['period']} call, page {pg} =====\n{d['pages'][pg - 1]}" for d, pg in hits)
+                found = ", ".join(f"{d['period']} p{pg}" for d, pg in hits) or "nothing"
+            elif fc.name == "search_annual_report" and src["ar"]:
+                hits = report_pages(src["ar"], text, k=4)
+                ar_pages.update(hits)
+                out = _ar_section(src["ar"], hits)
+                found = ", ".join(f"p{pg}" for pg in hits) or "nothing"
+            else:
+                out, found = "Not available for this company.", "nothing"
+            trace.append({"tool": fc.name, "input": text, "found": found})
+            replies.append(types.Part.from_function_response(name=fc.name, response={"result": out[:60000] or "None"}))
+        contents.append(types.Content(role="user", parts=replies))
+
+    by_period = {d["period"]: d for d in src["docs"]}
+    texts = "\n\n".join(
+        f"===== {per} call =====\n" + "\n".join(f"[page {pg}]\n{by_period[per]['pages'][pg - 1]}" for pg in sorted(pgs))
+        for per, pgs in call_pages.items()
+    )
+    res: Answer = llm.generate(
+        task="ask",
+        model=llm.SMART,
+        schema=Answer,
+        system=_ASK_SYSTEM,
+        contents=_contents(ticker, question, src, texts, _ar_section(src["ar"], sorted(ar_pages))),
+    )
+    return {**_checked(res, src, question), "trace": trace}
 
 
 # ---------- section cache and background jobs ----------

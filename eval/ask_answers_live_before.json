@@ -1,0 +1,834 @@
+[
+ {
+  "id": "F1",
+  "covered": true,
+  "unverified": false,
+  "answer": "Consolidated net profit (PAT) for the quarter ended 30 September 2026 was Rs 410.87 crore, down 44.9% from Rs 745.7 crore in the same period last year. Management noted that operating margins faced temporary compression due to the expiry of Mobile PLI 1 and increased selling prices from elevated input costs and supply chain inflation.",
+  "figures": [
+   {
+    "id": "R4",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated PAT (net profit): Rs 410.87 crore; Q1 FY27 Rs 717.83 crore, QoQ -42.8%; a year earlier Rs 745.7 crore, YoY -44.9%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207643_30102026202202_iXBRL_WEB.html"
+   },
+   {
+    "id": "R8",
+    "text": "Consolidated PAT (net profit) by quarter, Rs crore: Q2 FY26 745.7, Q3 FY26 320.56, Q4 FY26 297.97, Q1 FY27 717.83, Q2 FY27 410.87",
+    "source": "Results filings, last five quarters (link: Q2 FY27)",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207643_30102026202202_iXBRL_WEB.html"
+   }
+  ],
+  "citations": [
+   {
+    "source": "Oct 2025",
+    "page": 3,
+    "quote": "Consolidated adjusted PAT for the quarter was INR 323 crores against INR 236 crores in the same period last year, growth of 27%.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=95dbb3ac-5662-4cd9-a145-78effb6c373c.pdf"
+   },
+   {
+    "source": "Aug 2026",
+    "page": 3,
+    "quote": "Operating margin for the quarter reflected temporary compression on account of expiry of Mobile PLI 1 in March '26 and from increased selling prices driven by elevated input costs and broader supply chain inflationary factors.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=7ce2ca16-3043-48f4-97f9-a62a6a086c2f.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.4
+ },
+ {
+  "id": "F2",
+  "covered": true,
+  "unverified": false,
+  "answer": "Consolidated revenue for the latest quarter ended September 30, 2026, was INR 21,794 crores, representing a year-on-year growth of 46.7% compared to INR 14,855 crores in the same period last year. Management noted that their agile cost-plus structures and pass-through mechanisms enabled strong revenue growth despite temporary volume friction.",
+  "figures": [
+   {
+    "id": "R1",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated Revenue: Rs 21,794 crore; Q1 FY27 Rs 15,548 crore, QoQ 40.2%; a year earlier Rs 14,855 crore, YoY 46.7%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207643_30102026202202_iXBRL_WEB.html"
+   },
+   {
+    "id": "R7",
+    "text": "Consolidated Revenue by quarter, Rs crore: Q2 FY26 14,855, Q3 FY26 10,672, Q4 FY26 10,511, Q1 FY27 15,548, Q2 FY27 21,794",
+    "source": "Results filings, last five quarters (link: Q2 FY27)",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207643_30102026202202_iXBRL_WEB.html"
+   },
+   {
+    "id": "G1",
+    "text": "Revenue: the money a company takes in from sales in a period.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [
+   {
+    "source": "Aug 2026",
+    "page": 3,
+    "quote": "Dixon's agile cost-plus contract structures and pass-through mechanisms enabled us to deliver a strong revenue growth even amid temporary volume friction.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=7ce2ca16-3043-48f4-97f9-a62a6a086c2f.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.0
+ },
+ {
+  "id": "F3",
+  "covered": true,
+  "unverified": false,
+  "answer": "Consolidated PAT for the latest quarter ended September 30, 2026 (Q2 FY27) was Rs 29,550 crore, up 27.4% QoQ and up 33.8% YoY.",
+  "figures": [
+   {
+    "id": "R4",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated PAT (net profit): Rs 29,550 crore; Q1 FY27 Rs 23,196 crore, QoQ 27.4%; a year earlier Rs 22,092 crore, YoY 33.8%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207709_30102026213255_iXBRL_WEB.html"
+   },
+   {
+    "id": "R8",
+    "text": "Consolidated PAT (net profit) by quarter, Rs crore: Q2 FY26 22,092, Q3 FY26 22,290, Q4 FY26 20,589, Q1 FY27 23,196, Q2 FY27 29,550",
+    "source": "Results filings, last five quarters (link: Q2 FY27)",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207709_30102026213255_iXBRL_WEB.html"
+   },
+   {
+    "id": "G4",
+    "text": "PAT: profit after tax: what is left for shareholders after all costs and tax. 'Profit' means this.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [
+   {
+    "source": "Nov 2026",
+    "page": 3,
+    "quote": "and simultaneously, the PAT also at close to Rs.30,000 Crores, up 34%.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=8e997741-4d35-4188-933a-cf020fb9c816.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 96.1
+ },
+ {
+  "id": "F4",
+  "covered": true,
+  "unverified": false,
+  "answer": "In the latest quarter, consolidated profit grew 33.8% year on year.",
+  "figures": [
+   {
+    "id": "R4",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated PAT (net profit): Rs 29,550 crore; Q1 FY27 Rs 23,196 crore, QoQ 27.4%; a year earlier Rs 22,092 crore, YoY 33.8%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207709_30102026213255_iXBRL_WEB.html"
+   }
+  ],
+  "citations": [
+   {
+    "source": "Nov 2026",
+    "page": 3,
+    "quote": "Starting with the consol presentation. Quick highlights. One was, of course, it is an exceptionally strong quarter in a turbulent world and turbulence in macro, turbulence because of energy disruption.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=8e997741-4d35-4188-933a-cf020fb9c816.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 1,
+  "unmatched_numbers": [
+   "68"
+  ],
+  "seconds": 4.2
+ },
+ {
+  "id": "F5",
+  "covered": true,
+  "unverified": false,
+  "answer": "For the full year FY26, the company's consolidated net profit (PAT) was Rs 95,754 crore.",
+  "figures": [
+   {
+    "id": "R21",
+    "text": "Net profit, full year, consolidated, Rs crore: FY ended Mar 2024 79,020, FY ended Mar 2025 81,309, FY ended Mar 2026 95,754",
+    "source": "Annual accounts, compiled by Screener",
+    "url": "https://www.screener.in/company/RELIANCE/consolidated/"
+   }
+  ],
+  "citations": [
+   {
+    "source": "Annual report 2026",
+    "page": 43,
+    "quote": "In FY 2025-26, we delivered consolidated revenues of H 11,75,919 crore, EBITDA of H 2,07,911 crore, and net profit of H 95,754 crore.",
+    "url": "https://www.bseindia.com/xml-data/corpfiling/AttachHis/cc08294f-ec68-4f15-aaa4-c14a3c4bdfb2.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.9
+ },
+ {
+  "id": "F6",
+  "covered": true,
+  "unverified": false,
+  "answer": "Gross NPA is a non-performing asset is a loan unpaid for 90 days. Gross NPA counts all of them; net NPA is what is left after the money already set aside. FINN reads net NPA of 0.5% or less as clean, above 1.5% as stressed. The bank's standalone gross NPA ratio for Q2 FY27 is 1.11%, compared to 1.17% in the previous quarter and 1.15% a year earlier. Management noted that the bank's asset quality remains pristine with GNPA at 1.11% and that they are seeing better slippage outcomes across most portfolios.",
+  "figures": [
+   {
+    "id": "R16",
+    "text": "Bank standalone Gross NPA, as filed: Q4 FY26 1.15%, Q1 FY27 1.17%, Q2 FY27 1.11%",
+    "source": "Q2 FY27 standalone results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_BANKING_202131_17102026174807_iXBRL_WEB.html"
+   },
+   {
+    "id": "G18",
+    "text": "NPA: a non-performing asset is a loan unpaid for 90 days. Gross NPA counts all of them; net NPA is what is left after the money already set aside. FINN reads net NPA of 0.5% or less as clean, above 1.5% as stressed.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [
+   {
+    "source": "Oct 2026",
+    "page": 4,
+    "quote": "Our asset quality remains pristine, with GNPA at 1.11%, 13 basis points lower than year-on-year.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=d7e45614-ae12-4bb9-b92d-623b3a63f166.pdf"
+   },
+   {
+    "source": "Oct 2026",
+    "page": 12,
+    "quote": "We are seeing better across most of these portfolios on the slippages, so it's not mix.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=d7e45614-ae12-4bb9-b92d-623b3a63f166.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.4
+ },
+ {
+  "id": "F7",
+  "covered": true,
+  "unverified": false,
+  "answer": "Management highlighted that the business continued to build on its strong foundation.",
+  "figures": [
+   {
+    "id": "R15",
+    "text": "Bank standalone Net interest income (interest earned less interest expended), Rs crore: Q4 FY26 33,082, Q1 FY27 33,534, Q2 FY27 34,619",
+    "source": "Q2 FY27 standalone results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_BANKING_202131_17102026174807_iXBRL_WEB.html"
+   },
+   {
+    "id": "R21",
+    "text": "Bank standalone net interest income Q2 FY27 YoY: 9.7%",
+    "source": "Q2 FY27 standalone results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_BANKING_202131_17102026174807_iXBRL_WEB.html"
+   },
+   {
+    "id": "G17",
+    "text": "Net interest income (NII): what a bank earns on loans and investments less what it pays on deposits and borrowings.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [
+   {
+    "source": "Oct 2026",
+    "page": 3,
+    "quote": "We continue to strengthen our liabilities franchise, and it has been delivering with great vigor.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=d7e45614-ae12-4bb9-b92d-623b3a63f166.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 1,
+  "unmatched_numbers": [
+   "3.2",
+   "31,558"
+  ],
+  "seconds": 4.7
+ },
+ {
+  "id": "F8",
+  "covered": true,
+  "unverified": false,
+  "answer": "CET1 ratio: FINN defines common equity tier 1 as a bank's core capital as a share of its risk-weighted assets; higher is safer. At March 31, 2026, the Bank's CET-1 ratio was 16.35%.",
+  "figures": [
+   {
+    "id": "G19",
+    "text": "CET1: common equity tier 1: a bank's core capital as a share of its risk-weighted assets; higher is safer.",
+    "source": "FINN's glossary",
+    "url": null
+   },
+   {
+    "id": "R19",
+    "text": "Bank standalone CET1 capital ratio, as filed: Q4 FY26 16.35%, Q1 FY27 16.19%, Q2 FY27 16.01%",
+    "source": "Q2 FY27 standalone results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_BANKING_202123_17102026172759_iXBRL_WEB.html"
+   }
+  ],
+  "citations": [
+   {
+    "source": "Annual report 2026",
+    "page": 228,
+    "quote": "The Common Equity Tier 1 (CET-1) ratio was 16.35% at March 31, 2026 as compared to 15.94% at March 31, 2025.",
+    "url": "https://www.bseindia.com/xml-data/corpfiling/AttachHis/01c30537-c969-4503-bbae-a07d51eb09a5.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 83.8
+ },
+ {
+  "id": "F9",
+  "error": "The read operation timed out",
+  "seconds": 120.0
+ },
+ {
+  "id": "F10",
+  "covered": true,
+  "unverified": false,
+  "answer": "In the second quarter of financial year 2027, the company's profit after tax (PAT) decreased by 15.6% year-on-year to Rs 414.45 crore, compared to Rs 491.3 crore in the same quarter a year earlier.",
+  "figures": [
+   {
+    "id": "R4",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated PAT (net profit): Rs 414.45 crore; Q1 FY27 Rs 322.96 crore, QoQ 28.3%; a year earlier Rs 491.3 crore, YoY -15.6%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207301_30102026171453_iXBRL_WEB.html"
+   },
+   {
+    "id": "G4",
+    "text": "PAT: profit after tax: what is left for shareholders after all costs and tax. 'Profit' means this.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 4.7
+ },
+ {
+  "id": "F11",
+  "covered": true,
+  "unverified": false,
+  "answer": "In the latest quarter Q2 FY27, consolidated PAT was Rs 7,838 crore, up 0.8% from the previous quarter and up 6.3% from Rs 7,375 crore a year earlier. Management did not discuss PAT directly in the earnings call.",
+  "figures": [
+   {
+    "id": "R4",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated PAT (net profit): Rs 7,838 crore; Q1 FY27 Rs 7,775 crore, QoQ 0.8%; a year earlier Rs 7,375 crore, YoY 6.3%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_203729_23102026202117_iXBRL_WEB.html"
+   },
+   {
+    "id": "G4",
+    "text": "PAT: profit after tax: what is left for shareholders after all costs and tax. 'Profit' means this.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [
+   {
+    "source": "Oct 2026",
+    "page": 26,
+    "quote": "Free cash flow was strong at $928 mn, representing 113% of net profit, large deal wins were at $5.2 bn with 62% net new.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=7982fc61-7765-4981-ab3d-6aec36ba2137.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.7
+ },
+ {
+  "id": "F12",
+  "covered": false,
+  "unverified": false,
+  "answer": "The sources do not provide the exact breakdown of how much profit before tax came from other income in the last quarter.",
+  "figures": [
+   {
+    "id": "G3",
+    "text": "PBT: profit before tax.",
+    "source": "FINN's glossary",
+    "url": null
+   },
+   {
+    "id": "G8",
+    "text": "Other income: income outside the business, mostly interest on cash and gains on investments.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.1
+ },
+ {
+  "id": "G1",
+  "covered": true,
+  "unverified": false,
+  "answer": "Operating EBITDA means profit from running the business before interest, depreciation and tax, leaving out other income. For the quarter ended September 30, 2026, the company's consolidated EBITDA was Rs 596.82 crore.",
+  "figures": [
+   {
+    "id": "R2",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated EBITDA: Rs 596.82 crore; Q1 FY27 Rs 463.12 crore, QoQ 28.9%; a year earlier Rs 561.33 crore, YoY 6.3%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207643_30102026202202_iXBRL_WEB.html"
+   },
+   {
+    "id": "G2",
+    "text": "EBITDA: operating EBITDA: profit from running the business before interest, depreciation and tax, leaving out other income. FINN computes it as PBT + finance costs + depreciation - other income.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 87.4
+ },
+ {
+  "id": "G2",
+  "covered": true,
+  "unverified": false,
+  "answer": "A non-performing asset is a loan unpaid for 90 days. Gross NPA counts all of them; net NPA is what is left after the money already set aside. FINN reads net NPA of 0.5% or less as clean, above 1.5% as stressed. The bank's standalone Net NPA is 0.37% for the latest quarter Q2 FY27, 0.41% for Q1 FY27, and 0.38% for Q4 FY26. FINN reads net NPA of 0.5% or less as clean.",
+  "figures": [
+   {
+    "id": "R17",
+    "text": "Bank standalone Net NPA, as filed: Q4 FY26 0.38%, Q1 FY27 0.41%, Q2 FY27 0.37%",
+    "source": "Q2 FY27 standalone results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_BANKING_202131_17102026174807_iXBRL_WEB.html"
+   },
+   {
+    "id": "G18",
+    "text": "NPA: a non-performing asset is a loan unpaid for 90 days. Gross NPA counts all of them; net NPA is what is left after the money already set aside. FINN reads net NPA of 0.5% or less as clean, above 1.5% as stressed.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [],
+  "unverified_dropped": 1,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.7
+ },
+ {
+  "id": "G3",
+  "covered": true,
+  "unverified": false,
+  "answer": "FINN's valuation divides the price-to-earnings ratio by yearly profit growth. With a P/E of 13.5 and profit growth of 7.9%, the ratio is 1.7x, which FINN reads as Fair.",
+  "figures": [
+   {
+    "id": "R22",
+    "text": "Price to earnings (P/E): 13.5",
+    "source": "Company ratios, compiled by Screener",
+    "url": "https://www.screener.in/company/HDFCBANK/"
+   },
+   {
+    "id": "R23",
+    "text": "Profit growth FINN's valuation uses (last year's profit growth): 7.9%",
+    "source": "Company ratios, compiled by Screener",
+    "url": "https://www.screener.in/company/HDFCBANK/"
+   },
+   {
+    "id": "R25",
+    "text": "P/E over that growth: 1.7x, which FINN's scorecard reads as Fair",
+    "source": "Company ratios, compiled by Screener",
+    "url": "https://www.screener.in/company/HDFCBANK/"
+   }
+  ],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 2.8
+ },
+ {
+  "id": "G4",
+  "covered": true,
+  "unverified": false,
+  "answer": "Basis points means hundredths of a percentage point, where 100 bps is one point.",
+  "figures": [
+   {
+    "id": "G7",
+    "text": "Basis points (bps): hundredths of a percentage point: 100 bps is one point.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.7
+ },
+ {
+  "id": "G5",
+  "covered": true,
+  "unverified": false,
+  "answer": "CET1 stands for common equity tier 1, which is a bank's core capital as a share of its risk-weighted assets; higher is safer. At September 30, 2026, ICICI Bank's CET-1 ratio was 16.01%. FINN reads a higher ratio as safer.",
+  "figures": [
+   {
+    "id": "G19",
+    "text": "CET1: common equity tier 1: a bank's core capital as a share of its risk-weighted assets; higher is safer.",
+    "source": "FINN's glossary",
+    "url": null
+   },
+   {
+    "id": "R19",
+    "text": "Bank standalone CET1 capital ratio, as filed: Q4 FY26 16.35%, Q1 FY27 16.19%, Q2 FY27 16.01%",
+    "source": "Q2 FY27 standalone results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_BANKING_202123_17102026172759_iXBRL_WEB.html"
+   }
+  ],
+  "citations": [
+   {
+    "source": "Oct 2026",
+    "page": 3,
+    "quote": "CET-1 ratio was 16.01%, and total capital adequacy ratio was 16.68% at September 30, 2026",
+    "url": "https://nsearchives.nseindia.com/corporate/ICICI2022_23102026175603_NSEBSE23102026.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.4
+ },
+ {
+  "id": "Q1",
+  "covered": true,
+  "unverified": false,
+  "answer": "Management stated on the call that, \"Our operating margins remained stable sequentially at 24%.\"",
+  "figures": [
+   {
+    "id": "R5",
+    "text": "Q2 FY27 consolidated EBITDA margin: 25.7%, Q1 FY27 24.7%, a year earlier 25.6%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_200121_08102026220810_iXBRL_WEB.html"
+   },
+   {
+    "id": "G5",
+    "text": "Margin: a profit line divided by revenue: of every Rs 100 of sales, how much is left as that profit.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [
+   {
+    "source": "Oct 2026",
+    "page": 5,
+    "quote": "Our operating margins remained stable sequentially at 24%.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=7dc14216-f892-46f1-bf82-5c7b387a83b9.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 86.2
+ },
+ {
+  "id": "Q2",
+  "covered": true,
+  "unverified": false,
+  "answer": "Management's revenue growth guidance for the financial year 2027 is 1% to 2% year-on-year in constant currency terms.",
+  "figures": [
+   {
+    "id": "R1",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated Revenue: Rs 49,244 crore; Q1 FY27 Rs 48,211 crore, QoQ 2.1%; a year earlier Rs 44,490 crore, YoY 10.7%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_203729_23102026202117_iXBRL_WEB.html"
+   },
+   {
+    "id": "G1",
+    "text": "Revenue: the money a company takes in from sales in a period.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [
+   {
+    "source": "Oct 2026",
+    "page": 26,
+    "quote": "Based on our Q2 performance and revised outlook for the rest of the year, our revenue growth guidance is 1% to 2% YoY.in constant currency terms.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=7982fc61-7765-4981-ab3d-6aec36ba2137.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.5
+ },
+ {
+  "id": "Q3",
+  "covered": true,
+  "unverified": false,
+  "answer": "Management noted: \"Overall, we are seeing good volume growth.\"",
+  "figures": [
+   {
+    "id": "R7",
+    "text": "Consolidated Revenue by quarter, Rs crore: Q2 FY26 8,531, Q3 FY26 8,867, Q4 FY26 9,247, Q1 FY27 10,542, Q2 FY27 9,977",
+    "source": "Results filings, last five quarters (link: Q2 FY27)",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_206843_29102026212521_iXBRL_WEB.html"
+   },
+   {
+    "id": "R10",
+    "text": "Profit growth FINN's valuation uses (3-year profit growth a year): 1.6%",
+    "source": "Company ratios, compiled by Screener",
+    "url": "https://www.screener.in/company/ASIANPAINT/"
+   },
+   {
+    "id": "R13",
+    "text": "ROCE: 26.3%",
+    "source": "Company ratios, compiled by Screener",
+    "url": "https://www.screener.in/company/ASIANPAINT/"
+   },
+   {
+    "id": "R14",
+    "text": "Market cap: Rs 225,350 crore",
+    "source": "Company ratios, compiled by Screener",
+    "url": "https://www.screener.in/company/ASIANPAINT/"
+   }
+  ],
+  "citations": [
+   {
+    "source": "Aug 2026",
+    "page": 11,
+    "quote": "Overall, we are seeing good volume growth.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=6e0d5627-2b8b-4bf1-a7ce-9d0160833a0f.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 1,
+  "unmatched_numbers": [
+   "7.9"
+  ],
+  "seconds": 2.9
+ },
+ {
+  "id": "Q4",
+  "covered": false,
+  "unverified": true,
+  "answer": "I could not back an answer with a reported figure or an exact quote, so I am not giving one.",
+  "figures": [
+   {
+    "id": "R15",
+    "text": "Revenue, full year, consolidated, Rs crore: FY ended Mar 2024 30,381, FY ended Mar 2025 30,981, FY ended Mar 2026 33,089",
+    "source": "Annual accounts, compiled by Screener",
+    "url": "https://www.screener.in/company/HAL/consolidated/"
+   }
+  ],
+  "citations": [
+   {
+    "source": "May 2026",
+    "page": 5,
+    "quote": "The order book of the company further improved to INR2,54,538 crores against the previous year order book position of INR1,89,302 crores as on 1st April 2025",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=344500e7-2fff-4cc6-a792-c4693e0340f6.pdf"
+   },
+   {
+    "source": "May 2026",
+    "page": 5,
+    "quote": "During the year, the fresh orders received by the company were INR97,028 crores, which includes the manufacturing orders of INR69,668 crores and ROH orders of INR26,539 crores.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=344500e7-2fff-4cc6-a792-c4693e0340f6.pdf"
+   },
+   {
+    "source": "May 2026",
+    "page": 5,
+    "quote": "In total, we expect to receive orders of INR90,000 crores, including the ROH orders, during the next 2 years.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=344500e7-2fff-4cc6-a792-c4693e0340f6.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 4,
+  "unmatched_numbers": [
+   "2,54,538",
+   "31,",
+   "31,792",
+   "97,028",
+   "69,668",
+   "26,539",
+   "97",
+   "228,",
+   "228",
+   "90,000"
+  ],
+  "seconds": 3.6
+ },
+ {
+  "id": "Q5",
+  "covered": true,
+  "unverified": false,
+  "answer": "Management stated that there are no comments or plans regarding a tariff hike at this time. Management noted, \"So, on the first one really no comments on tariff at this point in time no such plans, we are quite happy with the traction, 1% increase in ARPU, over the last year it has gone up by almost 5%, 5.5% and we have certain handles to improve the ARPU while contributing, giving more value to the customers and that is what we will continue to focus on.\"",
+  "figures": [],
+  "citations": [
+   {
+    "source": "Jan 2026",
+    "page": 30,
+    "quote": "So, on the first one really no comments on tariff at this point in time no such plans, we are quite happy with the traction, 1% increase in ARPU, over the last year it has gone up by almost 5%, 5.5%",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=26290395-526a-441f-a347-c8ac12e4adf3.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 5.3
+ },
+ {
+  "id": "Q6",
+  "covered": true,
+  "unverified": false,
+  "answer": "Management noted that total industry shipment volumes for smartphones saw a modest decline amid elevated global memory and component prices. However, they highlighted that Dixon gained market share, maintaining volumes despite the broader market contraction.",
+  "figures": [
+   {
+    "id": "R1",
+    "text": "Q2 FY27 (quarter ended 30 Sep 2026), consolidated Revenue: Rs 21,794 crore; Q1 FY27 Rs 15,548 crore, QoQ 40.2%; a year earlier Rs 14,855 crore, YoY 46.7%",
+    "source": "Q2 FY27 results filing",
+    "url": "https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_207643_30102026202202_iXBRL_WEB.html"
+   }
+  ],
+  "citations": [
+   {
+    "source": "Aug 2026",
+    "page": 4,
+    "quote": "Mobile volume performance was aligned with temporary demand contraction seen across the broader smartphone market by 10% to 12%, while our top line witnessed a strong revenue growth due to higher input cost realization.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=7ce2ca16-3043-48f4-97f9-a62a6a086c2f.pdf"
+   },
+   {
+    "source": "Aug 2026",
+    "page": 12,
+    "quote": "So, definitely, in Dixon, we have gained the market share because the volume degrowth is significantly higher. So we have been kind of able to maintain our share, in fact, maintain the volumes and increase the share.",
+    "url": "https://www.bseindia.com/stockinfo/AnnPdfOpen.aspx?Pname=7ce2ca16-3043-48f4-97f9-a62a6a086c2f.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 85.4
+ },
+ {
+  "id": "A1",
+  "covered": true,
+  "unverified": false,
+  "answer": "The statutory auditor of the company is BSR & Co. LLP.",
+  "figures": [],
+  "citations": [
+   {
+    "source": "Annual report 2026",
+    "page": 136,
+    "quote": "Pursuant to the provisions of Section 139 of the Act read with applicable Rules framed thereunder, M/s. BSR & Co., LLP have been appointed as Auditors",
+    "url": "https://www.bseindia.com/xml-data/corpfiling/AttachHis/1e85b157-d3b6-44c8-ab75-4776048dab00.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 7.8
+ },
+ {
+  "id": "A2",
+  "covered": true,
+  "unverified": false,
+  "answer": "The statutory auditor of Dixon Technologies (India) Limited is M/s S.N. Dhawan & Co. LLP.",
+  "figures": [],
+  "citations": [
+   {
+    "source": "Annual report 2026",
+    "page": 152,
+    "quote": "M/s S.N. Dhawan & Co LLP (Firm registration number: 000050N/N500045) were re-appointed as Statutory Auditors of your Company at the 30th Annual General Meeting",
+    "url": "https://www.bseindia.com/xml-data/corpfiling/AttachHis/5ef88e3c-352d-4223-a8ec-bdd7d3aa31c1.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 2.8
+ },
+ {
+  "id": "A3",
+  "covered": true,
+  "unverified": false,
+  "answer": "The joint statutory auditors of the bank are M/s. Batliboi & Purohit and M/s. B S R & Co. LLP.",
+  "figures": [],
+  "citations": [
+   {
+    "source": "Annual report 2026",
+    "page": 310,
+    "quote": "The Members of the Bank at the 30th Annual General Meeting held on August 9, 2024 had approved the appointment of M/s. Batliboi & Purohit, Chartered Accountants (ICAI Firm Registration No. 101048W) (“Batliboi & Purohit”), as one of the Joint Statutory Auditors of the Bank for a period of 3 (three) years from FY 2024-25 till (and including) FY 2026-27. Further, the Members of the Bank at the 31st Annual General Meeting held on August 8, 2025 had approved the appointment of M/s. B S R & Co. LLP, Chartered Accountants (ICAI Firm Registration No. 101248W/ W-100022) (“B S R & Co.”) as one of the Joint Statutory Auditors of the Bank for a period of 3 (three) years from FY 2025-26 till (and including) FY 2027-28.",
+    "url": "https://www.bseindia.com/xml-data/corpfiling/AttachHis/7d621500-082a-4342-b98d-ba677d3890c5.pdf"
+   }
+  ],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.3
+ },
+ {
+  "id": "R1",
+  "covered": false,
+  "unverified": false,
+  "answer": "The provided sources do not cover questions about future share prices. They discuss financial results, operational performance across segments like O2C, Retail, and Digital Services, and strategic updates.",
+  "figures": [],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.5
+ },
+ {
+  "id": "R2",
+  "covered": false,
+  "unverified": false,
+  "answer": "The available reported figures, earnings call transcripts, and annual report pages do not cover the target prices or broker recommendations for this stock.",
+  "figures": [],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 81.4
+ },
+ {
+  "id": "R3",
+  "covered": false,
+  "unverified": false,
+  "answer": "FINN has no definition for ten-bagger. The provided sources cover TCS's financial performance, revenue, profit, margins, strategic updates, and earnings conference calls.",
+  "figures": [],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.5
+ },
+ {
+  "id": "R4",
+  "covered": false,
+  "unverified": false,
+  "answer": "Neither the reported figures, the transcripts, nor the annual report contain any mention of Apple or what it said about Dixon.",
+  "figures": [],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 2.8
+ },
+ {
+  "id": "R5",
+  "covered": false,
+  "unverified": false,
+  "answer": "The sources do not cover Infosys's revenue for the year 1995. They cover recent reported figures, earnings call transcripts from 2026, and annual report disclosures for recent periods such as fiscal years 2025 and 2026.",
+  "figures": [
+   {
+    "id": "G1",
+    "text": "Revenue: the money a company takes in from sales in a period.",
+    "source": "FINN's glossary",
+    "url": null
+   }
+  ],
+  "citations": [],
+  "unverified_dropped": 0,
+  "removed_sentences": 0,
+  "unmatched_numbers": [],
+  "seconds": 3.5
+ }
+]

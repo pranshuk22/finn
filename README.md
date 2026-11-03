@@ -6,7 +6,7 @@ FINN is a mobile-first investing agent for Indian equities. It reads every NSE f
 
 **Open it on your phone:** https://finn-mu-three.vercel.app (then Add to Home Screen)
 
-Built for the ENAM Holdings AI Engineer Build Challenge. It runs on live data from a server in Mumbai that refreshes through the trading day. Every claim below about data, models or numbers links to the [research log](docs/RESEARCH.md), where it was checked. Unfamiliar terms are explained in [Terms used here](#terms-used-here) at the end.
+Built for the ENAM Holdings AI Engineer Build Challenge. It runs on live data from a server in Mumbai that refreshes through the trading day. Every claim below about data, models or numbers links to the [research log](docs/RESEARCH.md) (R1 to R16), where it was checked. Unfamiliar terms are explained in [Terms used here](#terms-used-here) at the end.
 
 ### Try it in two minutes
 
@@ -84,6 +84,15 @@ Ledgers are built for all 17 portfolio companies that publish call transcripts (
 | Reading vague filings, people and bios | `gemini-3.1-flash-lite`, five filings per call, with web search for careers |
 | Promise ledger | `gemini-3.6-flash`, one call per company, with `gemini-3.8-flash` as fallback |
 | Bull and bear, Ask | `gemini-3.5-flash-lite` |
+
+**Measured, not assumed** ([R16](docs/RESEARCH.md#r16-measuring-the-ai-ask-and-the-promise-ledger)). Each AI feature has an eval in `eval/`, and CI re-scores the saved results:
+
+| Eval | Result |
+| --- | --- |
+| Ask: 31 questions with known answers (figures, definitions, call quotes, annual report, out of scope) | 31 of 31; refuses all 5 questions its sources cannot answer |
+| Ask in agent mode (the model looks things up with tools first) | 30 of 31, with a tenth of the input tokens (8,445 against 80,353 a question) and no rate-limit refusals, but 12.6 s against 5.2 s a median answer. The one-call mode stays the default; the agent is one setting away (`FINN_ASK=agent`) |
+| Promise ledger: 20 promises drawn at random and read against their quotes | Targets right 18 of 20; verdicts right 16 of 20, 1 too cautious, 3 overclaimed "delivered" (prompt tightened since) |
+| Filing classifier: 30 filings held out from tuning | Category 30 of 30, priority 25 of 30 |
 
 **Guards against made-up answers:**
 
@@ -187,7 +196,7 @@ uv sync
 uv run python -m backend.jobs.refresh   # filings, prices, results, financials (about 3 minutes)
 uv run python -m backend.enrich         # read vague and management filings
 uv run uvicorn backend.main:app --port 8000
-uv run pytest                           # 72 tests, including the classifier regression on 90 labelled filings
+uv run pytest                           # 77 tests, including the classifier regression on 90 labelled filings
 
 # frontend
 cd frontend

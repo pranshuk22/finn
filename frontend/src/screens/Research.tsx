@@ -606,6 +606,13 @@ function BullBearList({ title, tone, points }: { title: string; tone: "up" | "do
 }
 
 // Most people do not know what to ask a set of earnings calls; these show what Ask is good at.
+const TOOL_WORDS: Record<string, string> = {
+  get_figures: "Read the filed figures",
+  lookup_term: "Looked up FINN's glossary",
+  search_calls: "Searched the earnings calls",
+  search_annual_report: "Searched the annual report",
+};
+
 // Four, so the chips stay one glance: two an investor asks, two a beginner asks (answered from FINN's glossary).
 export const SUGGESTED = [
   "How did profit change last quarter?",
@@ -730,6 +737,19 @@ function AskBar({ ticker, show }: { ticker: string; show: boolean }) {
                     </figcaption>
                   </figure>
                 ))}
+                {!!answer.a.trace?.length && (
+                  <details className="text-[12px] text-muted">
+                    <summary className="cursor-pointer">How FINN looked it up ({answer.a.trace.length})</summary>
+                    <ol className="mt-1.5 space-y-1 pl-4">
+                      {answer.a.trace.map((t, i) => (
+                        <li key={i} className="list-decimal">
+                          {TOOL_WORDS[t.tool] ?? t.tool}
+                          {t.input && <> for "{t.input}"</>}: {t.found}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
                 {!!answer.a.removed_sentences && (
                   <p className="text-[12px] text-muted">
                     {answer.a.removed_sentences > 1 ? `${answer.a.removed_sentences} sentences were removed: their numbers (` : "1 sentence was removed: its number ("}

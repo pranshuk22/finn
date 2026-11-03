@@ -1,0 +1,250 @@
+{
+  "about": "Ask eval: questions with answers known from the filings, the calls, the annual report or FINN's glossary. Expected figures are from the Q2 FY27 NSE results filings (DIXON, RELIANCE, HDFCBANK and MAXHEALTH were also checked against the filings by the 3 Nov blind review) and the banks' standalone filings.",
+  "kinds": {
+    "figure": "covered, and every expected number appears in the answer",
+    "glossary": "covered, FINN's glossary entry is shown with the answer, and any expected number appears",
+    "quote": "covered, with at least one quote from an earnings call that was found word for word in the PDF",
+    "annual_report": "covered, the expected words appear, and a quote from the annual report was found in the PDF",
+    "refuse": "not covered: the sources cannot answer it, so FINN must say so"
+  },
+  "questions": [
+    {
+      "id": "F1",
+      "kind": "figure",
+      "ticker": "DIXON",
+      "q": "By how much did profit change year on year last quarter?",
+      "expect": [
+        "44.9"
+      ]
+    },
+    {
+      "id": "F2",
+      "kind": "figure",
+      "ticker": "DIXON",
+      "q": "What was revenue growth year on year in the latest quarter?",
+      "expect": [
+        "46.7"
+      ]
+    },
+    {
+      "id": "F3",
+      "kind": "figure",
+      "ticker": "RELIANCE",
+      "q": "What was consolidated PAT last quarter?",
+      "expect": [
+        "29,550"
+      ]
+    },
+    {
+      "id": "F4",
+      "kind": "figure",
+      "ticker": "RELIANCE",
+      "q": "How much did profit grow year on year in the latest quarter?",
+      "expect": [
+        "33.8"
+      ]
+    },
+    {
+      "id": "F5",
+      "kind": "figure",
+      "ticker": "RELIANCE",
+      "q": "What was net profit for the full year FY26?",
+      "expect": [
+        "95,754"
+      ]
+    },
+    {
+      "id": "F6",
+      "kind": "figure",
+      "ticker": "HDFCBANK",
+      "q": "What is the gross NPA ratio?",
+      "expect": [
+        "1.11"
+      ]
+    },
+    {
+      "id": "F7",
+      "kind": "figure",
+      "ticker": "HDFCBANK",
+      "q": "What was net interest income last quarter?",
+      "expect": [
+        "34,619"
+      ]
+    },
+    {
+      "id": "F8",
+      "kind": "figure",
+      "ticker": "ICICIBANK",
+      "q": "What is the CET1 ratio?",
+      "expect": [
+        "16.01"
+      ]
+    },
+    {
+      "id": "F9",
+      "kind": "figure",
+      "ticker": "TCS",
+      "q": "What was revenue last quarter?",
+      "expect": [
+        "73,188"
+      ]
+    },
+    {
+      "id": "F10",
+      "kind": "figure",
+      "ticker": "MAXHEALTH",
+      "q": "What happened to PAT year on year last quarter?",
+      "expect": [
+        "15.6"
+      ]
+    },
+    {
+      "id": "F11",
+      "kind": "figure",
+      "ticker": "INFY",
+      "q": "What was PAT growth year on year in the latest quarter?",
+      "expect": [
+        "6.3"
+      ]
+    },
+    {
+      "id": "F12",
+      "kind": "figure",
+      "ticker": "LT",
+      "q": "How much of PBT came from other income last quarter?",
+      "expect": [
+        "30.2"
+      ]
+    },
+    {
+      "id": "G1",
+      "kind": "glossary",
+      "ticker": "DIXON",
+      "q": "What does EBITDA mean?",
+      "expect": []
+    },
+    {
+      "id": "G2",
+      "kind": "glossary",
+      "ticker": "HDFCBANK",
+      "q": "What is NPA, and is this bank's good?",
+      "expect": [
+        "0.37"
+      ]
+    },
+    {
+      "id": "G3",
+      "kind": "glossary",
+      "ticker": "HDFCBANK",
+      "q": "Is this valuation high?",
+      "expect": [
+        "1.7"
+      ]
+    },
+    {
+      "id": "G4",
+      "kind": "glossary",
+      "ticker": "DIXON",
+      "q": "What does basis points mean?",
+      "expect": []
+    },
+    {
+      "id": "G5",
+      "kind": "glossary",
+      "ticker": "ICICIBANK",
+      "q": "What is CET1?",
+      "expect": []
+    },
+    {
+      "id": "Q1",
+      "kind": "quote",
+      "ticker": "TCS",
+      "q": "What did management say about operating margin on the latest call?"
+    },
+    {
+      "id": "Q2",
+      "kind": "quote",
+      "ticker": "INFY",
+      "q": "What revenue growth guidance did management give for FY27?"
+    },
+    {
+      "id": "Q3",
+      "kind": "quote",
+      "ticker": "ASIANPAINT",
+      "q": "What did management say about volume growth?"
+    },
+    {
+      "id": "Q4",
+      "kind": "quote",
+      "ticker": "HAL",
+      "q": "What did management say about order inflow?"
+    },
+    {
+      "id": "Q5",
+      "kind": "quote",
+      "ticker": "RELIANCE",
+      "q": "What did management say about Jio tariffs?"
+    },
+    {
+      "id": "Q6",
+      "kind": "quote",
+      "ticker": "DIXON",
+      "q": "What did management say about mobile phone volumes?"
+    },
+    {
+      "id": "A1",
+      "kind": "annual_report",
+      "ticker": "TITAN",
+      "q": "Who is the statutory auditor?",
+      "expect": [
+        "BSR"
+      ]
+    },
+    {
+      "id": "A2",
+      "kind": "annual_report",
+      "ticker": "DIXON",
+      "q": "Who is the statutory auditor?",
+      "expect": [
+        "Dhawan"
+      ]
+    },
+    {
+      "id": "A3",
+      "kind": "annual_report",
+      "ticker": "HDFCBANK",
+      "q": "Who are the statutory auditors of the bank?",
+      "expect": []
+    },
+    {
+      "id": "R1",
+      "kind": "refuse",
+      "ticker": "RELIANCE",
+      "q": "What will the share price be next week?"
+    },
+    {
+      "id": "R2",
+      "kind": "refuse",
+      "ticker": "HDFCBANK",
+      "q": "What target price do brokers have on this stock?"
+    },
+    {
+      "id": "R3",
+      "kind": "refuse",
+      "ticker": "TCS",
+      "q": "What is a ten-bagger?"
+    },
+    {
+      "id": "R4",
+      "kind": "refuse",
+      "ticker": "DIXON",
+      "q": "What did Apple say about Dixon on its own earnings call?"
+    },
+    {
+      "id": "R5",
+      "kind": "refuse",
+      "ticker": "INFY",
+      "q": "What was Infosys's revenue in 1995?"
+    }
+  ]
+}

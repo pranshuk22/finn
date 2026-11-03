@@ -1,6 +1,6 @@
 # Research log
 
-What was checked before FINN relied on it: data sources, models, and the numbers FINN computes. Each entry says how it was checked, what came back, and the decision it led to. The README and the code cite entries by number (R1 to R15). A later check that contradicts an entry updates it.
+What was checked before FINN relied on it: data sources, models, and the numbers FINN computes. Each entry says how it was checked, what came back, and the decision it led to. The README and the code cite entries by number (R1 to R16). A later check that contradicts an entry updates it.
 
 Checks were run between 31 Oct and 3 Nov 2026 (IST), from a home connection in India unless noted.
 
@@ -212,4 +212,44 @@ All three reviewers were agents given only the two challenge PDFs and the live a
   - The Jio Platforms listing was filed as a Routine results notice, and a Rs 6.95 lakh penalty kept an Alert tag (its size was in the summary, not read from the PDF).
   - The summary called EBITDA "profit" and named only the biggest mover; it now says EBITDA, and gives the biggest rise and the biggest fall.
   - Margin changes in bps were taken from rounded margins (DIXON -110 bps, actual -104).
+
+
+## R16. Measuring the AI: Ask and the promise ledger
+
+**Ask eval** (`eval/ask_set.json`, `eval/ask_eval.py`): 31 questions with known answers, scored by script.
+- Five kinds:
+  - 12 figures from the filings: the number must appear.
+  - 5 glossary questions: FINN's definition must be shown.
+  - 6 call questions: a quote must be found word for word in the transcript.
+  - 3 annual report questions: the expected words, with a quote from the report.
+  - 5 questions the sources cannot answer (a share price next week, broker targets, another company's call): Ask must say so.
+- Expected figures are from the Q2 FY27 NSE filings.
+
+| Run, 3 Nov | Passed | Notes |
+| --- | --- | --- |
+| Live app, before fixes | 25 of 31 | refusals 5 of 5, annual report 3 of 3, figures 8 of 12 |
+| Same questions after the fixes below | 31 of 31 | context mode, the default |
+| Agent mode | 30 of 31 | HDFCBANK's net interest income: it cited the right figures, but its sentence also carried "3.2", a number in no source, so the guard removed it and nothing was left to show |
+
+What the misses showed, and the fixes:
+- L&T's other income share of PBT was on the card but not in Ask's facts.
+- "Is this valuation high?" did not show the rule it rested on.
+- CET1 was answered from March, not the latest quarter.
+- HAL's order book numbers came without a quote, so the guard removed them all.
+
+The fixes add the missing fact, link question words to glossary terms, and tell the model to give the latest quarter when no period is named, and to quote whatever it takes from a call. Across the runs, the guard removed a sentence with an unsupported number in 4 of 31 live answers.
+
+**Context mode against agent mode.** Context mode is one call that reads all four transcripts. Agent mode lets the model look things up with four tools first (filed figures, glossary, call search, annual report search), and only what it retrieved reaches the answering call. Both pass the same checks.
+
+| Mode | Passed | Input tokens per question | Rate-limit refusals | Calls per question | Median answer |
+| --- | --- | --- | --- | --- | --- |
+| Context | 31 of 31 | 80,353 | 10 | 1 | 5.2 s |
+| Agent | 30 of 31 | 8,445 | 0 | 3.1 | 12.6 s |
+
+The free tier allows 250k input tokens a minute, so context mode stalls after about three questions in a minute; that is what timed out one live question. The agent uses a tenth of the tokens and was never refused, but is slower for one reader and scored one lower. **Decision:** context mode stays the default; agent mode ships behind `FINN_ASK=agent`, for when documents or traffic outgrow one call.
+
+**Ledger eval** (`eval/ledger_labels.json`): 20 promises drawn at random (seed 2026) from the 193 in the 23 stored ledgers, each read against its quote, the later evidence and the filed numbers.
+- **Targets:** 18 of 20 right. Twice the quoted words were not management's own promise: an analyst restating guidance, and a target that is not in the quoted sentence.
+- **Verdicts:** 16 of 20 correct, 1 conservative (unclear where pending fitted), and 3 overclaims. All three were "delivered" on weak evidence: "our fastest growing business", a deal size repeated, "the first phase will commence by August".
+- **Fix:** the prompt now defines delivered as a result stated as achieved, not progress or a plan restated. It applies to ledgers built from now on and has not yet been re-measured.
 

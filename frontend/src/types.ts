@@ -335,6 +335,7 @@ export interface Answer {
   unverified_dropped?: number;
   removed_sentences?: number; // sentences whose number was in no source
   unmatched_numbers?: string[];
+  trace?: { tool: string; input: string; found: string }[]; // agent mode: each lookup the model made
 }
 
 /** What a watchlist row shows. Prices are kept for the portfolio only, so ad-hoc companies have none. */
