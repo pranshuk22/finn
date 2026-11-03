@@ -290,7 +290,7 @@ function TopBar({ ticker }: { ticker: string }) {
         Back
       </button>
       <span className="sr-only">{ticker}</span>
-      <HelpButton className="mr-2" />
+      <HelpButton className="mr-2" topic="company" />
     </div>
   );
 }

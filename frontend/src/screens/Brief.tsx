@@ -74,7 +74,7 @@ export function BriefScreen() {
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-3">
           <h1 className="font-display text-[34px] leading-tight font-semibold tracking-[-0.01em]">Brief</h1>
-          <HelpButton />
+          <HelpButton topic="brief" />
         </div>
       </header>
 

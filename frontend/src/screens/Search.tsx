@@ -34,7 +34,7 @@ export function Search() {
 
   return (
     <>
-      <Header eyebrow="Any NSE company" title="Research" right={<HelpButton />} sub="Numbers from filings, promises from earnings calls, every claim with its source." />
+      <Header eyebrow="Any NSE company" title="Research" right={<HelpButton topic="research" />} sub="Numbers from filings, promises from earnings calls, every claim with its source." />
       <form
         className="px-4"
         onSubmit={(e) => {

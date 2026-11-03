@@ -1,30 +1,45 @@
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { STATUS, StatusChip } from "./Ledger";
 import { Sheet } from "./ui";
 
-// One page on how to read FINN, opened from a "?" next to the title. Written around what is on screen, so a
-// first-time user can check any word they meet without leaving the app.
+// How to read FINN, opened from a "?" next to each title. Each tab shows only the parts about that tab; Settings holds
+// the whole guide (owner, 3 Nov: the same long page on every tab was more than anyone needed there).
 
-export function HelpButton({ className = "" }: { className?: string }) {
+export type HelpTopic = "brief" | "research" | "company" | "alerts" | "all";
+
+const TITLE: Record<HelpTopic, string> = {
+  brief: "Reading the brief",
+  research: "Researching a company",
+  company: "Reading a company page",
+  alerts: "Setting alerts",
+  all: "How FINN works",
+};
+
+const Topic = createContext<HelpTopic>("all");
+
+export function HelpButton({ className = "", topic = "all" }: { className?: string; topic?: HelpTopic }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="How FINN works"
+        aria-label={TITLE[topic]}
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-[15px] font-semibold text-muted ${className}`}
       >
         ?
       </button>
-      <Sheet open={open} onClose={() => setOpen(false)} title="How FINN works">
-        <HelpContent />
+      <Sheet open={open} onClose={() => setOpen(false)} title={TITLE[topic]}>
+        <HelpContent topic={topic} />
+        {topic !== "all" && <p className="mt-7 text-[13px] text-muted">The full guide is in Settings, under How FINN works.</p>}
       </Sheet>
     </>
   );
 }
 
-function Part({ title, children }: { title: string; children: ReactNode }) {
+function Part({ title, on, children }: { title: string; on: HelpTopic[]; children: ReactNode }) {
+  const topic = useContext(Topic);
+  if (topic !== "all" && !on.includes(topic)) return null;
   return (
     <section>
       <h3 className="mb-2 text-[13px] font-semibold tracking-wide text-muted uppercase">{title}</h3>
@@ -55,10 +70,18 @@ const PROMISE_MEANS: Record<string, string> = {
   pending: "Said on the latest call, or not due yet. Shown under Guidance.",
 };
 
-export function HelpContent() {
+export function HelpContent({ topic = "all" }: { topic?: HelpTopic }) {
+  return (
+    <Topic.Provider value={topic}>
+      <Guide />
+    </Topic.Provider>
+  );
+}
+
+function Guide() {
   return (
     <div className="space-y-7">
-      <Part title="The brief">
+      <Part title="The brief" on={["brief"]}>
         <p>Every filing your companies made in the window you pick, sorted so you can stop reading once the important part is done.</p>
         <dl className="space-y-2">
           <Term name="Needs you">Quarterly results; a CEO, MD, CFO, chair or other key manager joining or leaving; insolvency or regulator action; a rating downgrade; a promoter pledge created or invoked.</Term>
@@ -71,7 +94,7 @@ export function HelpContent() {
         </p>
       </Part>
 
-      <Part title="Alerts">
+      <Part title="Alerts" on={["alerts"]}>
         <p className="text-muted">
           Set what counts as unusual on the Alerts tab: a price move, volume against its 20-day average, and filing types to always flag. Turn
           on Notify this phone and FINN sends a notification after each refresh when something new crosses those rules. On an iPhone, add
@@ -79,7 +102,7 @@ export function HelpContent() {
         </p>
       </Part>
 
-      <Part title="Reading a results card">
+      <Part title="Reading a results card" on={["brief", "company"]}>
         <dl className="space-y-2">
           <Term name="EBITDA*">Operating EBITDA: profit before tax + finance costs + depreciation - other income, so interest on cash does not count as business profit.</Term>
           <Term name="bps">Basis points: 100 bps is one percentage point. A margin going from 17.0% to 15.6% is -140 bps.</Term>
@@ -88,7 +111,7 @@ export function HelpContent() {
         </dl>
       </Part>
 
-      <Part title="Research">
+      <Part title="Research" on={["research", "company"]}>
         <p>
           Built only from primary sources: NSE filings, Screener's standardised financials (taken from the companies' statements) and earnings call
           transcripts. No news, no broker notes.
@@ -119,7 +142,7 @@ export function HelpContent() {
         </p>
       </Part>
 
-      <Part title="The scorecard">
+      <Part title="The scorecard" on={["company"]}>
         <p className="text-muted">The six tiles at the top of a company page are fixed rules on the numbers below them:</p>
         <dl className="space-y-2">
           <Term name="Growth">Revenue a year over 3 years: 15% or more strong, 8% steady, 0% slow, below that shrinking.</Term>
@@ -131,14 +154,14 @@ export function HelpContent() {
         </dl>
       </Part>
 
-      <Part title="New to investing?">
+      <Part title="New to investing?" on={["research", "company"]}>
         <p className="text-muted">
           Turn on Explain the numbers in Settings, or tap Explain on a company page. Each scorecard verdict and results figure then gets a
           plain line saying what it means and how to read this company's number, worked out from the figure itself.
         </p>
       </Part>
 
-      <Part title="Words you will see">
+      <Part title="Words you will see" on={["brief", "company"]}>
         <dl className="space-y-2">
           <Term name="QoQ, YoY">Against the previous quarter, and against the same quarter a year earlier.</Term>
           <Term name="PBT, PAT">Profit before tax, profit after tax.</Term>
