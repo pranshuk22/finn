@@ -6,7 +6,15 @@ FINN is a mobile-first investing agent for Indian equities. It reads every NSE f
 
 **Open it on your phone:** https://finn-mu-three.vercel.app (then Add to Home Screen)
 
-Built for the ENAM Holdings AI Engineer Build Challenge. It runs on live data from a server in Mumbai that refreshes through the trading day. Every claim below about data, models or numbers links to the [research log](docs/RESEARCH.md), where it was checked.
+Built for the ENAM Holdings AI Engineer Build Challenge. It runs on live data from a server in Mumbai that refreshes through the trading day. Every claim below about data, models or numbers links to the [research log](docs/RESEARCH.md), where it was checked. Unfamiliar terms are explained in [Terms used here](#terms-used-here) at the end.
+
+### Try it in two minutes
+
+1. **Brief** (first tab): read the summary, then the cards under *Needs you*. Tap *Details* on a results card, or swipe a card right when you are done with it.
+2. **Research** (second tab): open any company, say DIXON. The scorecard at the top gives six verdicts; *Narrative vs numbers* shows what management promised and what happened.
+3. **Ask** (bottom of a company page): try "How did profit change last quarter?" or "What does EBITDA mean here?".
+4. **Alerts** (third tab): drag the sliders and watch how many alerts your thresholds would have fired.
+5. New to investing? In **Settings**, turn on *Explain the numbers*.
 
 ---
 
@@ -179,7 +187,7 @@ uv sync
 uv run python -m backend.jobs.refresh   # filings, prices, results, financials (about 3 minutes)
 uv run python -m backend.enrich         # read vague and management filings
 uv run uvicorn backend.main:app --port 8000
-uv run pytest                           # 71 tests, including the classifier regression on 90 labelled filings
+uv run pytest                           # 72 tests, including the classifier regression on 90 labelled filings
 
 # frontend
 cd frontend
@@ -198,6 +206,23 @@ bun run test                            # 44 tests
 - Use the annual report in the snapshot and the ledger, not only in Ask.
 - NBFC asset quality (stage 3 assets), which BAJFINANCE reports outside the integrated filing.
 - Let users move a category's priority up or down, and learn from it.
+
+## Terms used here
+
+| Term | Meaning |
+| --- | --- |
+| NSE | National Stock Exchange of India, where these companies are listed and file their disclosures |
+| Filing | A disclosure a listed company must send the exchange: results, board decisions, management changes, and more |
+| iXBRL | The machine-readable version of a results filing, so numbers can be read exactly instead of guessed from a PDF |
+| QoQ, YoY | Change against the previous quarter, and against the same quarter a year earlier |
+| EBITDA | Profit from running the business, before interest, depreciation and tax (FINN leaves out other income) |
+| PBT, PAT | Profit before tax, and profit after tax (what is left for shareholders) |
+| Basis points (bps) | Hundredths of a percentage point: a margin moving from 17.0% to 15.6% is -140 bps |
+| P/E | Price to earnings: what buyers pay for every Rs 1 of a company's yearly profit |
+| NPA, CET1 | A bank's loans that have stopped paying; and its core capital as a share of its risk-weighted assets |
+| Earnings call | The call where management discusses a quarter's results with analysts; FINN reads the transcripts |
+| Promise ledger | FINN's record of what management promised on those calls, checked against what was later reported |
+| PWA | Progressive web app: a website you can add to your phone's home screen and use like an app |
 
 ## Build history
 

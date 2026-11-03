@@ -54,6 +54,7 @@ def main() -> None:
         pool = sorted((r for r in rows if r["classified_by"] == stage), key=lambda r: r["id"])
         sample += rng.sample(pool, min(a.per_stage, len(pool)))
     rng.shuffle(sample)  # the labeller should not see which stage a filing came from either
+
     def clean(s: str) -> str:  # the repo, like the app, never shows em or en dashes from filings
         return s.replace("\u2014", " - ").replace("\u2013", "-")
 

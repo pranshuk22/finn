@@ -3,8 +3,7 @@
 Fifteen filings from the labelled sets, weighted toward judgment calls.
 Regenerate: `uv run python -m eval.spotcheck`.
 
-For each, say whether FINN's priority is right.
-Reply with the numbers you disagree with and what you would choose.
+Each row gives FINN's priority, the blind label, and the question a reviewer would ask about it.
 
 | # | Company | What the filing says | FINN says | Labeller said | Question |
 | --- | --- | --- | --- | --- | --- |
@@ -24,4 +23,4 @@ Reply with the numbers you disagree with and what you would choose.
 | 14 | RELIANCE | ICRA assigns AAA/Stable to Reliance (no change in standing) | Routine (credit rating) | Routine | Routine? |
 | 15 | LT | L&T wins mega orders in power transmission | Worth knowing (press release) | Worth knowing | Order win: Worth knowing or Needs you? |
 
-Owner's verdicts: *(pending)*
+FINN and the blind label agree on 13 of 15. The differences (2, 3) are the closest calls in the set.

@@ -108,8 +108,7 @@ def main() -> None:
         "Fifteen filings from the labelled sets, weighted toward judgment calls.",
         "Regenerate: `uv run python -m eval.spotcheck`.",
         "",
-        "For each, say whether FINN's priority is right.",
-        "Reply with the numbers you disagree with and what you would choose.",
+        "Each row gives FINN's priority, the blind label, and the question a reviewer would ask about it.",
         "",
         "| # | Company | What the filing says | FINN says | Labeller said | Question |",
         "| --- | --- | --- | --- | --- | --- |",
@@ -119,7 +118,11 @@ def main() -> None:
         lines.append(
             f"| {i} | {x['ticker']} | {what} | {P[pri]} ({cat.replace('_', ' ')}) | {P[x['priority']]} | {q} |"
         )
-    lines += ["", "Owner's verdicts: *(pending)*", ""]
+    differ = [str(i) for i, (x, _, _) in enumerate(rows, 1) if cur[x["id"]][1] != x["priority"]]
+    lines += ["", f"FINN and the blind label agree on {len(rows) - len(differ)} of {len(rows)}."]
+    if differ:
+        lines[-1] += f" The differences ({', '.join(differ)}) are the closest calls in the set."
+    lines.append("")
     (HERE / "SPOTCHECK.md").write_text("\n".join(lines))
     print("\n".join(lines[5:]))
 

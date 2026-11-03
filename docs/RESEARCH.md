@@ -151,7 +151,7 @@ Checks were run between 31 Oct and 3 Nov 2026 (IST), from a home connection in I
 | BSE annual report | 200, 26 MB in 0.13 s |
 | yfinance | works (plain curl to Yahoo gets 429) |
 
-- **Office web filters block IP-based domains.** The owner's network resolved every `sslip.io` name to a Fortinet block page. Served through Vercel, every route returned 200 from the same network. Vercel waits up to 120 s for an origin; Netlify's proxy waits 26 s.
+- **Office web filters block IP-based domains.** On a filtered network we tested from, every `sslip.io` name resolved to the filter's block page. Served through Vercel, every route returned 200 from the same network. Vercel waits up to 120 s for an origin; Netlify's proxy waits 26 s.
 - **Speed:** the API only reads SQLite. The 24-hour brief takes 7 ms locally and the 30-day brief 24 ms (157 KB, 29 KB gzipped). A response cache would save milliseconds; the costly part, model output, is stored once.
 - **Uptime:** one 502 in 20 hours came from a deploy restart. A second, during an Ask, came from Ubuntu's security updates: needrestart restarted the API 3 times in 3 minutes. FINN is now excluded from needrestart, a watchdog restarts a hung API (tested by freezing it, back in 4 s), and the app retries a 502 or 503 after 1.5 s and 4 s.
 

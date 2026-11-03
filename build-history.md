@@ -20,7 +20,7 @@ FINN was built with an AI coding assistant between 30 Oct and 3 Nov 2026. I set 
 | **Fri 30 Oct** | Problem and plan | Read the challenge and critiqued my draft README. Probed NSE, Screener, BSE and Gemini live before designing anything. Built ingestion, the results parser and the classifier. |
 | **Sat 31 Oct** | The product | API, analytics and the promise ledger, cut from 5 model calls to 1 to fit the free tier ([R9](docs/RESEARCH.md#r9-gemini-models-availability-speed-and-free-tier-limits)). Deployed to Lightsail Mumbai behind Vercel. I chose a reference design; the look was reworked on my feedback ("looks AI-ish", "all text and numbers") until it was quiet and readable. First blind review. |
 | **Sun 1 Nov** | Reliability | I saw a 502 in Ask. The cause was security updates restarting the API; fixed with a watchdog and retries ([R12](docs/RESEARCH.md#r12-hosting-speed-and-uptime)). |
-| **Mon 2 Nov** | Ask and review two | Ask answers number questions from filed results first ([R11](docs/RESEARCH.md#r11-keeping-model-answers-traceable-ask-and-bull-and-bear)). The second blind review scored 6 to 8 out of 10 in each category; ten findings fixed ([R15](docs/RESEARCH.md#r15-two-independent-blind-reviews)). |
+| **Mon 2 Nov** | Ask and review two | Ask answers number questions from filed results first ([R11](docs/RESEARCH.md#r11-keeping-model-answers-traceable-ask-and-bull-and-bear)). The second blind review scored 6 to 8 out of 10 in each category; ten findings fixed ([R15](docs/RESEARCH.md#r15-three-independent-blind-reviews)). |
 | **Tue 3 Nov** | Closing the gaps | Bank NPA and NII from filings, annual reports in Ask, more promises decided by numbers, sharper bull and bear, phone notifications. |
 
 ## Checks, not trust
