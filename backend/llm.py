@@ -38,6 +38,10 @@ _exhausted: dict[str, str] = {}  # model -> Pacific date on which it ran out
 _rate_lock = threading.Lock()
 
 
+class Busy(Exception):
+    """The model asked for a longer wait than the caller can afford: a reader is waiting on the answer."""
+
+
 class BudgetExhausted(Exception):
     """No model in the chain has daily quota left."""
 
@@ -109,6 +113,7 @@ def generate(
     retries: int = 3,
     _tried: tuple[str, ...] = (),
     tools: list | None = None,
+    max_wait: float | None = None,
 ):
     """Returns the parsed object when `schema` is given, the raw response when `tools` are given, else text.
 
@@ -119,7 +124,9 @@ def generate(
     def fallback():
         nxt = FALLBACK.get(model)
         if nxt and nxt not in tried:
-            return generate(task, nxt, contents, schema, system, _thinking_for(nxt, thinking), retries, tried, tools)
+            return generate(
+                task, nxt, contents, schema, system, _thinking_for(nxt, thinking), retries, tried, tools, max_wait
+            )
         raise BudgetExhausted(f"no model with quota left for {task} (tried {', '.join(tried)})")
 
     if not has_budget(model):
@@ -155,7 +162,11 @@ def generate(
                 # A ledger call sends about 160k tokens. Retrying a 503 after 5 s sent three of them inside a
                 # minute and the third tripped the per-minute token limit (RELIANCE, 31 Oct). Big calls wait longer.
                 big = len(str(contents)) > 200_000
-                time.sleep(min(120, _retry_after(e) or (60 if big else 5) * 2**attempt))
+                wait = min(120, _retry_after(e) or (60 if big else 5) * 2**attempt)
+                # A reader is waiting: past this, the proxy drops the request without a word (eval, 3 Nov).
+                if max_wait is not None and wait > max_wait:
+                    raise Busy(f"{task} on {model} asked to wait {wait:.0f} s") from e
+                time.sleep(wait)
                 continue
             if e.code in (429, 500, 503):
                 return fallback()

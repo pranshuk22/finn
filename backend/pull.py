@@ -1253,7 +1253,7 @@ def _load_report_later(ticker: str) -> None:
     threading.Thread(target=run, daemon=True).start()
 
 
-ASK_MODE = os.getenv("FINN_ASK", "context")  # "agent": the model looks things up with tools first (eval/ask_eval.py)
+ASK_MODE = os.getenv("FINN_ASK", "pages")  # "agent": the model looks things up with tools first (eval/ask_eval.py)
 
 
 def _sources(ticker: str) -> dict:
@@ -1312,7 +1312,33 @@ def _ar_section(ar: dict | None, pages: list[int]) -> str:
 
 
 def ask(ticker: str, question: str) -> dict:
-    return ask_agent(ticker, question) if ASK_MODE == "agent" else ask_context(ticker, question)
+    if ASK_MODE == "agent":
+        return ask_agent(ticker, question)
+    return ask_context(ticker, question) if ASK_MODE == "context" else ask_pages(ticker, question)
+
+
+def ask_pages(ticker: str, question: str) -> dict:
+    """One call, like ask_context, but only the transcript pages that best match the question: three from each
+    call. All four transcripts are about 80,000 tokens, and the free tier allows 250,000 a minute, so three quick
+    questions stalled on rate limits and the proxy dropped them (eval, 3 Nov; RESEARCH R16)."""
+    src = _sources(ticker)
+    ar_pages = report_pages(src["ar"], question) if src["ar"] else []
+    if not src["docs"] and not src["figs"] and not ar_pages:
+        return dict(_EMPTY)
+    texts = "\n\n".join(
+        f"===== {d['period']} call =====\n"
+        + "\n".join(f"[page {pg}]\n{d['pages'][pg - 1]}" for pg in sorted(report_pages(d, question, k=3)))
+        for d in src["docs"]
+    )
+    res: Answer = llm.generate(
+        task="ask",
+        model=llm.SMART,
+        schema=Answer,
+        system=_ASK_SYSTEM,
+        max_wait=20,
+        contents=_contents(ticker, question, src, texts, _ar_section(src["ar"], ar_pages)),
+    )
+    return _checked(res, src, question)
 
 
 def ask_context(ticker: str, question: str) -> dict:
@@ -1327,6 +1353,7 @@ def ask_context(ticker: str, question: str) -> dict:
         model=llm.SMART,
         schema=Answer,
         system=_ASK_SYSTEM,
+        max_wait=20,
         contents=_contents(ticker, question, src, texts, _ar_section(src["ar"], ar_pages)),
     )
     return _checked(res, src, question)
@@ -1444,7 +1471,9 @@ def ask_agent(ticker: str, question: str) -> dict:
     call_pages: dict[str, set[int]] = {}
     ar_pages: set[int] = set()
     for _ in range(3):
-        r = llm.generate(task="ask_plan", model=llm.SMART, contents=contents, system=_AGENT_SYSTEM, tools=[tool])
+        r = llm.generate(
+            task="ask_plan", model=llm.SMART, contents=contents, system=_AGENT_SYSTEM, tools=[tool], max_wait=20
+        )
         calls = r.function_calls or []
         if not calls or not r.candidates:
             break
@@ -1485,6 +1514,7 @@ def ask_agent(ticker: str, question: str) -> dict:
         model=llm.SMART,
         schema=Answer,
         system=_ASK_SYSTEM,
+        max_wait=20,
         contents=_contents(ticker, question, src, texts, _ar_section(src["ar"], sorted(ar_pages))),
     )
     return {**_checked(res, src, question), "trace": trace}

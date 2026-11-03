@@ -576,6 +576,14 @@ def jobs(raw: str):
     return {"jobs": pull.job_status(ticker), "has_ledger": has_ledger, "flash_left_today": max(0, flash_left)}
 
 
+@app.exception_handler(llm.Busy)
+def model_busy(_request, _exc):
+    return CleanJSON(
+        status_code=429,
+        content={"detail": "The model is busy with other questions. Please try again in a minute."},
+    )
+
+
 @app.exception_handler(llm.BudgetExhausted)
 def budget_exhausted(_request, _exc):
     return CleanJSON(

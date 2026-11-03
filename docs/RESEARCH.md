@@ -228,8 +228,8 @@ All three reviewers were agents given only the two challenge PDFs and the live a
 | Run, 3 Nov | Passed | Notes |
 | --- | --- | --- |
 | Live app, before fixes | 25 of 31 | refusals 5 of 5, annual report 3 of 3, figures 8 of 12 |
-| Same questions after the fixes below | 31 of 31 | context mode, the default |
-| Agent mode | 30 of 31 | HDFCBANK's net interest income: it cited the right figures, but its sentence also carried "3.2", a number in no source, so the guard removed it and nothing was left to show |
+| Same questions after the fixes below | 31 of 31 | all four transcripts in one call |
+| Live app after the fixes, questions every few seconds | 24 of 31 | 6 requests dropped: see the modes below |
 
 What the misses showed, and the fixes:
 - L&T's other income share of PBT was on the card but not in Ask's facts.
@@ -239,14 +239,20 @@ What the misses showed, and the fixes:
 
 The fixes add the missing fact, link question words to glossary terms, and tell the model to give the latest quarter when no period is named, and to quote whatever it takes from a call. Across the runs, the guard removed a sentence with an unsupported number in 4 of 31 live answers.
 
-**Context mode against agent mode.** Context mode is one call that reads all four transcripts. Agent mode lets the model look things up with four tools first (filed figures, glossary, call search, annual report search), and only what it retrieved reaches the answering call. Both pass the same checks.
+**Three ways to answer, same questions, same checks.**
+- **Context:** one call that reads all four transcripts.
+- **Pages:** one call with only the three transcript pages per call that best match the question, by the same keyword search the annual report uses.
+- **Agent:** the model first looks things up with four tools (filed figures, glossary, call search, annual report search), and only what it retrieved reaches the answering call.
 
 | Mode | Passed | Input tokens per question | Rate-limit refusals | Calls per question | Median answer |
 | --- | --- | --- | --- | --- | --- |
 | Context | 31 of 31 | 80,353 | 10 | 1 | 5.2 s |
+| Pages (default) | 30 of 31 | 18,027 | 0 | 1 | 6.0 s |
 | Agent | 30 of 31 | 8,445 | 0 | 3.1 | 12.6 s |
 
-The free tier allows 250k input tokens a minute, so context mode stalls after about three questions in a minute; that is what timed out one live question. The agent uses a tenth of the tokens and was never refused, but is slower for one reader and scored one lower. **Decision:** context mode stays the default; agent mode ships behind `FINN_ASK=agent`, for when documents or traffic outgrow one call.
+- **Why context failed live:** the free tier allows 250k input tokens a minute, so context mode stalls after about three questions. On the live app, questions a few seconds apart made Gemini ask for waits past the proxy's limit, and 6 of 31 requests were dropped. The server logged no restart and no memory kill.
+- **Decision:** pages mode is the default. It gives up one question (HAL's order inflow, where the guard withheld an answer it could not quote) for a 4.5x token cut and no refusals, so about 13 questions a minute fit instead of 3, at nearly the same speed. The agent uses the fewest tokens but takes twice as long; both other modes are one setting away (`FINN_ASK=context` or `agent`).
+- **Fail fast:** Ask now stops when the model asks it to wait more than 20 s, and the app says the model is busy, instead of the request being dropped.
 
 **Ledger eval** (`eval/ledger_labels.json`): 20 promises drawn at random (seed 2026) from the 193 in the 23 stored ledgers, each read against its quote, the later evidence and the filed numbers.
 - **Targets:** 18 of 20 right. Twice the quoted words were not management's own promise: an analyst restating guidance, and a target that is not in the quoted sentence.

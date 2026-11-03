@@ -90,8 +90,8 @@ Ledgers are built for all 17 portfolio companies that publish call transcripts (
 
 | Eval | Result |
 | --- | --- |
-| Ask: 31 questions with known answers (figures, definitions, call quotes, annual report, out of scope) | 31 of 31; refuses all 5 questions its sources cannot answer |
-| Ask in agent mode (the model looks things up with tools first) | 30 of 31, with a tenth of the input tokens (8,445 against 80,353 a question) and no rate-limit refusals, but 12.6 s against 5.2 s a median answer. The one-call mode stays the default; the agent is one setting away (`FINN_ASK=agent`) |
+| Ask: 31 questions with known answers (figures, definitions, call quotes, annual report, out of scope) | 30 of 31 in the default mode; refuses all 5 questions its sources cannot answer |
+| Ask, three designs compared | All four transcripts in one call: 31 of 31 but 80,353 tokens a question, so it stalled on the free tier's per-minute limit and dropped 6 live requests. Matching pages in one call (default): 30 of 31 at 18,027 tokens, no refusals, 6.0 s. A tool-using agent: 30 of 31 at 8,445 tokens, but 12.6 s |
 | Promise ledger: 20 promises drawn at random and read against their quotes | Targets right 18 of 20; verdicts right 16 of 20, 1 too cautious, 3 overclaimed "delivered" (prompt tightened since) |
 | Filing classifier: 30 filings held out from tuning | Category 30 of 30, priority 25 of 30 |
 

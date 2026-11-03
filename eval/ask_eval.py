@@ -19,7 +19,7 @@ import httpx
 HERE = Path(__file__).parent
 BASE = "https://finn-mu-three.vercel.app"
 SET = HERE / "ask_set.json"
-ANSWERS = HERE / "ask_answers.json"
+ANSWERS = HERE / "ask_answers_live.json"  # --run writes here; --local runs write ask_answers_<mode>.json
 
 
 def _norm(s: str) -> str:
@@ -77,7 +77,7 @@ def run(questions: list[dict]) -> list[dict]:
 def run_local(questions: list[dict], mode: str) -> list[dict]:
     from backend import db, pull
 
-    fn = pull.ask_agent if mode == "agent" else pull.ask_context
+    fn = {"agent": pull.ask_agent, "context": pull.ask_context, "pages": pull.ask_pages}[mode]
     with db.session() as c:
         start = c.execute("SELECT COALESCE(MAX(id), 0) FROM llm_calls").fetchone()[0]
     out = []
@@ -126,11 +126,11 @@ def report(questions: list[dict], answers: list[dict]) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", action="store_true", help="ask the live app and save the answers first")
-    ap.add_argument("--local", choices=["context", "agent"], help="run one Ask mode in-process instead")
+    ap.add_argument("--local", choices=["context", "agent", "pages"], help="run one Ask mode in-process instead")
     a = ap.parse_args()
     questions = json.loads(SET.read_text())["questions"]
     if a.local:
-        path = ANSWERS if a.local == "context" else HERE / "ask_answers_agent.json"
+        path = HERE / f"ask_answers_{a.local}.json"
         path.write_text(json.dumps(run_local(questions, a.local), indent=1, ensure_ascii=False) + "\n")
         report(questions, json.loads(path.read_text()))
         return
